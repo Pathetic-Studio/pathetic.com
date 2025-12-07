@@ -64,7 +64,7 @@ export default function Hero2({
   return (
     <section
       id={sectionId}
-      className={`relative overflow-visible ${heightClass}`}
+      className={`relative ${heightClass} overflow-hidden md:overflow-visible`}
     >
       {mouseTrailEnabled && (
         <MouseTrail containerId={sectionId} images={feature?.images as any} />
