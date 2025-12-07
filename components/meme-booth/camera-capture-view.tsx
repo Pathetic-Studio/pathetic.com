@@ -1,4 +1,3 @@
-// components/meme-booth/camera-capture-view.tsx
 "use client";
 
 import React from "react";
@@ -25,24 +24,17 @@ export default function CameraCaptureView({
 }: CameraCaptureViewProps) {
     const [cameraStarted, setCameraStarted] = React.useState(false);
 
-    // Try to start camera automatically; if autoplay is blocked, user can tap
-    React.useEffect(() => {
-        const video = videoRef.current;
-        if (!video || cameraStarted) return;
-
-        video
-            .play()
-            .then(() => {
-                setCameraStarted(true);
-            })
-            .catch((err) => {
-                console.warn("[CameraCaptureView] autoplay play() blocked:", err);
-            });
-    }, [videoRef, cameraStarted]);
-
     const handleStartCamera = async () => {
         const video = videoRef.current;
         if (!video) return;
+
+        // Only try to play if a stream is actually attached
+        if (!video.srcObject) {
+            console.warn(
+                "[CameraCaptureView] Tried to start camera before srcObject is set."
+            );
+            return;
+        }
 
         try {
             await video.play();
@@ -54,6 +46,7 @@ export default function CameraCaptureView({
 
     return (
         <div className="flex flex-col">
+            {/* Keep full size so mobile browsers treat it as a real video, but invisible */}
             <video
                 ref={videoRef}
                 playsInline

@@ -1,4 +1,3 @@
-// components/meme-booth/camera-panel.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -88,7 +87,7 @@ export default function CameraPanel() {
         []
     );
 
-    // CAMERA INIT (more defensive for mobile)
+    // CAMERA INIT (defensive for mobile)
     useEffect(() => {
         if (
             typeof navigator === "undefined" ||
@@ -130,12 +129,17 @@ export default function CameraPanel() {
                     video.muted = true;
 
                     try {
-                        await video.play();
+                        const playPromise = video.play();
+                        if (playPromise && typeof playPromise.then === "function") {
+                            playPromise.catch((err) => {
+                                console.warn(
+                                    "[CameraPanel] video.play() blocked:",
+                                    err
+                                );
+                            });
+                        }
                     } catch (err) {
-                        console.warn(
-                            "[CameraPanel] video.play() blocked:",
-                            err
-                        );
+                        console.warn("[CameraPanel] video.play() error:", err);
                     }
                 }
             } catch (err: any) {
@@ -168,10 +172,21 @@ export default function CameraPanel() {
                             video.playsInline = true;
                             video.muted = true;
                             try {
-                                await video.play();
+                                const playPromise = video.play();
+                                if (
+                                    playPromise &&
+                                    typeof playPromise.then === "function"
+                                ) {
+                                    playPromise.catch((err2) => {
+                                        console.warn(
+                                            "[CameraPanel] fallback video.play() blocked:",
+                                            err2
+                                        );
+                                    });
+                                }
                             } catch (err2) {
                                 console.warn(
-                                    "[CameraPanel] fallback video.play() blocked:",
+                                    "[CameraPanel] fallback video.play() error:",
                                     err2
                                 );
                             }
