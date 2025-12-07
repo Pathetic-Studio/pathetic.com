@@ -1,7 +1,7 @@
 // components/blocks/grid/grid-row-animated.tsx
 "use client";
 
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useLayoutEffect, useRef, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -32,7 +32,6 @@ const introPaddingClasses: Record<
   lg: "py-40",
 };
 
-// Local animation controls (hard-coded for now)
 const CARD_STAGGER = 0.18;
 const CARD_DURATION = 0.7;
 const HEIGHT_STAGGER_PX = 120;
@@ -51,7 +50,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
     introPadding,
     gridTitle,
 
-    // grid overrides
+    // grid overrides from Sanity
     gridPaddingTop,
     gridPaddingBottom,
     gridPaddingLeft,
@@ -63,6 +62,16 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   const color = stegaClean(colorVariant);
   const gridColsValue = stegaClean(gridColumns);
   const rootRef = useRef<HTMLDivElement | null>(null);
+
+  // Simple desktop check – used only to decide if we apply inline CMS padding
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.innerWidth >= 1024) {
+      setIsDesktop(true);
+    }
+  }, []);
 
   const gridColsClass =
     gridColsValue === "grid-cols-2"
@@ -89,12 +98,11 @@ export default function GridRowAnimated(props: GridRowAnimated) {
 
       if (!cards.length) return;
 
-      // Initial states
       gsap.set(cards, { opacity: 0, y: 40 });
       gsap.set(".caption-bubble", { opacity: 0, scale: 0.8, y: 8 });
 
       ScrollTrigger.batch(cards, {
-        start: "top 75%", // when top of card hits 75% of viewport
+        start: "top 75%",
         once: true,
         onEnter: (batch) => {
           batch.forEach((card, index) => {
@@ -133,7 +141,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
     return () => ctx.revert();
   }, []);
 
-  // Grid overrides (same pattern as grid-row)
+  // Clean CMS values
   const cleanGridPaddingTop = stegaClean(gridPaddingTop);
   const cleanGridPaddingBottom = stegaClean(gridPaddingBottom);
   const cleanGridPaddingLeft = stegaClean(gridPaddingLeft);
@@ -141,18 +149,41 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   const cleanGridRowGap = stegaClean(gridRowGap);
   const cleanGridColumnGap = stegaClean(gridColumnGap);
 
+  const hasCustomGridPadding =
+    !!cleanGridPaddingTop ||
+    !!cleanGridPaddingBottom ||
+    !!cleanGridPaddingLeft ||
+    !!cleanGridPaddingRight;
+
+  const hasCustomGridGap = !!cleanGridRowGap || !!cleanGridColumnGap;
+
   const gridStyle: CSSProperties = {};
 
-  if (cleanGridPaddingTop) gridStyle.paddingTop = cleanGridPaddingTop as string;
-  if (cleanGridPaddingBottom)
-    gridStyle.paddingBottom = cleanGridPaddingBottom as string;
-  if (cleanGridPaddingLeft)
-    gridStyle.paddingLeft = cleanGridPaddingLeft as string;
-  if (cleanGridPaddingRight)
-    gridStyle.paddingRight = cleanGridPaddingRight as string;
+  // Only apply CMS inline padding and gaps on desktop.
+  // On tablet/mobile, Tailwind paddings win and columns aren’t crushed.
+  if (isDesktop) {
+    if (cleanGridPaddingTop)
+      gridStyle.paddingTop = cleanGridPaddingTop as string;
+    if (cleanGridPaddingBottom)
+      gridStyle.paddingBottom = cleanGridPaddingBottom as string;
+    if (cleanGridPaddingLeft)
+      gridStyle.paddingLeft = cleanGridPaddingLeft as string;
+    if (cleanGridPaddingRight)
+      gridStyle.paddingRight = cleanGridPaddingRight as string;
 
-  if (cleanGridRowGap) gridStyle.rowGap = cleanGridRowGap as string;
-  if (cleanGridColumnGap) gridStyle.columnGap = cleanGridColumnGap as string;
+    if (cleanGridRowGap) gridStyle.rowGap = cleanGridRowGap as string;
+    if (cleanGridColumnGap)
+      gridStyle.columnGap = cleanGridColumnGap as string;
+  }
+
+  // Base grid padding:
+  // - Mobile/tablet: always use this.
+  // - Desktop: if custom padding/gap exists, drop Tailwind padding at lg and
+  //   let inline desktop padding handle it.
+  const baseGridPaddingClasses =
+    hasCustomGridPadding || hasCustomGridGap
+      ? "px-4 py-6 sm:px-6 sm:py-8 lg:px-0 lg:py-0"
+      : "px-4 py-8 sm:px-8 sm:py-10 lg:p-12";
 
   return (
     <section
@@ -185,21 +216,25 @@ export default function GridRowAnimated(props: GridRowAnimated) {
 
               {links && links.length > 0 && (
                 <div className="mt-8 flex flex-wrap gap-4 justify-center">
-                  {links.map((link) => (
-                    <Button
-                      key={link._key || link.title}
-                      variant={stegaClean(link?.buttonVariant)}
-                      asChild
-                    >
-                      <Link
-                        href={link.href || "#"}
-                        target={link.target ? "_blank" : undefined}
-                        rel={link.target ? "noopener" : undefined}
+                  {links.map(
+                    (
+                      link: NonNullable<GridRowAnimated["links"]>[number],
+                    ) => (
+                      <Button
+                        key={link._key || link.title}
+                        variant={stegaClean(link?.buttonVariant)}
+                        asChild
                       >
-                        {link.title}
-                      </Link>
-                    </Button>
-                  ))}
+                        <Link
+                          href={link.href || "#"}
+                          target={link.target ? "_blank" : undefined}
+                          rel={link.target ? "noopener" : undefined}
+                        >
+                          {link.title}
+                        </Link>
+                      </Button>
+                    ),
+                  )}
                 </div>
               )}
             </div>
@@ -221,17 +256,52 @@ export default function GridRowAnimated(props: GridRowAnimated) {
           {columns && columns.length > 0 && (
             <div
               className={cn(
-                "grid grid-cols-1 gap-6 relative z-10 p-12",
+                "grid grid-cols-1 gap-6 relative z-10",
+                baseGridPaddingClasses,
                 gridColsClass,
               )}
               style={gridStyle}
             >
-              {columns.map((column, index) => {
-                const offsetStyle: CSSProperties = {
-                  marginTop: `${index * HEIGHT_STAGGER_PX}px`,
-                };
+              {columns.map(
+                (
+                  column: NonNullable<GridRowAnimated["columns"]>[number],
+                  index: number,
+                ) => {
+                  const offsetStyle: CSSProperties = {
+                    marginTop: `${index * HEIGHT_STAGGER_PX}px`,
+                  };
 
-                if (column._type === "grid-card") {
+                  if (column._type === "grid-card") {
+                    return (
+                      <div
+                        key={column._key}
+                        className="relative"
+                        style={offsetStyle}
+                      >
+                        <div className="animated-card relative">
+                          <GridCard {...(column as any)} color={color} />
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (column._type === "grid-card-animated") {
+                    return (
+                      <div
+                        key={column._key}
+                        className="relative"
+                        style={offsetStyle}
+                      >
+                        <div className="animated-card relative">
+                          <GridCardAnimated
+                            {...(column as any)}
+                            color={color}
+                          />
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={column._key}
@@ -239,41 +309,12 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                       style={offsetStyle}
                     >
                       <div className="animated-card relative">
-                        <GridCard {...(column as any)} color={color} />
+                        <div data-type={column._type} />
                       </div>
                     </div>
                   );
-                }
-
-                if (column._type === "grid-card-animated") {
-                  return (
-                    <div
-                      key={column._key}
-                      className="relative"
-                      style={offsetStyle}
-                    >
-                      <div className="animated-card relative">
-                        <GridCardAnimated
-                          {...(column as any)}
-                          color={color}
-                        />
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={column._key}
-                    className="relative"
-                    style={offsetStyle}
-                  >
-                    <div className="animated-card relative">
-                      <div data-type={column._type} />
-                    </div>
-                  </div>
-                );
-              })}
+                },
+              )}
             </div>
           )}
         </div>

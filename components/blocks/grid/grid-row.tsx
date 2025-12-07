@@ -368,7 +368,7 @@ export default function GridRow({
                   !introHasContent && "pt-12",
                 )}
               >
-                <h3 className="text-4xl font-sans font-semibold uppercase max-w-1/3">
+                <h3 className="text-2xl lg:text-4xl font-sans font-semibold uppercase max-w-[28ch] lg:max-w-[34ch]">
                   {gridTitle}
                 </h3>
               </div>

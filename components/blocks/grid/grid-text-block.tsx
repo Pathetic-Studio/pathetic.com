@@ -96,14 +96,14 @@ function CardContent({
 
         {titlePortable && (
           <div className="flex justify-between uppercase items-center">
-            <div className="font-bold text-center text-2xl w-full [&_h1]:text-6xl [&_h1]:pb-0 [&_h2]:m-0! [&_h3]:pb-0 [&_h3]:m-0! [&_h2]:scale-x-65">
+            <div className="font-bold text-center text-2xl w-full  [&_h1]:pb-0 [&_h2]:m-0! [&_h3]:pb-0 [&_h3]:m-0! [&_h2]:scale-x-65">
               <PortableTextRenderer value={titlePortable} />
             </div>
           </div>
         )}
 
         {bodyPortable && (
-          <div className="text-base w-full text-center [&_h1]:uppercase [&_h3]:text-4xl [&_h3]:uppercase [&_h3]:font-semibold [&_h4]:m-0!">
+          <div className="text-base w-full text-center [&_h1]:uppercase  [&_h3]:uppercase [&_h3]:font-semibold [&_h4]:m-0!">
             <PortableTextRenderer value={bodyPortable} />
           </div>
         )}
@@ -174,7 +174,7 @@ export default function GridTextBlock({
     <div className={cn("relative w-full", scaleHover)}>
       <div
         className={cn(
-          "relative flex w-full flex-col justify-between py-14 px-26 transition-colors duration-200 ease-in-out",
+          "relative flex w-full flex-col justify-between py-4 lg:py-14  px-6 lg:px-26 transition-colors duration-200 ease-in-out",
           "bg-background text-primary",
           bgHover,
           textHover,
@@ -217,7 +217,7 @@ export default function GridTextBlock({
       {/* Foreground content */}
       <div
         className={cn(
-          "relative flex w-full flex-col justify-between py-14 px-26 transition-colors duration-200 ease-in-out",
+          "relative flex w-full flex-col justify-between py-14  px-26 transition-colors duration-200 ease-in-out",
           "text-primary",
           textHover,
         )}

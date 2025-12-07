@@ -39,7 +39,7 @@ export default function ObjectDetectImage({
     // Default: no custom dimensions -> flex item with min height
     !hasCustomWidth && !hasCustomHeight && "flex-1 min-h-[450px]",
     // Custom height only -> shrink-to-fit box
-    hasCustomHeight && !hasCustomWidth && "inline-block"
+    hasCustomHeight && !hasCustomWidth && "inline-block",
   );
 
   const wrapperStyle: CSSProperties = {
@@ -71,7 +71,7 @@ export default function ObjectDetectImage({
     // Both: fill wrapper
     hasCustomWidth && hasCustomHeight && "h-full w-full",
     // None: normal responsive full width
-    !hasCustomWidth && !hasCustomHeight && "h-auto w-full"
+    !hasCustomWidth && !hasCustomHeight && "h-auto w-full",
   );
 
   // PLAIN TEXT FOR BODY
@@ -94,13 +94,25 @@ export default function ObjectDetectImage({
     }
   }, [body]);
 
-  // HOVER / TYPE ANIM
+  // HOVER / TYPE ANIM + MOBILE IN-VIEW ANIM
 
   const bodyOverlayRef = useRef<HTMLDivElement | null>(null);
   const bodyTextRef = useRef<HTMLSpanElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   const progressRef = useRef<{ p: number }>({ p: 0 });
   const tweenRef = useRef<gsap.core.Tween | null>(null);
+  const isMobileRef = useRef(false);
+  const hasAnimatedInRef = useRef(false);
 
+  // Detect mobile once on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      isMobileRef.current = window.innerWidth < 768;
+    }
+  }, []);
+
+  // Initial overlay state
   useEffect(() => {
     const overlay = bodyOverlayRef.current;
     if (!overlay) return;
@@ -151,6 +163,9 @@ export default function ObjectDetectImage({
   };
 
   const handleMouseEnter = () => {
+    // No hover behaviour on mobile; mobile uses in-view animation instead
+    if (isMobileRef.current) return;
+
     const overlay = bodyOverlayRef.current;
     if (overlay && bodyPlainText) {
       gsap.to(overlay, {
@@ -164,6 +179,8 @@ export default function ObjectDetectImage({
   };
 
   const handleMouseLeave = () => {
+    if (isMobileRef.current) return;
+
     const overlay = bodyOverlayRef.current;
     if (overlay && bodyPlainText) {
       gsap.to(overlay, {
@@ -176,9 +193,54 @@ export default function ObjectDetectImage({
     }
   };
 
+  // MOBILE: animate in when in view
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!bodyPlainText) return;
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    if (!("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (
+            entry.isIntersecting &&
+            isMobileRef.current &&
+            !hasAnimatedInRef.current
+          ) {
+            hasAnimatedInRef.current = true;
+            const overlay = bodyOverlayRef.current;
+            if (overlay) {
+              gsap.to(overlay, {
+                scale: 1,
+                autoAlpha: 1,
+                duration: 0.25,
+                ease: "power2.out",
+              });
+            }
+            runTypeAnimation("in");
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        threshold: 0.4,
+      },
+    );
+
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [bodyPlainText]);
+
   return (
-    <div className="flex h-full">
-      {/* Interactive column: only this area (image + title + body + link) triggers hover */}
+    <div className="flex h-full" ref={containerRef}>
+      {/* Interactive column: only this area (image + title + body + link) triggers hover on desktop */}
       <div
         className="inline-flex flex-col items-start"
         onMouseEnter={handleMouseEnter}
@@ -212,8 +274,8 @@ export default function ObjectDetectImage({
           />
         </div>
 
-        {/* Title + body; title width = text width, no gap to body */}
-        <div className="-mt-[2px] flex flex-col items-start">
+        {/* Title + body */}
+        <div className="-mt-[2px] flex flex-col items-start max-w-full">
           {title && (
             <div
               className="inline-flex px-3 py-1 text-base font-semibold uppercase tracking-tight"
@@ -231,7 +293,13 @@ export default function ObjectDetectImage({
           )}
 
           {body && bodyPlainText && (
-            <div className="relative inline-block text-sm leading-relaxed">
+            <div
+              className={cn(
+                "relative inline-block text-sm leading-relaxed",
+                // Narrower body box on mobile; fall back to auto on large
+                "w-[80vw] max-w-xs sm:max-w-sm md:max-w-md lg:w-auto",
+              )}
+            >
               {/* Ghost: reserves space, invisible but in flow */}
               <div className="px-3 py-2 invisible whitespace-pre-wrap">
                 {bodyPlainText}
