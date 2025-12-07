@@ -1,3 +1,4 @@
+// components/meme-booth/camera-panel.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -19,7 +20,7 @@ import StarterPackResultView from "@/components/meme-booth/starter-pack-result-v
 
 const USE_SPRITE_MODE = true as const;
 const USE_YOLO_SPLITTER = true as const;
-const ACTIVE_MAX_HEIGHT = 480; // px – cap active space height
+// We no longer hard-cap the active space height; just cap the canvas.
 
 function UploadedImagePreview({ blob }: { blob: Blob }) {
     const [url, setUrl] = React.useState<string | null>(null);
@@ -269,7 +270,7 @@ export default function CameraPanel() {
             } catch (e: any) {
                 console.error("[CameraPanel] Segmenter init failed", e);
                 setError(e?.message || "Segmenter init failed");
-                // We *do not* block the camera if this fails; user still gets plain video.
+                // camera continues without segmentation
             }
         })();
 
@@ -538,7 +539,8 @@ export default function CameraPanel() {
                 </p>
             </div>
 
-            <div className="relative overflow-hidden border border-border bg-background/90 px-4 py-5">
+            {/* remove overflow-hidden so inner content can grow and scroll */}
+            <div className="relative border border-border bg-background/90 px-4 py-5">
                 {error && (
                     <p className="mb-2 text-xs text-red-600">
                         {error}
@@ -554,11 +556,10 @@ export default function CameraPanel() {
                 {/* MODE TOGGLE */}
                 <ModeToggle mode={mode} onChange={switchMode} />
 
-                {/* ACTIVE SPACE */}
+                {/* ACTIVE SPACE – no max-height here */}
                 <div
                     ref={activeSpaceRef}
-                    className="relative w-full max-h-[480px]"
-                    style={{ maxHeight: ACTIVE_MAX_HEIGHT }}
+                    className="relative w-full"
                 >
                     <div
                         className="pointer-events-none absolute inset-0 bg-background/80 opacity-0"
