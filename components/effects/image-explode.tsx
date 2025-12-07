@@ -195,7 +195,7 @@ export default function ImageExplode({
     containerId,
     desktopSize = DEFAULT_IMAGE_SIZE,
     tabletSize = DEFAULT_IMAGE_SIZE * 0.75,
-    mobileSize = DEFAULT_IMAGE_SIZE * 0.25,
+    mobileSize = DEFAULT_IMAGE_SIZE * 0.5,
 }: ImageExplodeProps) {
     const [renderItems, setRenderItems] = useState<RenderItem[]>([]);
 
