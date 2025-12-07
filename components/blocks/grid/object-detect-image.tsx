@@ -296,7 +296,7 @@ export default function ObjectDetectImage({
               className={cn(
                 "relative inline-block text-sm leading-relaxed",
                 // narrower on mobile, capped
-                "w-[50vw] max-w-xs sm:w-[60vw] sm:max-w-sm md:w-[50vw] md:max-w-md lg:w-auto",
+                "w-full max-w-xs sm:w-[60vw] sm:max-w-sm md:w-[50vw] md:max-w-md lg:w-auto",
               )}
             >
               <div className="px-3 py-2 invisible whitespace-pre-wrap">

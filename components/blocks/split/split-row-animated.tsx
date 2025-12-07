@@ -48,7 +48,7 @@ const introPaddingClasses: Record<
   lg: "pt-20",
 };
 
-// When the animated image starts fading in
+// Fallback image fade start
 const IMAGE_FADE_START = "top 75%";
 
 // When the type-on text should start animating
@@ -69,7 +69,9 @@ export default function SplitRowAnimated({
   stickyIntro,
 }: SplitRowAnimated) {
   const color = stegaClean(colorVariant);
-  const [activeIndex, setActiveIndex] = useState(0);
+
+  // 0 = base, 1 = image scaled in, 2 = effect 1 on, 3 = effect 2 on
+  const [imageStage, setImageStage] = useState(0);
 
   const introHasContent =
     !!tagLine || !!title || !!body || (links && links.length > 0);
@@ -79,138 +81,156 @@ export default function SplitRowAnimated({
     (introPadding || "md") as keyof typeof introPaddingClasses
     ];
 
-  const hasAnimatedCards =
-    splitColumns?.some(
-      (column) =>
-        column._type === "split-cards-list-animated" &&
-        (column as any).animateInRight,
-    ) ?? false;
-
-  const hasAnimatedImageLayers =
-    splitColumns?.some(
-      (column) =>
-        column._type === "split-image-animate" &&
-        (column as any).useCustomEffect,
-    ) ?? false;
-
-  // REFS FOR GSAP PIN + STAGGER
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const headerRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLDivElement | null>(null);
   const cardsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!sectionRef.current) return;
 
-    const isDesktop =
-      typeof window !== "undefined" ? window.innerWidth >= 1024 : false; // Tailwind lg breakpoint
-
     const ctx = gsap.context(() => {
+      const imageEl = imageRef.current;
       const cardsEls = cardsRef.current
         ? Array.from(
           cardsRef.current.querySelectorAll<HTMLElement>("[data-card-item]"),
         )
         : [];
 
-      // IMAGE FADE-IN (for all viewports)
-      if (imageRef.current) {
+      const isDesktop =
+        typeof window !== "undefined" ? window.innerWidth >= 1024 : true;
+
+      const hasAnimatedCards =
+        splitColumns?.some(
+          (column) =>
+            column._type === "split-cards-list-animated" &&
+            (column as any).animateInRight,
+        ) ?? false;
+
+      // Desktop only gets diagonal; mobile/tablet = straight stack with gap
+      const animateDiagonal = isDesktop && hasAnimatedCards;
+
+      // Trigger position:
+      // - Desktop: top of card hits vertical center ("top center")
+      // - Mobile: top of card hits 10% from bottom -> "top 90%"
+      const cardStart = isDesktop ? "top center" : "top 90%";
+
+      // IMAGE: animate when its top hits vertical center (same on all viewports for now)
+      if (imageEl) {
         gsap.fromTo(
-          imageRef.current,
-          {
-            autoAlpha: 0,
-            y: 40,
-          },
+          imageEl,
+          { autoAlpha: 0, y: 40, scale: 0.9 },
           {
             autoAlpha: 1,
             y: 0,
+            scale: 1,
             duration: 0.8,
             ease: "power3.out",
             scrollTrigger: {
-              trigger: imageRef.current,
-              start: IMAGE_FADE_START,
-              once: true,
+              trigger: imageEl,
+              start: "top center",
+              toggleActions: "play none none none",
+              onEnter: () => {
+                // ensure stage at least 1 when image animates
+                setImageStage((prev) => Math.max(prev, 1));
+              },
             },
           },
         );
       }
 
-      // On mobile/tablet: no pinned timeline, cards just stack.
-      if (!isDesktop) {
+      if (!cardsEls.length) {
+        // fallback image fade if no cards
+        if (imageEl) {
+          gsap.fromTo(
+            imageEl,
+            { autoAlpha: 0, y: 40 },
+            {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.8,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: imageEl,
+                start: IMAGE_FADE_START,
+                once: true,
+              },
+            },
+          );
+        }
         return;
       }
 
-      // DESKTOP-ONLY PINNED TIMELINE
-      if (!headerRef.current && !imageRef.current && cardsEls.length === 0) {
-        return;
-      }
+      // CARDS: each card animates when its own top hits the chosen start
+      cardsEls.forEach((el, index) => {
+        const xOffset = animateDiagonal ? 32 * index : 0;
+        const yOffset = animateDiagonal ? -24 * index : 0;
 
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: "+=200%",
-          pin: true,
-          scrub: true,
-          anticipatePin: 1,
-        },
-      });
-
-      // CARDS – scrubbed with scroll, diagonal stagger via transforms (desktop only)
-      if (cardsEls.length) {
-        if (hasAnimatedCards) {
-          cardsEls.forEach((el, index) => {
-            const xOffset = 32 * index; // diagonal to the right
-            const yOffset = -24 * index; // step up each card
-
-            gsap.set(el, {
+        if (animateDiagonal) {
+          // Desktop diagonal layout: final position is offset in both x and y
+          gsap.fromTo(
+            el,
+            {
               x: xOffset + 120,
               y: yOffset,
               autoAlpha: 0,
               zIndex: 10 + index,
-            });
-
-            tl.to(
-              el,
-              {
-                x: xOffset,
-                autoAlpha: 1,
-                duration: 0.7,
-                ease: "power3.out",
-              },
-              index === 0 ? "-=0.1" : ">-=0.15",
-            );
-
-            if (hasAnimatedImageLayers) {
-              tl.call(() => {
-                setActiveIndex(index);
-              });
-            }
-          });
-        } else {
-          // Simple stagger in from the right when not using the diagonal layout
-          tl.from(
-            cardsEls,
-            {
-              x: 80,
-              duration: 0.5,
-              ease: "power3.out",
-              stagger: 0.12,
             },
-            "-=0.3",
+            {
+              x: xOffset,
+              y: yOffset,
+              autoAlpha: 1,
+              duration: 0.6,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: el,
+                start: cardStart,
+                toggleActions: "play none none none",
+                onEnter: () => {
+                  // tie image effects to which card just entered
+                  setImageStage((prev) => {
+                    if (index === 0) return Math.max(prev, 1); // first card
+                    if (index === 1) return Math.max(prev, 2); // second card => Effect 1
+                    if (index === 2) return Math.max(prev, 3); // third card => Effect 2
+                    return prev;
+                  });
+                },
+              },
+            },
           );
+        } else {
+          // Mobile/tablet: no diagonal, just straight stack with gap from CSS
+          gsap.from(el, {
+            x: 80,
+            y: 0,
+            autoAlpha: 0,
+            duration: 0.6,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: el,
+              start: cardStart, // on mobile: "top 90%" (10% from bottom)
+              toggleActions: "play none none none",
+              onEnter: () => {
+                setImageStage((prev) => {
+                  if (index === 0) return Math.max(prev, 1);
+                  if (index === 1) return Math.max(prev, 2);
+                  if (index === 2) return Math.max(prev, 3);
+                  return prev;
+                });
+              },
+            },
+          });
         }
-      }
+      });
     }, sectionRef);
 
     return () => ctx.revert();
-  }, [hasAnimatedCards, hasAnimatedImageLayers]);
+  }, [splitColumns]);
 
   return (
     <SectionContainer color={color} padding={padding}>
       <div ref={sectionRef} className="relative bg-background overflow-visible">
         {introHasContent && (
           <div
-            ref={headerRef}
             className={cn(
               "text-center pt-8 lg:pt-20 pb-10",
               introPaddingClass,
@@ -289,8 +309,6 @@ export default function SplitRowAnimated({
                     <SplitCardsListAnimated
                       {...(column as any)}
                       color={color}
-                      activeIndex={activeIndex}
-                      onActiveIndexChange={setActiveIndex}
                     />
                   </div>
                 );
@@ -301,11 +319,11 @@ export default function SplitRowAnimated({
                   <div
                     key={column._key}
                     ref={imageRef}
-                    className="self-start overflow-visible order-1 lg:order-2 mb-10 lg:mb-0"
+                    className="self-start overflow-visible order-1 lg:order-1 mb-10 lg:mb-0"
                   >
                     <SplitImageAnimate
                       {...(column as any)}
-                      activeIndex={activeIndex}
+                      imageStage={imageStage}
                     />
                   </div>
                 );

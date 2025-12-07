@@ -262,7 +262,7 @@ export default function GridRow({
                     <div className={cn("h-full w-full", isInset && "p-8")}>
                       <div
                         className={cn(
-                          "h-full w-full overflow-hidden border border-border",
+                          "h-full w-full overflow-x-hidden border border-border",
                           insetBackground?.border === false && "border-none",
                         )}
                         style={style}
@@ -307,7 +307,7 @@ export default function GridRow({
 
           {/* Mouse trail ABOVE bg overlay, BELOW content */}
           {mouseTrailEnabled && (
-            <div className="pointer-events-none absolute inset-0 z-10 overflow-x-hidden">
+            <div className="pointer-events-none absolute inset-0 z-10 ">
               <MouseTrail
                 containerId={sectionId}
                 images={feature?.images as any}

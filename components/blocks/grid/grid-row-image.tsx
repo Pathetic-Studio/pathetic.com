@@ -331,7 +331,7 @@ export default function GridRowImage({
               <div className={cn(
                 useHorizontalTrack
                   ?
-                  " pb-16"
+                  "lg:container pb-16"
                   :
                   "container pb-16"
               )} >
@@ -339,7 +339,7 @@ export default function GridRowImage({
                   className={cn(
                     useHorizontalTrack
                       ? // Horizontal track on mobile: left padding, reduced width, bigger gap
-                      "flex overflow-x-auto snap-x snap-mandatory pb-4 gap-8 sm:gap-10 md:gap-12 pl-26 sm:pl-12 md:pl-16 pr-8 sm:pr-10 md:pr-12 lg:pl-0 lg:pr-0 lg:overflow-visible lg:snap-none"
+                      "flex overflow-x-auto snap-x snap-mandatory pb-4 gap-14 sm:gap-12 md:gap-12 pl-20 sm:pl-12 md:pl-16 pr-8 sm:pr-10 md:pr-12 lg:pl-0 lg:pr-0 lg:overflow-visible lg:snap-none"
                       : // Default stacked grid on mobile
                       "grid grid-cols-1 gap-6",
                     getGridColsClass(resolvedGridType),
@@ -368,7 +368,7 @@ export default function GridRowImage({
                           layoutClasses,
                           useHorizontalTrack &&
                           // narrower cells on mobile track
-                          "snap-center shrink-0 w-[70%] sm:w-[60%] md:w-[50%] lg:w-auto",
+                          "snap-center shrink-0 w-[80%] md:w-[50%] lg:w-auto",
                         )}
                       >
                         <Component {...(item as any)} />

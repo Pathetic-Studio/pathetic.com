@@ -18,7 +18,6 @@ type SplitCardItem = NonNullable<
 
 interface SplitCardsItemAnimatedProps extends SplitCardItem {
   color?: ColorVariant;
-  isActive?: boolean;
 }
 
 export default function SplitCardsItemAnimated({
@@ -26,49 +25,33 @@ export default function SplitCardsItemAnimated({
   tagLine,
   title,
   body,
-  isActive = false,
 }: SplitCardsItemAnimatedProps) {
   const isPrimary = color === "primary";
 
   return (
     <div
       className={cn(
-        "flex flex-col items-start border border-primary px-6 lg:px-8 py-6 lg:py-8 transition-colors duration-700 ease-out",
-        isActive ? "bg-foreground/100" : "bg-background",
-        isPrimary ? "text-background" : undefined,
+        "group flex flex-col items-start border px-6 lg:px-8 py-6 lg:py-8 transition-colors duration-700 ease-out cursor-pointer",
+        "bg-background text-foreground",
+        isPrimary ? "border-primary" : "border-foreground/40",
+        // Hover = old “active” look
+        "group-hover:bg-foreground group-hover:text-background",
       )}
     >
       {tagLine && (
-        <div
-          className={cn(
-            "font-bold text-2xl lg:text-3xl transition-colors duration-700 ease-out",
-            isActive ? "text-background" : "text-foreground",
-            isPrimary ? "text-background" : undefined,
-          )}
-        >
+        <div className="font-bold text-2xl lg:text-3xl transition-colors duration-700 ease-out">
           {tagLine}
         </div>
       )}
 
       {title && (
-        <div
-          className={cn(
-            "my-2 font-semibold text-2xl uppercase transition-colors duration-700 ease-out",
-            isActive ? "text-background" : "text-foreground",
-            isPrimary ? "text-background" : undefined,
-          )}
-        >
+        <div className="my-2 font-semibold text-2xl uppercase transition-colors duration-700 ease-out">
           {title}
         </div>
       )}
 
       {body && (
-        <div
-          className={cn(
-            "transition-colors duration-700 ease-out",
-            isActive ? "text-background" : "text-foreground",
-          )}
-        >
+        <div className="transition-colors duration-700 ease-out">
           <PortableTextRenderer value={body} />
         </div>
       )}
