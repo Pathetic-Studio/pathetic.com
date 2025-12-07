@@ -3350,6 +3350,13 @@
           },
           "optional": true
         },
+        "mobileHorizontalTrack": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
         "rowGap": {
           "type": "objectAttribute",
           "value": {

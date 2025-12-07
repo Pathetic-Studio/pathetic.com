@@ -40,6 +40,7 @@ export const gridRowImageQuery = groq`
 
     gridType,
     gridColumns,
+    mobileHorizontalTrack,
 
     // custom gaps from Sanity, any CSS length
     rowGap,

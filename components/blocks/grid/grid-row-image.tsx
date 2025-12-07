@@ -23,9 +23,7 @@ import ImageCard from "./image-card";
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRowImageBlock = Extract<Block, { _type: "grid-row-image" }>;
 type Item = NonNullable<NonNullable<GridRowImageBlock["items"]>[number]>;
-type LinkItem = NonNullable<
-  NonNullable<GridRowImageBlock["links"]>[number]
->;
+type LinkItem = NonNullable<NonNullable<GridRowImageBlock["links"]>[number]>;
 
 const introPaddingClasses: Record<
   NonNullable<GridRowImageBlock["introPadding"]>,
@@ -66,11 +64,11 @@ const componentMap: {
 };
 
 function getGridColsClass(gridType: GridRowImageBlock["gridType"]) {
-  if (gridType === "2") return "lg:grid-cols-2";
-  if (gridType === "3") return "lg:grid-cols-3";
-  if (gridType === "4") return "lg:grid-cols-4";
+  if (gridType === "2") return "lg:grid lg:grid-cols-2";
+  if (gridType === "3") return "lg:grid lg:grid-cols-3";
+  if (gridType === "4") return "lg:grid lg:grid-cols-4";
   // custom uses 4-column grid as a base
-  return "lg:grid-cols-4 auto-rows-[minmax(8rem,_auto)]";
+  return "lg:grid lg:grid-cols-4 auto-rows-[minmax(8rem,_auto)]";
 }
 
 function getItemLayoutClasses(
@@ -200,6 +198,7 @@ export default function GridRowImage({
 
   rowGap,
   columnGap,
+  mobileHorizontalTrack,
 }: GridRowImageBlock) {
   const color = stegaClean(colorVariant);
   const resolvedGridType = (gridType || "3") as GridRowImageBlock["gridType"];
@@ -222,12 +221,13 @@ export default function GridRowImage({
 
   const gridStyle: CSSProperties = {};
   if (rowGap) {
-    // e.g. "24px", "1.5rem", "clamp(1rem, 2vw, 2rem)"
     gridStyle.rowGap = rowGap;
   }
   if (columnGap) {
     gridStyle.columnGap = columnGap;
   }
+
+  const useHorizontalTrack = !!mobileHorizontalTrack;
 
   return (
     <section id={sectionId} className="relative overflow-visible">
@@ -339,15 +339,19 @@ export default function GridRowImage({
               </div>
             )}
 
-            {/* Grid */}
+            {/* Grid / Horizontal track */}
             {items && items.length > 0 && (
               <div className="container pb-16">
                 <div
                   className={cn(
-                    "grid grid-cols-1 gap-6", // base default gap
+                    useHorizontalTrack
+                      ? // Mobile/tablet: horizontal scroll track
+                      "flex gap-6 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 lg:overflow-visible lg:snap-none"
+                      : // Default: normal stacked grid on mobile
+                      "grid grid-cols-1 gap-6",
                     getGridColsClass(resolvedGridType),
                   )}
-                  style={gridStyle} // custom row/column gap from Sanity
+                  style={gridStyle}
                 >
                   {items.map((item: Item) => {
                     const Component = componentMap[item._type];
@@ -366,7 +370,12 @@ export default function GridRowImage({
                     return (
                       <div
                         key={item._key}
-                        className={cn("relative", layoutClasses)}
+                        className={cn(
+                          "relative",
+                          layoutClasses,
+                          useHorizontalTrack &&
+                          "snap-center shrink-0 w-[80%] sm:w-[65%] md:w-[55%] lg:w-auto",
+                        )}
                       >
                         <Component {...(item as any)} />
                       </div>

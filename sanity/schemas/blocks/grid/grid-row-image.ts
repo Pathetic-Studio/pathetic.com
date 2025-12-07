@@ -97,6 +97,16 @@ export default defineType({
       },
     }),
 
+    // Horizontal track toggle for mobile
+    defineField({
+      name: "mobileHorizontalTrack",
+      title: "Horizontal track on mobile",
+      type: "boolean",
+      description:
+        "If enabled, items will form a horizontal scrolling track on small screens. Desktop remains a normal grid.",
+      initialValue: false,
+    }),
+
     // Custom CSS gaps
     defineField({
       name: "rowGap",
@@ -125,10 +135,7 @@ export default defineType({
       name: "items",
       title: "Items",
       type: "array",
-      of: [
-        { type: "object-detect-image" },
-        { type: "image-card" },
-      ],
+      of: [{ type: "object-detect-image" }, { type: "image-card" }],
       options: {
         insertMenu: {
           views: [
