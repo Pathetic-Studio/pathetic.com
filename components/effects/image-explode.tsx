@@ -366,12 +366,7 @@ export default function ImageExplode({
                         Body.applyForce(body, body.position, force);
                     }
 
-                    const randomAngle = Math.random() * Math.PI * 2;
-                    const jitter = {
-                        x: Math.cos(randomAngle) * TURBULENCE_FORCE,
-                        y: Math.sin(randomAngle) * TURBULENCE_FORCE,
-                    };
-                    Body.applyForce(body, body.position, jitter);
+
                 });
 
                 Engine.update(engine, 1000 / 60);
