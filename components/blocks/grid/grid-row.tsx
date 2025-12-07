@@ -307,13 +307,14 @@ export default function GridRow({
 
           {/* Mouse trail ABOVE bg overlay, BELOW content */}
           {mouseTrailEnabled && (
-            <div className="pointer-events-none absolute inset-0 z-10">
+            <div className="pointer-events-none absolute inset-0 z-10 overflow-x-hidden">
               <MouseTrail
                 containerId={sectionId}
                 images={feature?.images as any}
               />
             </div>
           )}
+
 
           {/* All actual content above bg + mouse trail */}
           <div className="relative z-20">
