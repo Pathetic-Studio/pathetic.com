@@ -1,3 +1,4 @@
+//app/(main)/page.tsx
 import Blocks from "@/components/blocks";
 import { fetchSanityPageBySlug } from "@/sanity/lib/fetch";
 import { generatePageMetadata } from "@/sanity/lib/metadata";

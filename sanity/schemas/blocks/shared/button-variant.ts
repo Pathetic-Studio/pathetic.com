@@ -5,8 +5,9 @@ export const BUTTON_VARIANTS = [
   { title: "Destructive", value: "destructive" },
   { title: "Outline", value: "outline" },
   { title: "Secondary", value: "secondary" },
-  { title: "Ghost", value: "ghost" },
+  { title: "Underline", value: "underline" },
   { title: "Link", value: "link" },
+  { title: "Menu", value: "menu" },
 ];
 
 export const buttonVariant = defineType({

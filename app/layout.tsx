@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter as FontSans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -27,10 +27,31 @@ export const metadata: Metadata = {
   robots: !isProduction ? "noindex, nofollow" : "index, follow",
 };
 
-const fontSans = FontSans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const arialNarrow = localFont({
+  src: [
+    {
+      path: "../public/fonts/Arial Narrow.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Arial Narrow Italic.woff2",
+      weight: "400",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Arial Narrow Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Arial Narrow Bold Italic.woff2",
+      weight: "700",
+      style: "italic",
+    },
+  ],
   variable: "--font-sans",
+  display: "swap",
 });
 
 export default function RootLayout({
@@ -44,7 +65,7 @@ export default function RootLayout({
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased overscroll-none",
-          fontSans.variable
+          arialNarrow.variable
         )}
       >
         <ThemeProvider

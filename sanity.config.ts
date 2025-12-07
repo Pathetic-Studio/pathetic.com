@@ -16,6 +16,7 @@ import { resolve } from "@/sanity/presentation/resolve";
 import { structure } from "./sanity/structure";
 import { codeInput } from "@sanity/code-input";
 
+
 // Define the actions that should be available for singleton documents
 const singletonActions = new Set([
   "publish",

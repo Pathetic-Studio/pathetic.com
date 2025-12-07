@@ -1,3 +1,4 @@
+// sanity/schemas/blocks/grid/grid-card.ts
 import { defineField, defineType } from "sanity";
 import { LayoutGrid } from "lucide-react";
 
@@ -28,6 +29,13 @@ export default defineType({
     defineField({
       name: "link",
       type: "link",
+    }),
+    // NEW: floating caption text for animated variant
+    defineField({
+      name: "caption",
+      title: "Floating caption",
+      type: "string",
+      description: "Optional small caption that appears on the card image.",
     }),
   ],
   preview: {

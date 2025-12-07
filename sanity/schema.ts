@@ -8,7 +8,6 @@ import faq from "./schemas/documents/faq";
 import testimonial from "./schemas/documents/testimonial";
 import navigation from "./schemas/documents/navigation";
 import settings from "./schemas/documents/settings";
-
 // Schema UI shared objects
 import blockContent from "./schemas/blocks/shared/block-content";
 import link from "./schemas/blocks/shared/link";
@@ -39,6 +38,20 @@ import logoCloud1 from "./schemas/blocks/logo-cloud/logo-cloud-1";
 import faqs from "./schemas/blocks/faqs";
 import newsletter from "./schemas/blocks/forms/newsletter";
 import allPosts from "./schemas/blocks/all-posts";
+import heroFeature from "./schemas/blocks/shared/hero-feature";
+import splitImageAnimate from "./schemas/blocks/split/split-image-animate";
+import sectionSpacer from "./schemas/blocks/section-spacer";
+import gridTextBlock from "./schemas/blocks/grid/grid-text-block";
+import gridRowImage from "./schemas/blocks/grid/grid-row-image";
+import objectDetectImage from "./schemas/blocks/grid/object-detect-image";
+import imageCard from "./schemas/blocks/grid/image-card";
+import insetBackground from "./schemas/blocks/shared/inset-background";
+import gridRowAnimated from "./schemas/blocks/grid/grid-row-animated";
+import splitRowAnimated from "./schemas/blocks/split/split-row-animated";
+import splitCardsListAnimated from "./schemas/blocks/split/split-cards-list-animated";
+import gridCardAnimated from "./schemas/blocks/grid/grid-card-animated";
+import contactSubmission from "./schemas/blocks/contact-submission";
+import memeBooth from "./schemas/documents/meme-booth";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -51,12 +64,16 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     testimonial,
     navigation,
     settings,
+    memeBooth,
     // shared objects
     blockContent,
+    contactSubmission,
     link,
     colorVariant,
     buttonVariant,
     sectionPadding,
+    heroFeature,
+    insetBackground,
     // blocks
     hero1,
     hero2,
@@ -66,12 +83,21 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     splitCardsList,
     splitCard,
     splitImage,
+    splitImageAnimate,
     splitInfoList,
     splitInfo,
+    splitRowAnimated,
+    splitCardsListAnimated,
+    gridCardAnimated,
     gridCard,
     pricingCard,
     gridPost,
+    gridTextBlock,
+    gridRowAnimated,
     gridRow,
+    gridRowImage,
+    objectDetectImage,
+    imageCard,
     carousel1,
     carousel2,
     timelineRow,
@@ -81,5 +107,6 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     faqs,
     newsletter,
     allPosts,
+    sectionSpacer,
   ],
 };

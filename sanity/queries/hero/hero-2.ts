@@ -1,3 +1,5 @@
+// sanity/queries/hero/hero-2.ts
+
 import { groq } from "next-sanity";
 import { linkQuery } from "../shared/link";
 import { bodyQuery } from "../shared/body";
@@ -9,11 +11,33 @@ export const hero2Query = groq`
     _key,
     tagLine,
     title,
+    sectionHeight,
     body[]{
       ${bodyQuery}
     },
     links[]{
       ${linkQuery}
+    },
+    insetBackground{
+      enabled,
+      style,
+      color,
+      fromColor,
+      toColor,
+      angle
+    },
+    feature{
+      type,
+      images[]{
+        _key,
+        "url": asset->url
+      },
+      eyes[]{
+        _key,
+        x,
+        y,
+        size
+      }
     },
   }
 `;

@@ -23,7 +23,7 @@ export default function SectionContainer({
         className
       )}
     >
-      <div className="container">{children}</div>
+      <div className="">{children}</div>
     </div>
   );
 }

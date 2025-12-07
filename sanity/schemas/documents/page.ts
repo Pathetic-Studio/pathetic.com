@@ -1,3 +1,4 @@
+//sanity/schemas/documents/page.ts
 import { defineField, defineType } from "sanity";
 import { Files } from "lucide-react";
 import { orderRankField } from "@sanity/orderable-document-list";
@@ -43,7 +44,10 @@ export default defineType({
         { type: "hero-2" },
         { type: "section-header" },
         { type: "split-row" },
+        { type: "split-row-animated" },
         { type: "grid-row" },
+        { type: "grid-row-image" },
+        { type: "grid-row-animated" },
         { type: "carousel-1" },
         { type: "carousel-2" },
         { type: "timeline-row" },
@@ -52,6 +56,7 @@ export default defineType({
         { type: "faqs" },
         { type: "form-newsletter" },
         { type: "all-posts" },
+        { type: "section-spacer" },
       ],
       options: {
         insertMenu: {

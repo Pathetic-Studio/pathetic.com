@@ -1,3 +1,4 @@
+// sanity/queries/grid/grid-card.ts
 import { groq } from "next-sanity";
 import { imageQuery } from "../shared/image";
 import { linkQuery } from "../shared/link";
@@ -15,5 +16,6 @@ export const gridCardQuery = groq`
     link{
       ${linkQuery}
     },
+    caption,
   }
 `;

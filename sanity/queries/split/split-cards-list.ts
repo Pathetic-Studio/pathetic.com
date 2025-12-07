@@ -1,3 +1,4 @@
+// sanity/queries/split/split-cards-list.ts
 import { groq } from "next-sanity";
 import { bodyQuery } from "../shared/body";
 

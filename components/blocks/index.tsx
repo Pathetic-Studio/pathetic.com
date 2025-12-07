@@ -12,6 +12,10 @@ import LogoCloud1 from "@/components/blocks/logo-cloud/logo-cloud-1";
 import FAQs from "@/components/blocks/faqs";
 import FormNewsletter from "@/components/blocks/forms/newsletter";
 import AllPosts from "@/components/blocks/all-posts";
+import SectionSpacer from "@/components/blocks/section-spacer";
+import GridRowImage from "@/components/blocks/grid/grid-row-image";
+import GridRowAnimated from "@/components/blocks/grid/grid-row-animated";
+import SplitRowAnimated from "@/components/blocks/split/split-row-animated";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 
@@ -23,6 +27,8 @@ const componentMap: {
   "section-header": SectionHeader,
   "split-row": SplitRow,
   "grid-row": GridRow,
+  "grid-row-image": GridRowImage,
+  "grid-row-animated": GridRowAnimated,
   "carousel-1": Carousel1,
   "carousel-2": Carousel2,
   "timeline-row": TimelineRow,
@@ -31,6 +37,8 @@ const componentMap: {
   faqs: FAQs,
   "form-newsletter": FormNewsletter,
   "all-posts": AllPosts,
+  "section-spacer": SectionSpacer,
+  "split-row-animated": SplitRowAnimated,
 };
 
 export default function Blocks({ blocks }: { blocks: Block[] }) {
@@ -39,7 +47,6 @@ export default function Blocks({ blocks }: { blocks: Block[] }) {
       {blocks?.map((block) => {
         const Component = componentMap[block._type];
         if (!Component) {
-          // Fallback for development/debugging of new component types
           console.warn(
             `No component implemented for block type: ${block._type}`
           );

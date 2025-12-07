@@ -1,3 +1,4 @@
+// sanity/schemas/blocks/split/split-row.ts
 import { defineType, defineField } from "sanity";
 import { SquareSplitHorizontal } from "lucide-react";
 
@@ -24,6 +25,47 @@ export default defineType({
       description: "Remove gap between columns",
       initialValue: false,
     }),
+
+    // intro “hero-style” content
+    defineField({
+      name: "tagLine",
+      title: "Tag line",
+      type: "string",
+    }),
+    defineField({
+      name: "title",
+      title: "Section title",
+      type: "string",
+    }),
+    defineField({
+      name: "body",
+      title: "Body",
+      type: "block-content",
+    }),
+    defineField({
+      name: "links",
+      title: "Links",
+      type: "array",
+      of: [{ type: "link" }],
+      validation: (rule) => rule.max(2),
+    }),
+    defineField({
+      name: "introPadding",
+      title: "Intro padding (top & bottom)",
+      type: "string",
+      options: {
+        list: [
+          { title: "None", value: "none" },
+          { title: "Small", value: "sm" },
+          { title: "Medium", value: "md" },
+          { title: "Large", value: "lg" },
+        ],
+        layout: "radio",
+        direction: "horizontal",
+      },
+      initialValue: "md",
+    }),
+
     defineField({
       name: "splitColumns",
       type: "array",
@@ -31,6 +73,7 @@ export default defineType({
         { type: "split-content" },
         { type: "split-cards-list" },
         { type: "split-image" },
+        { type: "split-image-animate" },
         { type: "split-info-list" },
       ],
       validation: (rule) => rule.max(2),

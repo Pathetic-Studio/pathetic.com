@@ -1,3 +1,5 @@
+// sanity/schemas/blocks/split/split-image.ts
+
 import { defineField, defineType } from "sanity";
 import { Image } from "lucide-react";
 

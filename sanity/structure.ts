@@ -1,4 +1,6 @@
+// sanity/desk/structure.ts
 import { orderableDocumentListDeskItem } from "@sanity/orderable-document-list";
+import { createBulkActionsTable } from "sanity-plugin-bulk-actions-table";
 import {
   Files,
   BookA,
@@ -7,6 +9,8 @@ import {
   Quote,
   Menu,
   Settings,
+  Mail,
+  Camera,
 } from "lucide-react";
 
 export const structure = (S: any, context: any) =>
@@ -26,7 +30,7 @@ export const structure = (S: any, context: any) =>
         .child(
           S.documentTypeList("post")
             .title("Post")
-            .defaultOrdering([{ field: "_createdAt", direction: "desc" }]) // Default ordering
+            .defaultOrdering([{ field: "_createdAt", direction: "desc" }])
         ),
       orderableDocumentListDeskItem({
         type: "category",
@@ -56,6 +60,28 @@ export const structure = (S: any, context: any) =>
         S,
         context,
       }),
+
+      // Meme Booth – single document tab
+      S.listItem()
+        .title("Meme Booth")
+        .icon(Camera)
+        .child(
+          S.editor()
+            .id("memeBooth")
+            .schemaType("memeBooth")
+            // Force a single document with fixed ID
+            .documentId("memeBooth")
+        ),
+
+      // NEW: Contact table item
+      createBulkActionsTable({
+        type: "contactSubmission",
+        S,
+        context,
+        title: "Contact form submissions",
+        icon: Mail,
+      }),
+
       S.divider({ title: "Global" }),
       S.listItem()
         .title("Navigation")
