@@ -102,6 +102,9 @@ export default function SplitRowAnimated({
   useEffect(() => {
     if (!sectionRef.current) return;
 
+    const isDesktop =
+      typeof window !== "undefined" ? window.innerWidth >= 1024 : false; // Tailwind lg breakpoint
+
     const ctx = gsap.context(() => {
       const cardsEls = cardsRef.current
         ? Array.from(
@@ -109,11 +112,38 @@ export default function SplitRowAnimated({
         )
         : [];
 
+      // IMAGE FADE-IN (for all viewports)
+      if (imageRef.current) {
+        gsap.fromTo(
+          imageRef.current,
+          {
+            autoAlpha: 0,
+            y: 40,
+          },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.8,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: imageRef.current,
+              start: IMAGE_FADE_START,
+              once: true,
+            },
+          },
+        );
+      }
+
+      // On mobile/tablet: no pinned timeline, cards just stack.
+      if (!isDesktop) {
+        return;
+      }
+
+      // DESKTOP-ONLY PINNED TIMELINE
       if (!headerRef.current && !imageRef.current && cardsEls.length === 0) {
         return;
       }
 
-      // PIN + SCRUB TIMELINE (cards and any synced image layers)
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: sectionRef.current,
@@ -125,14 +155,13 @@ export default function SplitRowAnimated({
         },
       });
 
-      // CARDS – scrubbed with scroll, diagonal stagger via transforms
+      // CARDS – scrubbed with scroll, diagonal stagger via transforms (desktop only)
       if (cardsEls.length) {
         if (hasAnimatedCards) {
           cardsEls.forEach((el, index) => {
             const xOffset = 32 * index; // diagonal to the right
             const yOffset = -24 * index; // step up each card
 
-            // initial state: further right, same diagonal, invisible
             gsap.set(el, {
               x: xOffset + 120,
               y: yOffset,
@@ -170,28 +199,6 @@ export default function SplitRowAnimated({
             "-=0.3",
           );
         }
-      }
-
-      // IMAGE FADE-IN (triggered once, non-scrubbed)
-      if (imageRef.current) {
-        gsap.fromTo(
-          imageRef.current,
-          {
-            autoAlpha: 0,
-            y: 40,
-          },
-          {
-            autoAlpha: 1,
-            y: 0,
-            duration: 0.8,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: imageRef.current,
-              start: IMAGE_FADE_START,
-              once: true,
-            },
-          },
-        );
       }
     }, sectionRef);
 
@@ -268,7 +275,7 @@ export default function SplitRowAnimated({
           <div
             className={cn(
               "mt-4 grid grid-cols-1 lg:grid-cols-2 items-start max-w-6xl mx-auto w-full px-4 lg:px-8 overflow-visible",
-              noGap ? "gap-0" : "gap-12 lg:gap-20",
+              noGap ? "gap-0" : "gap-10 lg:gap-20",
             )}
           >
             {splitColumns.map((column) => {
@@ -277,7 +284,7 @@ export default function SplitRowAnimated({
                   <div
                     key={column._key}
                     ref={cardsRef}
-                    className="flex flex-col overflow-visible"
+                    className="flex flex-col overflow-visible order-2 lg:order-1"
                   >
                     <SplitCardsListAnimated
                       {...(column as any)}
@@ -294,7 +301,7 @@ export default function SplitRowAnimated({
                   <div
                     key={column._key}
                     ref={imageRef}
-                    className="hidden lg:block self-start overflow-visible"
+                    className="self-start overflow-visible order-1 lg:order-2 mb-10 lg:mb-0"
                   >
                     <SplitImageAnimate
                       {...(column as any)}

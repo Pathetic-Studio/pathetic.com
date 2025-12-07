@@ -36,10 +36,14 @@ export default function SplitCardsListAnimated({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    // When animateInRight is true, cards are controlled by the pinned timeline
-    if (animateInRight) return;
-
     if (!containerRef.current || !list || list.length === 0) return;
+
+    const isDesktop =
+      typeof window !== "undefined" ? window.innerWidth >= 1024 : false;
+
+    // On desktop when animateInRight is true, the parent pinned GSAP
+    // timeline controls the cards, so we skip here.
+    if (animateInRight && isDesktop) return;
 
     const container = containerRef.current;
     const elements = Array.from(
@@ -76,7 +80,7 @@ export default function SplitCardsListAnimated({
       ref={containerRef}
       className={cn(
         "flex flex-col overflow-visible",
-        animateInRight ? "gap-0" : "gap-24",
+        animateInRight ? "gap-8 lg:gap-0" : "gap-24",
       )}
       data-split-cards-container
     >
