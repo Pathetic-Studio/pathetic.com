@@ -224,7 +224,11 @@ export default function GridRow({
   if (cleanGridColumnGap) gridStyle.columnGap = cleanGridColumnGap as string;
 
   return (
-    <section id={sectionId} className="relative overflow-visible">
+    <section
+      id={sectionId}
+      className="relative overflow-x-hidden lg:overflow-visible"
+    >
+
       {rotatingImagesEnabled && (
         <RotatingImages
           containerId={sectionId}
@@ -242,7 +246,8 @@ export default function GridRow({
 
       <SectionContainer color={color} padding={padding}>
         {/* Wrapper so bg + mouse trail + content can live on different z-layers */}
-        <div className="relative">
+        <div className="relative overflow-x-hidden lg:overflow-visible">
+
           {/* Background layer: absolute, full width & height of the section content */}
           {hasInset && insetBackground?.behavior !== "sticky" && (
             <div className="pointer-events-none absolute inset-0 z-0">
