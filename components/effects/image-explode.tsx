@@ -195,7 +195,7 @@ export default function ImageExplode({
     containerId,
     desktopSize = DEFAULT_IMAGE_SIZE,
     tabletSize = DEFAULT_IMAGE_SIZE * 0.75,
-    mobileSize = DEFAULT_IMAGE_SIZE * 0.6,
+    mobileSize = DEFAULT_IMAGE_SIZE * 0.25,
 }: ImageExplodeProps) {
     const [renderItems, setRenderItems] = useState<RenderItem[]>([]);
 
@@ -258,7 +258,7 @@ export default function ImageExplode({
             // Stronger gravity on mobile/tablet so they fall to the bottom
             let gravityY = 0.15;
             if (isTablet) gravityY = 0.35;
-            if (isMobile) gravityY = 0.45;
+            if (isMobile) gravityY = 0.75;
 
             const engine = Engine.create();
             if (cancelled) return;
