@@ -61,9 +61,7 @@ export default function SplitImageAnimate({
                 drop-shadow(0 0 5px rgba(0,0,0,1))
      drop-shadow(0 0 10px rgba(0,0,0,0.95))
 drop-shadow(0 0 25px rgba(0,0,0,0.8))
-drop-shadow(0 0 55px rgba(0,0,0,0.6))
-drop-shadow(0 0 90px rgba(0,0,0,0.5))
-drop-shadow(0 0 110px rgba(0,0,0,0.35))
+
     `,
               }}
             >
