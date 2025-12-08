@@ -14,6 +14,7 @@ type Item = NonNullable<NonNullable<GridRowImage["items"]>[number]>;
 type ImageCardItem = Extract<Item, { _type: "image-card" }>;
 
 interface ImageCardProps extends ImageCardItem {
+  // When true (from grid-row-grab), use static layout with full body visible
   showDetailsOnMobile?: boolean;
 }
 
@@ -51,6 +52,39 @@ export default function ImageCard({
     </>
   );
 
+  // STATIC LAYOUT (used in grab row via showDetailsOnMobile)
+  if (showDetailsOnMobile) {
+    return (
+      <div className="relative">
+        <Header />
+
+        {(body || (link && link.href)) && (
+          <div className="mt-3">
+            {body && (
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <PortableTextRenderer value={body as any} />
+              </div>
+            )}
+
+            {link && link.href && (
+              <div className="mt-3">
+                <Link
+                  href={link.href}
+                  target={link.target ? "_blank" : undefined}
+                  rel={link.target ? "noopener" : undefined}
+                  className="inline-flex items-center text-xs font-medium uppercase tracking-tight underline-offset-4 hover:underline"
+                >
+                  {link.title || "Learn more"}
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ORIGINAL OVERLAY LAYOUT (used in other grids)
   return (
     <div className="group relative">
       {/* Invisible placeholder: defines grid footprint (image + title only) */}
@@ -58,39 +92,18 @@ export default function ImageCard({
         <Header />
       </div>
 
-      {/* Actual card overlay */}
-      <div
-        className={cn(
-          "absolute inset-0 z-20",
-          showDetailsOnMobile
-            ? "pointer-events-auto"
-            : "pointer-events-none group-hover:pointer-events-auto"
-        )}
-      >
+      {/* Actual card overlay: same position as placeholder, can overflow grid */}
+      <div className="pointer-events-none absolute inset-0 z-20 group-hover:pointer-events-auto">
         <div className="relative">
           {/* Card background behind image+title */}
-          <div
-            className={cn(
-              "absolute -inset-6 -z-10 border border-border bg-background transition-opacity duration-150",
-              showDetailsOnMobile
-                ? "opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                : "opacity-0 group-hover:opacity-100"
-            )}
-          />
+          <div className="absolute -inset-6 -z-10 border border-border bg-background opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
 
-          {/* Image + title */}
+          {/* Image + title: never change size/position on hover */}
           <Header />
 
-          {/* Body + link */}
+          {/* Body + link: visually part of the same card, allowed to overflow */}
           {(body || (link && link.href)) && (
-            <div
-              className={cn(
-                "mt-3 transition-all duration-150",
-                showDetailsOnMobile
-                  ? "opacity-100 translate-y-0 lg:opacity-0 lg:translate-y-1 lg:group-hover:opacity-100 lg:group-hover:translate-y-0"
-                  : "opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0"
-              )}
-            >
+            <div className="mt-3 translate-y-1 opacity-0 transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100">
               {body && (
                 <div className="prose prose-sm max-w-none dark:prose-invert">
                   <PortableTextRenderer value={body as any} />

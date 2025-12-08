@@ -56,6 +56,8 @@ export default function DraggableGridItem({
     const el = ref.current;
     if (!el) return null;
 
+    // Bound to the grid wrapper (data-grab-container),
+    // not the whole section, so items butt up to the grid edges.
     const container = el.closest(
       "[data-grab-container]"
     ) as HTMLElement | null;
@@ -65,7 +67,7 @@ export default function DraggableGridItem({
   };
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    // Only left mouse / primary button
+    // Only primary button / pointer
     if (e.button !== 0) return;
 
     const el = ref.current;
@@ -119,7 +121,7 @@ export default function DraggableGridItem({
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
 
-      // On touch: if it's mostly vertical, bail so the page can scroll
+      // On touch: bail if it's mostly vertical so page can still scroll
       if (e.pointerType === "touch" && absDy > absDx) {
         dragState.current.pointerId = null;
         dragState.current.bounds = null;
@@ -133,12 +135,13 @@ export default function DraggableGridItem({
     let nextX = state.originX + dx;
     let nextY = state.originY + dy;
 
+    // Clamp within the grid container bounds
     nextX = Math.min(state.bounds.maxX, Math.max(state.bounds.minX, nextX));
     nextY = Math.min(state.bounds.maxY, Math.max(state.bounds.minY, nextY));
 
     setPos({ x: nextX, y: nextY });
 
-    // Once dragging, prevent weird scroll/selection
+    // Once dragging, block default scroll/selection for this pointer
     e.preventDefault();
   };
 
@@ -169,7 +172,7 @@ export default function DraggableGridItem({
   const style: CSSProperties = {
     transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
     cursor: isDragging ? "grabbing" : "grab",
-    touchAction: "pan-y", // page can still scroll vertically when not dragging
+    touchAction: "pan-y", // vertical page scroll still works when not dragging
     zIndex: isActive ? 40 : 10,
   };
 

@@ -27,7 +27,6 @@ type GridRowGrabBlock = Extract<Block, { _type: "grid-row-grab" }>;
 type Item = NonNullable<NonNullable<GridRowGrabBlock["items"]>[number]>;
 type LinkItem = NonNullable<NonNullable<GridRowGrabBlock["links"]>[number]>;
 
-// Key type for intro padding
 type IntroPaddingKey = NonNullable<GridRowGrabBlock["introPadding"]>;
 
 const introPaddingClasses: Record<IntroPaddingKey, string> = {
@@ -115,7 +114,7 @@ export default function GridRowGrab({
 
   rowGap,
   columnGap,
-  mobileHorizontalTrack, // kept just so TS is happy with schema
+  mobileHorizontalTrack, // unused, kept for schema compatibility
 }: GridRowGrabBlock) {
   const color = stegaClean(colorVariant);
   const resolvedGridType = (gridType || "3") as GridRowGrabBlock["gridType"];
@@ -141,8 +140,8 @@ export default function GridRowGrab({
   return (
     <section
       id={sectionId}
-      className="relative overflow-hidden lg:overflow-visible"
-      data-grab-container
+      // No vertical clipping; only kill horizontal overflow
+      className="relative overflow-x-hidden overflow-y-visible lg:overflow-visible"
     >
       {rotatingImagesEnabled && (
         <RotatingImages
@@ -223,11 +222,11 @@ export default function GridRowGrab({
 
               {items?.length ? (
                 <div className="container pb-16">
+                  {/* THIS is now the drag boundary container */}
                   <div
+                    data-grab-container
                     className={cn(
-                      // Mobile / tablet: single column, smaller cards, no overflow scroll
                       "grid grid-cols-1 gap-6 px-4 sm:px-5 md:px-6",
-                      // Desktop: proper grid layout
                       getGridColsClass(resolvedGridType)
                     )}
                     style={gridStyle}
@@ -250,19 +249,15 @@ export default function GridRowGrab({
                           onActivate={setActiveId}
                           className={cn(
                             layoutClasses,
-                            // WIDTH CONTROL:
-                            // tweak these values if you want cards even narrower
-                            "max-w-xs w-full mx-auto sm:max-w-sm md:max-w-md",
+                            // WIDTH CONTROL (you can tweak these):
+                            // shrink or grow these max-w values to change card size on each breakpoint
+                            "w-full mx-auto max-w-[14rem] sm:max-w-[16rem] md:max-w-[18rem]",
+                            // Wrapper look: no rounded corners
                             "bg-background border border-border p-4 sm:p-5 md:p-6",
-                            "space-y-4",
-                            // On desktop, let the inner component own the look
-                            "lg:max-w-none lg:mx-0 lg:bg-transparent lg:border-none lg:p-0 lg:space-y-0"
+                            "lg:max-w-none lg:mx-0 lg:bg-transparent lg:border-none lg:p-0"
                           )}
                         >
-                          {/* 
-                            Card components must respect this prop:
-                            always show body + button up to lg-1.
-                          */}
+                          {/* In grab row, we want a static card with full body on all breakpoints */}
                           <Component
                             {...(item as any)}
                             showDetailsOnMobile
