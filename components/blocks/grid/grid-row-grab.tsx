@@ -27,10 +27,10 @@ type GridRowGrabBlock = Extract<Block, { _type: "grid-row-grab" }>;
 type Item = NonNullable<NonNullable<GridRowGrabBlock["items"]>[number]>;
 type LinkItem = NonNullable<NonNullable<GridRowGrabBlock["links"]>[number]>;
 
-const introPaddingClasses: Record<
-  NonNullable<GridRowGrabBlock["introPadding"]>,
-  string
-> = {
+// Explicit key type avoids TS index issues
+type IntroPaddingKey = NonNullable<GridRowGrabBlock["introPadding"]>;
+
+const introPaddingClasses: Record<IntroPaddingKey, string> = {
   none: "py-0",
   sm: "py-8",
   md: "py-12",
@@ -115,7 +115,7 @@ export default function GridRowGrab({
 
   rowGap,
   columnGap,
-  mobileHorizontalTrack, // not used anymore, we keep for schema compatibility
+  mobileHorizontalTrack, // kept for schema compatibility
 }: GridRowGrabBlock) {
   const color = stegaClean(colorVariant);
   const resolvedGridType = (gridType || "3") as GridRowGrabBlock["gridType"];
@@ -123,9 +123,7 @@ export default function GridRowGrab({
   const introHasContent =
     !!tagLine || !!title || !!body || (links && links.length > 0);
 
-  const introPaddingKey = (introPadding || "md") as Nonnullable<
-    GridRowGrabBlock["introPadding"]
-  >;
+  const introPaddingKey = (introPadding ?? "md") as IntroPaddingKey;
   const introPaddingClass = introPaddingClasses[introPaddingKey];
 
   const mouseTrailEnabled = feature?.type === "mouseTrail";
@@ -227,8 +225,9 @@ export default function GridRowGrab({
                 <div className="container pb-16">
                   <div
                     className={cn(
-                      // Mobile: single column, brought-in padding, cards narrower than viewport
+                      // Mobile: single column, brought-in padding, cards narrower
                       "grid grid-cols-1 gap-6 px-4 sm:px-5 md:px-6",
+                      // Desktop: actual grid
                       getGridColsClass(resolvedGridType)
                     )}
                     style={gridStyle}
@@ -256,13 +255,13 @@ export default function GridRowGrab({
                             "bg-background border border-border rounded-3xl p-4 sm:p-5 md:p-6",
                             "space-y-4",
                             "lg:max-w-none lg:mx-0",
-                            // Desktop: let inner component own more of the look
+                            // Desktop: let inner component own layout
                             "lg:bg-transparent lg:border-none lg:p-0 lg:space-y-0"
                           )}
                         >
                           {/* 
-                            Inner components can read this flag to show body + button
-                            always on mobile instead of only on hover.
+                            Inner card component should use this to always show
+                            body + button on mobile instead of only on hover.
                           */}
                           <Component
                             {...(item as any)}
