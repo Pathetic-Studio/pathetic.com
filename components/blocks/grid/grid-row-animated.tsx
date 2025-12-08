@@ -65,14 +65,21 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   const gridColsValue = stegaClean(gridColumns);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  // Simple desktop check – used only to decide if we apply inline CMS padding
+  // Simple desktop check – used to decide if we apply inline CMS padding
+  // and the staggered margin-top animation offsets.
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.innerWidth >= 1024) {
-      setIsDesktop(true);
-    }
+
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const gridColsClass =
@@ -213,11 +220,11 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                 {title && (
                   <TitleText
                     variant="stretched"
-                    animation="typeOn"        // hard-coded ON
-                    animationSpeed={1.2}     // tweak as needed
+                    animation="typeOn"
+                    animationSpeed={1.2}
                     as="h2"
-                    stretchScaleX={0.55}     // horizontal squish
-                    overallScale={2}         // bump overall size
+                    stretchScaleX={0.55}
+                    overallScale={2}
                     align="center"
                     maxChars={26}
                   >
@@ -271,24 +278,60 @@ export default function GridRowAnimated(props: GridRowAnimated) {
             )}
 
             {columns && columns.length > 0 && (
-              <div
-                className={cn(
-                  "grid grid-cols-1 gap-6 relative z-10",
-                  baseGridPaddingClasses,
-                  gridColsClass,
-                )}
-                style={gridStyle}
-              >
-                {columns.map(
-                  (
-                    column: NonNullable<GridRowAnimated["columns"]>[number],
-                    index: number,
-                  ) => {
-                    const offsetStyle: CSSProperties = {
-                      marginTop: `${index * HEIGHT_STAGGER_PX}px`,
-                    };
+              // Wrapper ensures pb-40 is always applied and not overridden by inline styles
+              <div className="pb-40">
+                <div
+                  className={cn(
+                    "grid grid-cols-1 gap-6 relative z-10",
+                    baseGridPaddingClasses,
+                    gridColsClass,
+                  )}
+                  style={gridStyle}
+                >
+                  {columns.map(
+                    (
+                      column: NonNullable<GridRowAnimated["columns"]>[number],
+                      index: number,
+                    ) => {
+                      // Only stagger vertically on desktop.
+                      const offsetStyle: CSSProperties = isDesktop
+                        ? {
+                          marginTop:
+                            index === 0 ? 0 : index * HEIGHT_STAGGER_PX,
+                        }
+                        : {};
 
-                    if (column._type === "grid-card") {
+                      if (column._type === "grid-card") {
+                        return (
+                          <div
+                            key={column._key}
+                            className="relative"
+                            style={offsetStyle}
+                          >
+                            <div className="animated-card relative">
+                              <GridCard {...(column as any)} color={color} />
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (column._type === "grid-card-animated") {
+                        return (
+                          <div
+                            key={column._key}
+                            className="relative"
+                            style={offsetStyle}
+                          >
+                            <div className="animated-card relative">
+                              <GridCardAnimated
+                                {...(column as any)}
+                                color={color}
+                              />
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div
                           key={column._key}
@@ -296,42 +339,13 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                           style={offsetStyle}
                         >
                           <div className="animated-card relative">
-                            <GridCard {...(column as any)} color={color} />
+                            <div data-type={column._type} />
                           </div>
                         </div>
                       );
-                    }
-
-                    if (column._type === "grid-card-animated") {
-                      return (
-                        <div
-                          key={column._key}
-                          className="relative"
-                          style={offsetStyle}
-                        >
-                          <div className="animated-card relative">
-                            <GridCardAnimated
-                              {...(column as any)}
-                              color={color}
-                            />
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={column._key}
-                        className="relative"
-                        style={offsetStyle}
-                      >
-                        <div className="animated-card relative">
-                          <div data-type={column._type} />
-                        </div>
-                      </div>
-                    );
-                  },
-                )}
+                    },
+                  )}
+                </div>
               </div>
             )}
           </div>
