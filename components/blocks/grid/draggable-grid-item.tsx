@@ -56,8 +56,7 @@ export default function DraggableGridItem({
     const el = ref.current;
     if (!el) return null;
 
-    // Bound to the grid wrapper (data-grab-container),
-    // not the whole section, so items butt up to the grid edges.
+    // Bound movement to the grid (data-grab-container)
     const container = el.closest(
       "[data-grab-container]"
     ) as HTMLElement | null;
@@ -67,7 +66,7 @@ export default function DraggableGridItem({
   };
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    // Only primary button / pointer
+    // Only primary button
     if (e.button !== 0) return;
 
     const el = ref.current;
@@ -121,7 +120,7 @@ export default function DraggableGridItem({
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
 
-      // On touch: bail if it's mostly vertical so page can still scroll
+      // On touch, if it's mostly vertical, let the page scroll
       if (e.pointerType === "touch" && absDy > absDx) {
         dragState.current.pointerId = null;
         dragState.current.bounds = null;
@@ -135,13 +134,12 @@ export default function DraggableGridItem({
     let nextX = state.originX + dx;
     let nextY = state.originY + dy;
 
-    // Clamp within the grid container bounds
+    // Clamp movement within the grid container bounds
     nextX = Math.min(state.bounds.maxX, Math.max(state.bounds.minX, nextX));
     nextY = Math.min(state.bounds.maxY, Math.max(state.bounds.minY, nextY));
 
     setPos({ x: nextX, y: nextY });
 
-    // Once dragging, block default scroll/selection for this pointer
     e.preventDefault();
   };
 
@@ -172,7 +170,7 @@ export default function DraggableGridItem({
   const style: CSSProperties = {
     transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
     cursor: isDragging ? "grabbing" : "grab",
-    touchAction: "pan-y", // vertical page scroll still works when not dragging
+    touchAction: "pan-y",
     zIndex: isActive ? 40 : 10,
   };
 
@@ -181,7 +179,7 @@ export default function DraggableGridItem({
       ref={ref}
       style={style}
       className={cn(
-        "relative transition-shadow duration-150",
+        "relative transition-shadow duration-150 select-none",
         isActive && "",
         className
       )}

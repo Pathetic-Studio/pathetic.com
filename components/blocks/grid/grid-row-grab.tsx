@@ -140,7 +140,7 @@ export default function GridRowGrab({
   return (
     <section
       id={sectionId}
-      // No vertical clipping; only kill horizontal overflow
+      // Only kill horizontal overflow; let vertical height grow naturally
       className="relative overflow-x-hidden overflow-y-visible lg:overflow-visible"
     >
       {rotatingImagesEnabled && (
@@ -222,11 +222,11 @@ export default function GridRowGrab({
 
               {items?.length ? (
                 <div className="container pb-16">
-                  {/* THIS is now the drag boundary container */}
+                  {/* Grid itself is the drag boundary */}
                   <div
                     data-grab-container
                     className={cn(
-                      "grid grid-cols-1 gap-6 px-4 sm:px-5 md:px-6",
+                      "grid grid-cols-1 gap-6 px-4 sm:px-5 md:px-6 overflow-visible",
                       getGridColsClass(resolvedGridType)
                     )}
                     style={gridStyle}
@@ -249,15 +249,14 @@ export default function GridRowGrab({
                           onActivate={setActiveId}
                           className={cn(
                             layoutClasses,
-                            // WIDTH CONTROL (you can tweak these):
-                            // shrink or grow these max-w values to change card size on each breakpoint
-                            "w-full mx-auto max-w-[14rem] sm:max-w-[16rem] md:max-w-[18rem]",
-                            // Wrapper look: no rounded corners
+                            // WIDTH CONTROL – tweak these values to change card width:
+                            "w-full mx-auto max-w-[13rem] sm:max-w-[15rem] md:max-w-[17rem]",
+                            // Card container styling (no rounded corners here):
                             "bg-background border border-border p-4 sm:p-5 md:p-6",
                             "lg:max-w-none lg:mx-0 lg:bg-transparent lg:border-none lg:p-0"
                           )}
                         >
-                          {/* In grab row, we want a static card with full body on all breakpoints */}
+                          {/* In grab row we want full static card with body visible */}
                           <Component
                             {...(item as any)}
                             showDetailsOnMobile
