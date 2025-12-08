@@ -1,3 +1,4 @@
+//components/blocks/grid/grid-row-image.tsx
 "use client";
 
 import type React from "react";

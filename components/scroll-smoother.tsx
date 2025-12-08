@@ -49,11 +49,12 @@ export default function SmoothScroller({
     let refreshTimer: number | undefined;
     const pinTriggers: ScrollTrigger[] = [];
 
+    // inside useLayoutEffect
+
     const setupPinning = () => {
       pinTriggers.forEach((t) => t.kill());
       pinTriggers.length = 0;
 
-      // Desktop-only pinning (>= 1024px)
       const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
       if (!isDesktop) {
         return;
@@ -67,10 +68,9 @@ export default function SmoothScroller({
         const trigger = ScrollTrigger.create({
           trigger: section,
           start: "top top",
-          // pin for the full height of the section instead of a fixed 100vh
           end: () => `+=${section.offsetHeight}`,
           pin: true,
-          pinSpacing: false, // allow the next section to slide over the top
+          pinSpacing: false,
         });
 
         pinTriggers.push(trigger);
@@ -79,9 +79,9 @@ export default function SmoothScroller({
 
     try {
       if (isTouch) {
-        // Touch/mobile: no smoother, no pinning (breakpoint check will kill it anyway)
+        // Touch/mobile: NO smoother, NO pinning at all
         content.style.transform = "none";
-        setupPinning();
+        // don't call setupPinning() here
       } else {
         smoother = ScrollSmoother.create({
           wrapper,
