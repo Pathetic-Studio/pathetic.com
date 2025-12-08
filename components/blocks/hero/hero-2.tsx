@@ -1,4 +1,5 @@
 // components/blocks/hero/hero-2.tsx
+
 import type { CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -9,12 +10,13 @@ import MouseTrail from "@/components/effects/mouse-trail";
 import RotatingImages from "@/components/effects/rotating-images";
 import EyeFollow from "@/components/effects/eye-follow";
 import ImageExplode from "@/components/effects/image-explode";
+import { BackgroundPanel } from "@/components/ui/background-panel";
+import TitleText from "@/components/ui/title-text";
 
 type Hero2Props = Extract<
   NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number],
   { _type: "hero-2" }
 >;
-
 
 const mobileHeightMap: Record<string, string> = {
   auto: "h-auto",
@@ -39,7 +41,7 @@ export default function Hero2({
   sectionHeightDesktop,
   customHeightMobile,
   customHeightDesktop,
-  insetBackground,
+  background,
 }: Hero2Props) {
   const mouseTrailEnabled = feature?.type === "mouseTrail";
   const rotatingImagesEnabled = feature?.type === "rotatingImages";
@@ -73,33 +75,14 @@ export default function Hero2({
     (sectionStyle as any)["--hero-height-desktop"] = customHeightDesktop;
   }
 
-  let insetStyle: CSSProperties | undefined;
-
-  if (insetBackground?.enabled) {
-    if (insetBackground.style === "solid" && insetBackground.color) {
-      insetStyle = {
-        background: insetBackground.color,
-      };
-    }
-
-    if (
-      insetBackground.style === "gradient" &&
-      insetBackground.fromColor &&
-      insetBackground.toColor
-    ) {
-      const angle = insetBackground.angle ?? 135;
-      insetStyle = {
-        backgroundImage: `linear-gradient(${angle}deg, ${insetBackground.fromColor}, ${insetBackground.toColor})`,
-      };
-    }
-  }
-
   return (
     <section
       id={sectionId}
       className={`relative ${heightClass} overflow-hidden md:overflow-visible`}
       style={sectionStyle}
     >
+
+      <BackgroundPanel background={background as any} />
       {mouseTrailEnabled && (
         <MouseTrail containerId={sectionId} images={feature?.images as any} />
       )}
@@ -127,12 +110,7 @@ export default function Hero2({
         />
       )}
 
-      {insetBackground?.enabled && insetStyle && (
-        <div
-          className="pointer-events-none absolute inset-4 md:inset-8 md:top-12 border border-border overflow-hidden -z-10"
-          style={insetStyle}
-        />
-      )}
+
 
       <div className="container relative z-10 h-full">
         <div className="h-full flex flex-col justify-center py-20 lg:pt-40 text-center">
@@ -145,15 +123,17 @@ export default function Hero2({
           )}
 
           {title && (
-            <h2
-              className="mt-2 font-bold uppercase md:text-6xl lg:text-8xl lg:max-w-[40ch] mx-auto animate-fade-up [animation-delay:200ms] opacity-0 "
+            <TitleText
+              variant="stretched"            // or "normal"
+              as="h2"
+              stretchScaleX={0.55}            // your horizontal squish
+              overallScale={1.5}            // bump overall size without font-size
+              align="center"
+              maxChars={32}
             >
-              <span className="block origin-center scale-x-[0.6]">
-                {title}
-              </span>
-            </h2>
+              {title}
+            </TitleText>
           )}
-
 
           {body && (
             <div className="text-lg lg:text-2xl mt-6 max-w-2xl mx-auto animate-fade-up [animation-delay:300ms] opacity-0">

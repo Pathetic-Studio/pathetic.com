@@ -1,3 +1,4 @@
+// sanity/queries/grid/grid-row-animated.ts
 import { groq } from "next-sanity";
 import { gridCardAnimatedQuery } from "@/sanity/queries/grid/grid-card-animated";
 import { gridCardQuery } from "@/sanity/queries/grid/grid-card";
@@ -28,6 +29,20 @@ export const gridRowAnimatedQuery = groq`
 
     // Grid-level title
     gridTitle,
+
+   background{
+  enabled,
+  layout,
+  border,
+  style,
+  color,
+  fromColor,
+  toColor,
+  angle,
+  image,
+  customHeight,
+  verticalOffsetPercent
+},
 
     // Custom grid container overrides
     gridPaddingTop,

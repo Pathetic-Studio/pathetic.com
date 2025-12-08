@@ -3,36 +3,27 @@ import { LayoutGrid } from "lucide-react";
 import { COLS_VARIANTS } from "../shared/layout-variants";
 
 export default defineType({
-  name: "grid-row-image",
-  title: "Grid Row (Images)",
+  name: "grid-row-grab",
+  title: "Grid Row (Grab)",
   type: "object",
   icon: LayoutGrid,
   fields: [
-    defineField({
-      name: "padding",
-      type: "section-padding",
-    }),
+    defineField({ name: "padding", type: "section-padding" }),
     defineField({
       name: "colorVariant",
       type: "color-variant",
       title: "Color Variant",
     }),
-
-    // Section background panel (same system as grid-row)
     defineField({
       name: "background",
       title: "Background",
       type: "background",
     }),
-
-    // Optional feature, same as other blocks
     defineField({
       name: "feature",
       title: "Feature",
       type: "hero-feature",
     }),
-
-    // Intro content
     defineField({
       name: "tagLine",
       title: "Tag line",
@@ -71,8 +62,6 @@ export default defineType({
       },
       initialValue: "md",
     }),
-
-    // Simple grid vs custom placement
     defineField({
       name: "gridType",
       title: "Grid type",
@@ -91,8 +80,6 @@ export default defineType({
         "If a grid is chosen, items will auto-flow. Custom lets each item control its position via layout settings.",
       initialValue: "3",
     }),
-
-    // Optional explicit gridColumns override (if you want to re-use COLS_VARIANTS)
     defineField({
       name: "gridColumns",
       title: "Grid Columns (override)",
@@ -102,8 +89,6 @@ export default defineType({
         layout: "radio",
       },
     }),
-
-    // Horizontal track toggle for mobile
     defineField({
       name: "mobileHorizontalTrack",
       title: "Horizontal track on mobile",
@@ -112,40 +97,21 @@ export default defineType({
         "If enabled, items will form a horizontal scrolling track on small screens. Desktop remains a normal grid.",
       initialValue: false,
     }),
-
-    // Custom CSS gaps
     defineField({
       name: "rowGap",
       title: "Row gap (custom)",
       type: "string",
-      description:
-        "Optional custom row gap as any CSS length (e.g. 24px, 1.5rem, 3vw, clamp(1rem, 2vw, 2rem)).",
     }),
     defineField({
       name: "columnGap",
       title: "Column gap (custom)",
       type: "string",
-      description:
-        "Optional custom column gap as any CSS length (e.g. 24px, 1.5rem, 3vw, clamp(1rem, 2vw, 2rem)).",
     }),
-
-    // Children
     defineField({
       name: "items",
       title: "Items",
       type: "array",
       of: [{ type: "object-detect-image" }, { type: "image-card" }],
-      options: {
-        insertMenu: {
-          views: [
-            {
-              name: "grid",
-              previewImageUrl: (block) => `/sanity/preview/${block}.jpg`,
-            },
-            { name: "list" },
-          ],
-        },
-      },
     }),
   ],
   preview: {
@@ -155,7 +121,7 @@ export default defineType({
     },
     prepare({ title, firstItemTitle }) {
       return {
-        title: "Grid Row (Images)",
+        title: "Grid Row (Grab)",
         subtitle: title || firstItemTitle || "No title",
       };
     },

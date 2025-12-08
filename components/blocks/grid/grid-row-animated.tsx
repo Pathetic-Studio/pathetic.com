@@ -14,6 +14,8 @@ import Link from "next/link";
 import { PAGE_QUERYResult } from "@/sanity.types";
 import GridCard from "./grid-card";
 import GridCardAnimated from "./grid-card-animated";
+import { BackgroundPanel } from "@/components/ui/background-panel";
+import TitleText from "@/components/ui/title-text";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -49,7 +51,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
     links,
     introPadding,
     gridTitle,
-
+    background,
     // grid overrides from Sanity
     gridPaddingTop,
     gridPaddingBottom,
@@ -160,7 +162,6 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   const gridStyle: CSSProperties = {};
 
   // Only apply CMS inline padding and gaps on desktop.
-  // On tablet/mobile, Tailwind paddings win and columns aren’t crushed.
   if (isDesktop) {
     if (cleanGridPaddingTop)
       gridStyle.paddingTop = cleanGridPaddingTop as string;
@@ -191,87 +192,133 @@ export default function GridRowAnimated(props: GridRowAnimated) {
       className="relative overflow-visible"
     >
       <SectionContainer color={color} padding={padding}>
-        <div ref={rootRef} className="relative">
-          {introHasContent && (
-            <div className={cn("container text-center", introPaddingClass)}>
-              {tagLine && (
-                <h1 className="leading-[0] uppercase italic font-sans">
-                  <span className="text-base font-semibold opacity-50">
-                    {tagLine}
-                  </span>
-                </h1>
-              )}
+        <div
+          ref={rootRef}
+          className="relative overflow-x-hidden lg:overflow-visible"
+        >
+          {/* Background */}
+          <BackgroundPanel background={background as any} />
 
-              {title && (
-                <h2 className="mt-6 font-bold leading-[1.1] uppercase md:text-4xl lg:text-6xl max-w-[26ch] mx-auto">
-                  {title}
-                </h2>
-              )}
+          <div className="relative z-20">
+            {introHasContent && (
+              <div className={cn("container text-center", introPaddingClass)}>
+                {tagLine && (
+                  <h1 className="leading-[0] uppercase italic font-sans">
+                    <span className="text-base font-semibold opacity-50">
+                      {tagLine}
+                    </span>
+                  </h1>
+                )}
 
-              {body && (
-                <div className="text-lg mt-6 max-w-2xl mx-auto">
-                  <PortableTextRenderer value={body} />
-                </div>
-              )}
+                {title && (
+                  <TitleText
+                    variant="stretched"
+                    animation="typeOn"        // hard-coded ON
+                    animationSpeed={1.2}     // tweak as needed
+                    as="h2"
+                    stretchScaleX={0.55}     // horizontal squish
+                    overallScale={2}         // bump overall size
+                    align="center"
+                    maxChars={26}
+                  >
+                    {title}
+                  </TitleText>
+                )}
 
-              {links && links.length > 0 && (
-                <div className="mt-8 flex flex-wrap gap-4 justify-center">
-                  {links.map(
-                    (
-                      link: NonNullable<GridRowAnimated["links"]>[number],
-                    ) => (
-                      <Button
-                        key={link._key || link.title}
-                        variant={stegaClean(link?.buttonVariant)}
-                        asChild
-                      >
-                        <Link
-                          href={link.href || "#"}
-                          target={link.target ? "_blank" : undefined}
-                          rel={link.target ? "noopener" : undefined}
+                {body && (
+                  <div className="text-lg mt-6 max-w-2xl mx-auto">
+                    <PortableTextRenderer value={body} />
+                  </div>
+                )}
+
+                {links && links.length > 0 && (
+                  <div className="mt-8 flex flex-wrap gap-4 justify-center">
+                    {links.map(
+                      (
+                        link: NonNullable<GridRowAnimated["links"]>[number],
+                      ) => (
+                        <Button
+                          key={link._key || link.title}
+                          variant={stegaClean(link?.buttonVariant)}
+                          asChild
                         >
-                          {link.title}
-                        </Link>
-                      </Button>
-                    ),
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                          <Link
+                            href={link.href || "#"}
+                            target={link.target ? "_blank" : undefined}
+                            rel={link.target ? "noopener" : undefined}
+                          >
+                            {link.title}
+                          </Link>
+                        </Button>
+                      ),
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
-          {gridTitle && (
-            <div
-              className={cn(
-                "relative z-10 mb-8 text-center flex justify-center",
-                !introHasContent && "pt-12",
-              )}
-            >
-              <h3 className="text-4xl font-sans font-semibold uppercase max-w-1/3">
-                {gridTitle}
-              </h3>
-            </div>
-          )}
+            {gridTitle && (
+              <div
+                className={cn(
+                  "relative z-10 mb-8 text-center flex justify-center",
+                  !introHasContent && "pt-12",
+                )}
+              >
+                <h3 className="text-4xl font-sans font-semibold uppercase max-w-1/3">
+                  {gridTitle}
+                </h3>
+              </div>
+            )}
 
-          {columns && columns.length > 0 && (
-            <div
-              className={cn(
-                "grid grid-cols-1 gap-6 relative z-10",
-                baseGridPaddingClasses,
-                gridColsClass,
-              )}
-              style={gridStyle}
-            >
-              {columns.map(
-                (
-                  column: NonNullable<GridRowAnimated["columns"]>[number],
-                  index: number,
-                ) => {
-                  const offsetStyle: CSSProperties = {
-                    marginTop: `${index * HEIGHT_STAGGER_PX}px`,
-                  };
+            {columns && columns.length > 0 && (
+              <div
+                className={cn(
+                  "grid grid-cols-1 gap-6 relative z-10",
+                  baseGridPaddingClasses,
+                  gridColsClass,
+                )}
+                style={gridStyle}
+              >
+                {columns.map(
+                  (
+                    column: NonNullable<GridRowAnimated["columns"]>[number],
+                    index: number,
+                  ) => {
+                    const offsetStyle: CSSProperties = {
+                      marginTop: `${index * HEIGHT_STAGGER_PX}px`,
+                    };
 
-                  if (column._type === "grid-card") {
+                    if (column._type === "grid-card") {
+                      return (
+                        <div
+                          key={column._key}
+                          className="relative"
+                          style={offsetStyle}
+                        >
+                          <div className="animated-card relative">
+                            <GridCard {...(column as any)} color={color} />
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (column._type === "grid-card-animated") {
+                      return (
+                        <div
+                          key={column._key}
+                          className="relative"
+                          style={offsetStyle}
+                        >
+                          <div className="animated-card relative">
+                            <GridCardAnimated
+                              {...(column as any)}
+                              color={color}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
                         key={column._key}
@@ -279,44 +326,15 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                         style={offsetStyle}
                       >
                         <div className="animated-card relative">
-                          <GridCard {...(column as any)} color={color} />
+                          <div data-type={column._type} />
                         </div>
                       </div>
                     );
-                  }
-
-                  if (column._type === "grid-card-animated") {
-                    return (
-                      <div
-                        key={column._key}
-                        className="relative"
-                        style={offsetStyle}
-                      >
-                        <div className="animated-card relative">
-                          <GridCardAnimated
-                            {...(column as any)}
-                            color={color}
-                          />
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={column._key}
-                      className="relative"
-                      style={offsetStyle}
-                    >
-                      <div className="animated-card relative">
-                        <div data-type={column._type} />
-                      </div>
-                    </div>
-                  );
-                },
-              )}
-            </div>
-          )}
+                  },
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </SectionContainer>
     </section>

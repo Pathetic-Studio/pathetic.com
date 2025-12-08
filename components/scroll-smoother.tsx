@@ -1,3 +1,4 @@
+// components/scroll-smoother.tsx
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
@@ -9,7 +10,11 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 }
 
-export default function SmoothScroller({ children }: { children: React.ReactNode }) {
+export default function SmoothScroller({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -40,36 +45,67 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     wrapper.style.overflowY = "auto";
     wrapper.style.overflowX = "hidden";
 
-    // Touch/mobile: no smoother, just native scroll
-    if (isTouch) {
-      content.style.transform = "none";
-      return;
-    }
-
     let smoother: ScrollSmoother | null = null;
     let refreshTimer: number | undefined;
+    const pinTriggers: ScrollTrigger[] = [];
+
+    const setupPinning = () => {
+      // Clean up any existing pin triggers first
+      pinTriggers.forEach((t) => t.kill());
+      pinTriggers.length = 0;
+
+      const pinnedSections = gsap.utils.toArray<HTMLElement>(
+        '[data-pin-to-viewport="true"]',
+      );
+
+      pinnedSections.forEach((section) => {
+        const trigger = ScrollTrigger.create({
+          trigger: section,
+          start: "top top",
+          end: "+=100%", // pinned for one viewport height of scroll
+          pin: true,
+          pinSpacing: false, // allow the next section to slide over the top
+        });
+
+        pinTriggers.push(trigger);
+      });
+    };
 
     try {
-      smoother = ScrollSmoother.create({
-        wrapper,
-        content,
-        smooth: 1,
-        smoothTouch: 0.1,
-        effects: true,
-        normalizeScroll: true,
-      });
+      if (isTouch) {
+        // Touch/mobile: no smoother, just native scroll.
+        content.style.transform = "none";
+        setupPinning();
+      } else {
+        smoother = ScrollSmoother.create({
+          wrapper,
+          content,
+          smooth: 1,
+          smoothTouch: 0.1,
+          effects: true,
+          normalizeScroll: true,
+        });
 
+        setupPinning();
+
+        refreshTimer = window.setTimeout(() => {
+          ScrollTrigger.refresh();
+        }, 150);
+      }
+    } catch (err) {
+      console.error("[SmoothScroller] ScrollSmoother.create failed", err);
+      // Even if smoother fails, still try to set up pinning on native scroll
+      setupPinning();
       refreshTimer = window.setTimeout(() => {
         ScrollTrigger.refresh();
       }, 150);
-    } catch (err) {
-      console.error("[SmoothScroller] ScrollSmoother.create failed", err);
     }
 
     return () => {
       if (refreshTimer !== undefined) {
         window.clearTimeout(refreshTimer);
       }
+      pinTriggers.forEach((t) => t.kill());
       smoother?.kill();
     };
   }, []);

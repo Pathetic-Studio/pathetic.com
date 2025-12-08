@@ -1,3 +1,4 @@
+//sanity/schemas/blocks/grid/image-card.ts
 import { defineField, defineType } from "sanity";
 import { Image as ImageIcon } from "lucide-react";
 

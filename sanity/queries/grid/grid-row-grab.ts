@@ -5,27 +5,26 @@ import { objectDetectImageQuery } from "./object-detect-image";
 import { imageCardQuery } from "./image-card";
 
 // @sanity-typegen-ignore
-export const gridRowImageQuery = groq`
-  _type == "grid-row-image" => {
+export const gridRowGrabQuery = groq`
+  _type == "grid-row-grab" => {
     _type,
     _key,
     padding,
     colorVariant,
 
-
-   background{
-  enabled,
-  layout,
-  border,
-  style,
-  color,
-  fromColor,
-  toColor,
-  angle,
-  image,
-  customHeight,
-  verticalOffsetPercent
-},
+    background{
+      enabled,
+      layout,
+      border,
+      style,
+      color,
+      fromColor,
+      toColor,
+      angle,
+      image,
+      customHeight,
+      verticalOffsetPercent
+    },
 
     feature{
       type,
@@ -55,7 +54,6 @@ export const gridRowImageQuery = groq`
     gridColumns,
     mobileHorizontalTrack,
 
-    // custom gaps from Sanity, any CSS length
     rowGap,
     columnGap,
 

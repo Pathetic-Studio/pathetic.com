@@ -45,13 +45,15 @@ import gridTextBlock from "./schemas/blocks/grid/grid-text-block";
 import gridRowImage from "./schemas/blocks/grid/grid-row-image";
 import objectDetectImage from "./schemas/blocks/grid/object-detect-image";
 import imageCard from "./schemas/blocks/grid/image-card";
-import insetBackground from "./schemas/blocks/shared/inset-background";
+import insetBackground from "./schemas/blocks/shared/background";
 import gridRowAnimated from "./schemas/blocks/grid/grid-row-animated";
 import splitRowAnimated from "./schemas/blocks/split/split-row-animated";
 import splitCardsListAnimated from "./schemas/blocks/split/split-cards-list-animated";
 import gridCardAnimated from "./schemas/blocks/grid/grid-card-animated";
 import contactSubmission from "./schemas/blocks/contact-submission";
 import memeBooth from "./schemas/documents/meme-booth";
+import background from "./schemas/blocks/shared/background";
+import gridRowGrab from "./schemas/blocks/grid/grid-row-grab";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -73,7 +75,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     buttonVariant,
     sectionPadding,
     heroFeature,
-    insetBackground,
+    background,
     // blocks
     hero1,
     hero2,
@@ -96,6 +98,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     gridRowAnimated,
     gridRow,
     gridRowImage,
+    gridRowGrab,
     objectDetectImage,
     imageCard,
     carousel1,

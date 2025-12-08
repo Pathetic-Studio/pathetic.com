@@ -32,7 +32,7 @@ export default function GridCardAnimated({
   const CardInner = (
     <div
       className={cn(
-        "flex w-full flex-col justify-between overflow-hidden transition ease-in-out p-4 text-center",
+        "flex w-full flex-col justify-between overflow-visible transition ease-in-out p-4 text-center",
         color === "primary" ? "text-background" : undefined,
       )}
     >

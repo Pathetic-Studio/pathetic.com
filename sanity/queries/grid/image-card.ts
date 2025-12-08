@@ -1,3 +1,4 @@
+//sanity/queries/grid/image-card.ts
 import { groq } from "next-sanity";
 import { imageQuery } from "../shared/image";
 import { bodyQuery } from "../shared/body";

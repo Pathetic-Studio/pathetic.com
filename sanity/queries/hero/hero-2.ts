@@ -21,14 +21,19 @@ export const hero2Query = groq`
     links[]{
       ${linkQuery}
     },
-    insetBackground{
-      enabled,
-      style,
-      color,
-      fromColor,
-      toColor,
-      angle
-    },
+    background{
+  enabled,
+  layout,
+  border,
+  style,
+  color,
+  fromColor,
+  toColor,
+  angle,
+  image,
+  customHeight,
+  verticalOffsetPercent
+},
     feature{
       type,
       images[]{

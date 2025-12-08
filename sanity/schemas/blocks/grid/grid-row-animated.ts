@@ -1,3 +1,4 @@
+// sanity/schemas/blocks/grid-row-animated.ts
 import { defineField, defineType } from "sanity";
 import { LayoutGrid } from "lucide-react";
 import { COLS_VARIANTS } from "../shared/layout-variants";
@@ -11,6 +12,7 @@ export default defineType({
     defineField({ name: "padding", type: "section-padding" }),
     defineField({ name: "colorVariant", type: "color-variant" }),
 
+    // Intro content
     defineField({ name: "tagLine", title: "Tag line", type: "string" }),
     defineField({ name: "title", title: "Section title", type: "string" }),
     defineField({ name: "body", title: "Body", type: "block-content" }),
@@ -38,10 +40,18 @@ export default defineType({
       initialValue: "md",
     }),
 
+    // Grid block title
     defineField({
       name: "gridTitle",
       title: "Grid title",
       type: "string",
+    }),
+
+    // Background (shared background schema with layout + border)
+    defineField({
+      name: "background",
+      title: "Background",
+      type: "background",
     }),
 
     // Custom grid container padding overrides
@@ -113,14 +123,14 @@ export default defineType({
       ],
     }),
 
-    // Optional animation controls
+    // Optional animation controls (still available if you want to hook them up)
     defineField({
       name: "animation",
       title: "Animation settings",
       type: "object",
       fields: [
-        { name: "stagger", type: "number", initialValue: 0.15 },
-        { name: "duration", type: "number", initialValue: 0.6 },
+        { name: "stagger", type: "number", initialValue: 0.18 },
+        { name: "duration", type: "number", initialValue: 0.7 },
       ],
     }),
   ],

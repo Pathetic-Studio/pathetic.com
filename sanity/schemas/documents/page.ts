@@ -48,6 +48,7 @@ export default defineType({
         { type: "grid-row" },
         { type: "grid-row-image" },
         { type: "grid-row-animated" },
+        { type: "grid-row-grab" },
         { type: "carousel-1" },
         { type: "carousel-2" },
         { type: "timeline-row" },

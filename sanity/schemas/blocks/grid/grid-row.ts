@@ -1,4 +1,4 @@
-// sanity/schema/grid-row.ts
+// sanity/schemas/blocks/grid-row.ts
 import { defineField, defineType } from "sanity";
 import { LayoutGrid } from "lucide-react";
 import { COLS_VARIANTS } from "../shared/layout-variants";
@@ -13,11 +13,15 @@ export default defineType({
       name: "padding",
       type: "section-padding",
     }),
+
+    // Layout behavior
     defineField({
-      name: "colorVariant",
-      type: "color-variant",
-      title: "Color Variant",
-      description: "Select a background color variant",
+      name: "pinToViewport",
+      title: "Pin section to viewport",
+      type: "boolean",
+      description:
+        "When enabled, this section sticks to the bottom of the viewport for 100vh so the next section scrolls over it.",
+      initialValue: false,
     }),
 
     // Feature
@@ -76,11 +80,11 @@ export default defineType({
         "Title displayed above the grid blocks, below the intro section",
     }),
 
-    // Inset background panel
+    // Background panel (shared background schema)
     defineField({
-      name: "insetBackground",
-      title: "Inset background",
-      type: "inset-background",
+      name: "background",
+      title: "Background",
+      type: "background",
     }),
 
     // Custom grid container padding overrides

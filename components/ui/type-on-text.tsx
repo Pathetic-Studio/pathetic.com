@@ -5,7 +5,9 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(ScrollTrigger);
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 type TypeOnTextProps = {
   text: string;
@@ -29,7 +31,7 @@ export default function TypeOnText({
     if (!wrapperEl || !animatedEl) return;
 
     const fullText = text;
-    animatedEl.textContent = ""; // start empty
+    animatedEl.textContent = "";
 
     const progressObj = { p: 0 };
 

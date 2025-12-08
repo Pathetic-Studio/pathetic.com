@@ -6,7 +6,6 @@ import { gridPostQuery } from "@/sanity/queries/grid/grid-post";
 import { gridTextBlockQuery } from "@/sanity/queries/grid/grid-text-block";
 import { bodyQuery } from "@/sanity/queries/shared/body";
 import { linkQuery } from "@/sanity/queries/shared/link";
-import { insetBackgroundQuery } from "@/sanity/queries/shared/inset-background";
 
 // @sanity-typegen-ignore
 export const gridRowQuery = groq`
@@ -15,6 +14,9 @@ export const gridRowQuery = groq`
     _key,
     padding,
     colorVariant,
+
+    // Layout behavior
+    pinToViewport,
 
     // Intro content
     tagLine,
@@ -27,7 +29,7 @@ export const gridRowQuery = groq`
     },
     introPadding,
 
-    // New: grid-level title for the block group
+    // Grid-level title
     gridTitle,
 
     // Feature (shared with hero)
@@ -46,10 +48,19 @@ export const gridRowQuery = groq`
       enableClickToAddEyes
     },
 
-    // Inset background panel
-    insetBackground{
-      ${insetBackgroundQuery}
-    },
+   background{
+  enabled,
+  layout,
+  border,
+  style,
+  color,
+  fromColor,
+  toColor,
+  angle,
+  image,
+  customHeight,
+  verticalOffsetPercent
+},
 
     // Custom grid container overrides
     gridPaddingTop,
