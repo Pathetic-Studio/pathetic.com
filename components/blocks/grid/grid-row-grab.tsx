@@ -187,10 +187,12 @@ export default function GridRowGrab({
 
                   {title && (
                     <TitleText
-                      animation="typeOn"
-                      animationSpeed={titleAnimationSpeed}
+                      variant="stretched"            // or "normal"
+                      as="h2"
+                      stretchScaleX={0.6}            // your horizontal squish
+                      overallScale={1.3}            // bump overall size without font-size
                       align="center"
-                      maxChars={26}
+                      maxChars={32}
                     >
                       {title}
                     </TitleText>

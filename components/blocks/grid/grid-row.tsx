@@ -210,11 +210,12 @@ export default function GridRow({
 
                   {title && (
                     <TitleText
-                      // switch to variant="stretched" if/when you want the stretched look here
-                      animation="typeOn"
-                      animationSpeed={titleAnimationSpeed}
+                      variant="stretched"            // or "normal"
+                      as="h2"
+                      stretchScaleX={0.6}            // your horizontal squish
+                      overallScale={1.4}            // bump overall size without font-size
                       align="center"
-                      maxChars={26}
+                      maxChars={32}
                     >
                       {title}
                     </TitleText>

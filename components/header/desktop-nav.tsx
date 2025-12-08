@@ -104,7 +104,7 @@ export default function DesktopNav({
                     variant: "menu",
                     size: "sm",
                   }),
-                  "transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0"
+
                 )}
               >
                 {navItem.title}

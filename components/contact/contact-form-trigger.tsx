@@ -25,10 +25,10 @@ export default function ContactFormTrigger({
             onClick={open}
             className={cn(
                 buttonVariants({
-                    variant: "underline",
+                    variant: "menu",
                     size: "sm",
                 }),
-                "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full",
+                "cursor-pointer",
                 className
             )}
         >
