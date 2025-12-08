@@ -115,7 +115,7 @@ export default function GridRowGrab({
 
   rowGap,
   columnGap,
-  mobileHorizontalTrack, // still accepted but not used anymore
+  mobileHorizontalTrack, // not used anymore, we keep for schema compatibility
 }: GridRowGrabBlock) {
   const color = stegaClean(colorVariant);
   const resolvedGridType = (gridType || "3") as GridRowGrabBlock["gridType"];
@@ -123,7 +123,7 @@ export default function GridRowGrab({
   const introHasContent =
     !!tagLine || !!title || !!body || (links && links.length > 0);
 
-  const introPaddingKey = (introPadding || "md") as NonNullable<
+  const introPaddingKey = (introPadding || "md") as Nonnullable<
     GridRowGrabBlock["introPadding"]
   >;
   const introPaddingClass = introPaddingClasses[introPaddingKey];
@@ -143,7 +143,7 @@ export default function GridRowGrab({
   return (
     <section
       id={sectionId}
-      className="relative overflow-x-hidden lg:overflow-visible"
+      className="relative overflow-hidden lg:overflow-visible"
       data-grab-container
     >
       {rotatingImagesEnabled && (
@@ -159,7 +159,7 @@ export default function GridRowGrab({
 
       <SectionContainer color={color} padding={padding}>
         <div className="relative">
-          <div className="relative overflow-x-hidden lg:overflow-visible">
+          <div className="relative overflow-visible">
             <BackgroundPanel background={background as any} />
 
             {mouseTrailEnabled && (
@@ -227,9 +227,8 @@ export default function GridRowGrab({
                 <div className="container pb-16">
                   <div
                     className={cn(
-                      // Mobile: single column with side padding
-                      "grid grid-cols-1 gap-6 px-4 sm:px-6 md:px-8",
-                      // Desktop: switch to configured grid
+                      // Mobile: single column, brought-in padding, cards narrower than viewport
+                      "grid grid-cols-1 gap-6 px-4 sm:px-5 md:px-6",
                       getGridColsClass(resolvedGridType)
                     )}
                     style={gridStyle}
@@ -252,14 +251,23 @@ export default function GridRowGrab({
                           onActivate={setActiveId}
                           className={cn(
                             layoutClasses,
-                            // Mobile: visible card box with body + button space
-                            "bg-background/80 border border-border rounded-3xl p-4 sm:p-6",
-                            "backdrop-blur-sm",
-                            // Desktop: let the child component own the visuals
-                            "lg:bg-transparent lg:border-none lg:p-0 lg:backdrop-blur-none"
+                            // Mobile: visible card box, narrower, centered
+                            "max-w-md w-full mx-auto",
+                            "bg-background border border-border rounded-3xl p-4 sm:p-5 md:p-6",
+                            "space-y-4",
+                            "lg:max-w-none lg:mx-0",
+                            // Desktop: let inner component own more of the look
+                            "lg:bg-transparent lg:border-none lg:p-0 lg:space-y-0"
                           )}
                         >
-                          <Component {...(item as any)} />
+                          {/* 
+                            Inner components can read this flag to show body + button
+                            always on mobile instead of only on hover.
+                          */}
+                          <Component
+                            {...(item as any)}
+                            showDetailsOnMobile
+                          />
                         </DraggableGridItem>
                       );
                     })}

@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 type DraggableGridItemProps = {
   id: string;
   children: React.ReactNode;
-  // For z-index control from parent
   isActive: boolean;
   onActivate: (id: string) => void;
   className?: string;
@@ -66,7 +65,7 @@ export default function DraggableGridItem({
   };
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    // Only left mouse or primary pointer
+    // Only left mouse / primary button
     if (e.button !== 0) return;
 
     const el = ref.current;
@@ -74,7 +73,6 @@ export default function DraggableGridItem({
 
     const containerRect = getContainerRect();
     const itemRect = el.getBoundingClientRect();
-
     if (!containerRect) return;
 
     onActivate(id);
@@ -111,19 +109,17 @@ export default function DraggableGridItem({
 
     const dx = e.clientX - state.startX;
     const dy = e.clientY - state.startY;
-
     const distanceSq = dx * dx + dy * dy;
 
     if (!state.hasMoved) {
-      const absDx = Math.abs(dx);
-      const absDy = Math.abs(dy);
-
       if (distanceSq < DRAG_THRESHOLD * DRAG_THRESHOLD) {
         return;
       }
 
-      // On touch, only start a drag if it's mostly horizontal;
-      // otherwise let the page scroll vertically.
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      // On touch: if it's mostly vertical, bail so the page can scroll
       if (e.pointerType === "touch" && absDy > absDx) {
         dragState.current.pointerId = null;
         dragState.current.bounds = null;
@@ -142,7 +138,7 @@ export default function DraggableGridItem({
 
     setPos({ x: nextX, y: nextY });
 
-    // Once we're actually dragging, stop default to avoid weird scroll
+    // Once dragging, prevent weird scroll/selection
     e.preventDefault();
   };
 
@@ -173,7 +169,7 @@ export default function DraggableGridItem({
   const style: CSSProperties = {
     transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
     cursor: isDragging ? "grabbing" : "grab",
-    touchAction: "pan-y", // still allow vertical page scroll when not dragging
+    touchAction: "pan-y", // page can still scroll vertically when not dragging
     zIndex: isActive ? 40 : 10,
   };
 
