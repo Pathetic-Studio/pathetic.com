@@ -9621,7 +9621,7 @@
           },
           "optional": true
         },
-        "sectionHeight": {
+        "sectionHeightMobile": {
           "type": "objectAttribute",
           "value": {
             "type": "union",
@@ -9632,13 +9632,56 @@
               },
               {
                 "type": "string",
-                "value": "50vh"
+                "value": "50vw"
               },
               {
                 "type": "string",
                 "value": "full"
+              },
+              {
+                "type": "string",
+                "value": "custom"
               }
             ]
+          },
+          "optional": true
+        },
+        "customHeightMobile": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "sectionHeightDesktop": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "union",
+            "of": [
+              {
+                "type": "string",
+                "value": "auto"
+              },
+              {
+                "type": "string",
+                "value": "50vw"
+              },
+              {
+                "type": "string",
+                "value": "full"
+              },
+              {
+                "type": "string",
+                "value": "custom"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "customHeightDesktop": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "string"
           },
           "optional": true
         },

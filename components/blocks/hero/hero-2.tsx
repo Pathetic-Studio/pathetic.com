@@ -16,10 +16,16 @@ type Hero2Props = Extract<
   { _type: "hero-2" }
 >;
 
-const heightMap: Record<string, string> = {
+const mobileHeightMap: Record<string, string> = {
   auto: "h-auto",
-  "50vh": "h-[50vh]",
+  "50vw": "h-[50vw]",
   full: "h-screen",
+};
+
+const desktopHeightMap: Record<string, string> = {
+  auto: "md:h-auto",
+  "50vw": "md:h-[50vw]",
+  full: "md:h-screen",
 };
 
 export default function Hero2({
@@ -29,7 +35,10 @@ export default function Hero2({
   body,
   links,
   feature,
-  sectionHeight,
+  sectionHeightMobile,
+  sectionHeightDesktop,
+  customHeightMobile,
+  customHeightDesktop,
   insetBackground,
 }: Hero2Props) {
   const mouseTrailEnabled = feature?.type === "mouseTrail";
@@ -38,7 +47,31 @@ export default function Hero2({
   const imageExplodeEnabled = feature?.type === "imageExplode";
 
   const sectionId = `_hero2-${_key}`;
-  const heightClass = heightMap[sectionHeight ?? "auto"];
+
+  const mobileHeight = sectionHeightMobile ?? "auto";
+  const desktopHeight = sectionHeightDesktop ?? "auto";
+
+  const baseHeightClass =
+    mobileHeight === "custom"
+      ? "h-[var(--hero-height-mobile)]"
+      : mobileHeightMap[mobileHeight] ?? mobileHeightMap["auto"];
+
+  const desktopHeightClass =
+    desktopHeight === "custom"
+      ? "md:h-[var(--hero-height-desktop)]"
+      : desktopHeightMap[desktopHeight] ?? desktopHeightMap["auto"];
+
+  const heightClass = `${baseHeightClass} ${desktopHeightClass}`;
+
+  let sectionStyle: CSSProperties = {};
+
+  if (mobileHeight === "custom" && customHeightMobile) {
+    (sectionStyle as any)["--hero-height-mobile"] = customHeightMobile;
+  }
+
+  if (desktopHeight === "custom" && customHeightDesktop) {
+    (sectionStyle as any)["--hero-height-desktop"] = customHeightDesktop;
+  }
 
   let insetStyle: CSSProperties | undefined;
 
@@ -65,6 +98,7 @@ export default function Hero2({
     <section
       id={sectionId}
       className={`relative ${heightClass} overflow-hidden md:overflow-visible`}
+      style={sectionStyle}
     >
       {mouseTrailEnabled && (
         <MouseTrail containerId={sectionId} images={feature?.images as any} />
@@ -82,7 +116,6 @@ export default function Hero2({
         />
       )}
 
-
       {eyeFollowEnabled && (
         <EyeFollow containerId={sectionId} eyes={feature?.eyes as any} />
       )}
@@ -96,7 +129,7 @@ export default function Hero2({
 
       {insetBackground?.enabled && insetStyle && (
         <div
-          className="pointer-events-none absolute inset-4 md:inset-8 md:top-12  border border-border overflow-hidden -z-10"
+          className="pointer-events-none absolute inset-4 md:inset-8 md:top-12 border border-border overflow-hidden -z-10"
           style={insetStyle}
         />
       )}

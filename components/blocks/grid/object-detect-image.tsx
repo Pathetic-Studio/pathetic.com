@@ -96,12 +96,13 @@ export default function ObjectDetectImage({
   const isMobileRef = useRef(false);
   const isVisibleRef = useRef(false);
 
+  // Determine mobile once on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      isMobileRef.current = window.innerWidth < 768;
-    }
+    if (typeof window === "undefined") return;
+    isMobileRef.current = window.innerWidth < 768;
   }, []);
 
+  // Ensure overlay is hidden initially
   useEffect(() => {
     const overlay = bodyOverlayRef.current;
     if (!overlay) return;
@@ -152,6 +153,7 @@ export default function ObjectDetectImage({
   };
 
   const handleMouseEnter = () => {
+    // Desktop only
     if (isMobileRef.current) return;
 
     const overlay = bodyOverlayRef.current;
@@ -168,6 +170,7 @@ export default function ObjectDetectImage({
   };
 
   const handleMouseLeave = () => {
+    // Desktop only
     if (isMobileRef.current) return;
 
     const overlay = bodyOverlayRef.current;
@@ -188,6 +191,9 @@ export default function ObjectDetectImage({
     if (typeof window === "undefined") return;
     if (!bodyPlainText) return;
 
+    // Mobile only: do not even attach an observer on desktop
+    if (!isMobileRef.current) return;
+
     const el = containerRef.current;
     if (!el) return;
 
@@ -196,6 +202,7 @@ export default function ObjectDetectImage({
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
+          // Extra safety, but in practice this effect only runs on mobile
           if (!isMobileRef.current) return;
 
           const overlay = bodyOverlayRef.current;
@@ -306,14 +313,14 @@ export default function ObjectDetectImage({
               <div
                 ref={bodyOverlayRef}
                 className="pointer-events-none absolute inset-0 px-3 py-2 whitespace-pre-wrap"
-                style={
-                  accent
+                style={{
+                  ...(accent
                     ? {
                       backgroundColor: accent,
                       color: "#000",
                     }
-                    : undefined
-                }
+                    : null),
+                }}
               >
                 <span ref={bodyTextRef} />
               </div>

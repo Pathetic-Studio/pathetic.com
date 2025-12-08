@@ -11,7 +11,10 @@ export const hero2Query = groq`
     _key,
     tagLine,
     title,
-    sectionHeight,
+    sectionHeightMobile,
+    sectionHeightDesktop,
+    customHeightMobile,
+    customHeightDesktop,
     body[]{
       ${bodyQuery}
     },

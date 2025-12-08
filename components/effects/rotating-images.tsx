@@ -259,10 +259,19 @@ export default function RotatingImages({
     const height = bounds?.height ?? 0;
     const hasBounds = width > 0 && height > 0;
 
+    const isMobileLike = hasBounds && width < 768;
+
+    // Wider horizontal track on mobile: only radiusX changes
+    const radiusX = hasBounds
+        ? width * (isMobileLike ? 0.65 : 0.45)
+        : 0;
+
+    const radiusY = hasBounds
+        ? height * 0.35
+        : 0;
+
     const centerX = hasBounds ? width / 2 : 0;
     const centerY = hasBounds ? height / 2 : 0;
-    const radiusX = hasBounds ? width * 0.45 : 0;
-    const radiusY = hasBounds ? height * 0.35 : 0;
     const count = validImages.length;
 
     return (

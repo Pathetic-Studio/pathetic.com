@@ -28,18 +28,48 @@ export default defineType({
       validation: (rule) => rule.max(2),
     }),
     defineField({
-      name: "sectionHeight",
-      title: "Section Height",
+      name: "sectionHeightMobile",
+      title: "Section Height (Mobile)",
       type: "string",
       options: {
         list: [
           { title: "Auto", value: "auto" },
-          { title: "50vh", value: "50vh" },
-          { title: "Full Height", value: "full" },
+          { title: "50vw", value: "50vw" },
+          { title: "Full Height (100vh)", value: "full" },
+          { title: "Custom", value: "custom" },
         ],
         layout: "radio",
       },
       initialValue: "auto",
+    }),
+    defineField({
+      name: "customHeightMobile",
+      title: "Custom Height (Mobile)",
+      type: "string",
+      description: "Any valid CSS height (e.g. 480px, 60vh, 50vw).",
+      hidden: ({ parent }) => parent?.sectionHeightMobile !== "custom",
+    }),
+    defineField({
+      name: "sectionHeightDesktop",
+      title: "Section Height (Desktop)",
+      type: "string",
+      options: {
+        list: [
+          { title: "Auto", value: "auto" },
+          { title: "50vw", value: "50vw" },
+          { title: "Full Height (100vh)", value: "full" },
+          { title: "Custom", value: "custom" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "auto",
+    }),
+    defineField({
+      name: "customHeightDesktop",
+      title: "Custom Height (Desktop)",
+      type: "string",
+      description: "Any valid CSS height (e.g. 640px, 80vh, 50vw).",
+      hidden: ({ parent }) => parent?.sectionHeightDesktop !== "custom",
     }),
 
     defineField({
