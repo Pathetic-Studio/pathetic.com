@@ -10,6 +10,13 @@ export default defineType({
   icon: LayoutTemplate,
   fields: [
     defineField({
+      name: "anchor",
+      title: "Section Anchor",
+      type: "sectionAnchor",
+      description:
+        "Optional anchor ID for in-page navigation (used by anchor links in the nav).",
+    }),
+    defineField({
       name: "tagLine",
       type: "string",
     }),

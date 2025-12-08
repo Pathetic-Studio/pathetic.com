@@ -15,6 +15,7 @@ import SplitInfoList from "./split-info-list";
 import PortableTextRenderer from "@/components/portable-text-renderer";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { getSectionId } from "@/lib/section-id";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type SplitRow = Extract<Block, { _type: "split-row" }>;
@@ -43,6 +44,9 @@ const introPaddingClasses: Record<
 };
 
 export default function SplitRow({
+  _key,
+  anchor,
+
   padding,
   colorVariant,
   noGap,
@@ -64,10 +68,27 @@ export default function SplitRow({
     !!tagLine || !!title || !!body || (links && links.length > 0);
 
   const introPaddingClass =
-    introPaddingClasses[(introPadding || "md") as keyof typeof introPaddingClasses];
+    introPaddingClasses[
+    (introPadding || "md") as keyof typeof introPaddingClasses
+    ];
+
+  const sectionId = getSectionId("split-row", _key, anchor?.anchorId ?? null);
+
+  let containerStyle: React.CSSProperties | undefined;
+  if (typeof anchor?.defaultOffsetPercent === "number") {
+    containerStyle = {
+      "--section-anchor-offset": String(anchor.defaultOffsetPercent),
+    } as React.CSSProperties;
+  }
 
   return (
-    <SectionContainer color={color} padding={padding}>
+    <SectionContainer
+
+      color={color}
+      padding={padding}
+      data-section-anchor-id={anchor?.anchorId || undefined}
+
+    >
       {/* Intro “hero-like” container */}
       {introHasContent && (
         <div className={cn("container text-center", introPaddingClass)}>

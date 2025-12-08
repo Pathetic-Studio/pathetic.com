@@ -16,6 +16,7 @@ export default defineType({
           { title: "Internal page/post", value: "internal" },
           { title: "External URL", value: "external" },
           { title: "Contact modal", value: "contact" },
+          { title: "Anchor (on-page)", value: "anchor-link" },
         ],
         layout: "radio",
         direction: "horizontal",
@@ -34,7 +35,8 @@ export default defineType({
       name: "href",
       title: "URL",
       type: "url",
-      hidden: ({ parent }) => parent?.linkType !== "external",
+      hidden: ({ parent }) =>
+        parent?.linkType !== "external",
       validation: (Rule) =>
         Rule.uri({
           allowRelative: true,
@@ -48,6 +50,24 @@ export default defineType({
       title: "Open in new tab",
       initialValue: false,
       hidden: ({ parent }) => parent?.linkType !== "external",
+    }),
+
+    defineField({
+      name: "anchorId",
+      type: "string",
+      title: "Anchor ID",
+      description: "ID of the section on this page (no #).",
+      hidden: ({ parent }) => parent?.linkType !== "anchor-link",
+    }),
+
+    defineField({
+      name: "anchorOffsetPercent",
+      type: "number",
+      title: "Viewport offset (%)",
+      description:
+        "How far from the top of the viewport the section should land (0–100).",
+      validation: (Rule) => Rule.min(0).max(100),
+      hidden: ({ parent }) => parent?.linkType !== "anchor-link",
     }),
 
     defineField({
@@ -72,7 +92,9 @@ export default defineType({
           ? "Contact →"
           : linkType === "external"
             ? "External →"
-            : "Internal →";
+            : linkType === "anchor-link"
+              ? "Anchor →"
+              : "Internal →";
 
       return {
         title: title || "Untitled link",

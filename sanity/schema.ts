@@ -54,6 +54,7 @@ import contactSubmission from "./schemas/blocks/contact-submission";
 import memeBooth from "./schemas/documents/meme-booth";
 import background from "./schemas/blocks/shared/background";
 import gridRowGrab from "./schemas/blocks/grid/grid-row-grab";
+import sectionAnchor from "./schemas/blocks/shared/section-anchor";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -111,5 +112,6 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     newsletter,
     allPosts,
     sectionSpacer,
+    sectionAnchor,
   ],
 };

@@ -18,6 +18,7 @@ import ObjectDetectImage from "./object-detect-image";
 import ImageCard from "./image-card";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
+import { getSectionId } from "@/lib/section-id";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRowImageBlock = Extract<Block, { _type: "grid-row-image" }>;
@@ -96,6 +97,7 @@ function getItemLayoutClasses(
 
 export default function GridRowImage({
   _key,
+  anchor,
   padding,
   colorVariant,
   feature,
@@ -116,6 +118,13 @@ export default function GridRowImage({
   mobileHorizontalTrack,
 }: GridRowImageBlock) {
   const color = stegaClean(colorVariant);
+
+  const sectionId = getSectionId(
+    "grid-row-image",
+    _key,
+    anchor?.anchorId ?? null
+  );
+
   const resolvedGridType = (gridType || "3") as GridRowImageBlock["gridType"];
 
   const introHasContent =
@@ -130,7 +139,6 @@ export default function GridRowImage({
   const rotatingImagesEnabled = feature?.type === "rotatingImages";
   const eyeFollowEnabled = feature?.type === "eyeFollow";
 
-  const sectionId = `_gridrow-image-${_key}`;
 
   const gridStyle: CSSProperties = {};
   if (rowGap) {
@@ -138,6 +146,13 @@ export default function GridRowImage({
   }
   if (columnGap) {
     gridStyle.columnGap = columnGap;
+  }
+
+  let containerStyle: React.CSSProperties | undefined;
+  if (typeof anchor?.defaultOffsetPercent === "number") {
+    containerStyle = {
+      "--section-anchor-offset": String(anchor.defaultOffsetPercent),
+    } as React.CSSProperties;
   }
 
   const useHorizontalTrack = !!mobileHorizontalTrack;
@@ -160,7 +175,13 @@ export default function GridRowImage({
         <EyeFollow containerId={sectionId} eyes={feature?.eyes as any} />
       )}
 
-      <SectionContainer color={color} padding={padding}>
+      <SectionContainer
+        id={sectionId}
+        color={color}
+        padding={padding}
+        data-section-anchor-id={anchor?.anchorId || undefined}
+        style={containerStyle}
+      >
         <div className="relative">
           <div className="relative overflow-x-hidden lg:overflow-visible">
             {/* New shared background panel (same system as grid-row) */}

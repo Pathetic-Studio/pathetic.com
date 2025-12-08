@@ -4,6 +4,7 @@ import Logo from "@/components/logo";
 import MobileNav from "@/components/header/mobile-nav";
 import DesktopNav from "@/components/header/desktop-nav";
 import { ModeToggle } from "@/components/menu-toggle";
+import LogoAnimated from "@/components/logo-animated";
 import { fetchSanitySettings, fetchSanityNavigation } from "@/sanity/lib/fetch";
 
 export default async function Header() {
@@ -18,11 +19,19 @@ export default async function Header() {
           <MobileNav navigation={navigation} settings={settings} />
         </div>
 
-        <div className="flex flex-1 justify-center xl:hidden">
-          <Link href="/" aria-label="Home page">
-            <Logo settings={settings} />
+
+        <div className="flex justify-center xl:hidden">
+          <Link
+            href="/"
+            aria-label="Home page"
+            id="header-logo-main"
+            className="flex items-center justify-center"
+          >
+            <LogoAnimated className="h-8 w-auto" />
           </Link>
         </div>
+
+
 
         <div className="flex flex-1 justify-end items-center gap-3 xl:hidden">
           <ModeToggle />

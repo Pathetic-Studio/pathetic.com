@@ -11,6 +11,13 @@ export default defineType({
   icon: SquareSplitHorizontal,
   fields: [
     defineField({
+      name: "anchor",
+      title: "Section Anchor",
+      type: "sectionAnchor",
+      description:
+        "Optional anchor ID for in-page navigation (used by anchor links in the nav).",
+    }),
+    defineField({
       name: "padding",
       type: "section-padding",
     }),

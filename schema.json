@@ -3437,6 +3437,14 @@
             "value": "grid-row-image"
           }
         },
+        "anchor": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "inline",
+            "name": "sectionAnchor"
+          },
+          "optional": true
+        },
         "padding": {
           "type": "objectAttribute",
           "value": {
@@ -4062,6 +4070,14 @@
             "type": "string",
             "value": "grid-row"
           }
+        },
+        "anchor": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "inline",
+            "name": "sectionAnchor"
+          },
+          "optional": true
         },
         "padding": {
           "type": "objectAttribute",
@@ -6850,6 +6866,14 @@
             "value": "split-row-animated"
           }
         },
+        "anchor": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "inline",
+            "name": "sectionAnchor"
+          },
+          "optional": true
+        },
         "padding": {
           "type": "objectAttribute",
           "value": {
@@ -9099,6 +9123,14 @@
             "value": "split-row"
           }
         },
+        "anchor": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "inline",
+            "name": "sectionAnchor"
+          },
+          "optional": true
+        },
         "padding": {
           "type": "objectAttribute",
           "value": {
@@ -9810,6 +9842,14 @@
             "value": "hero-2"
           }
         },
+        "anchor": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "inline",
+            "name": "sectionAnchor"
+          },
+          "optional": true
+        },
         "tagLine": {
           "type": "objectAttribute",
           "value": {
@@ -10302,6 +10342,36 @@
           "value": {
             "type": "inline",
             "name": "hero-feature"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "name": "sectionAnchor",
+    "type": "type",
+    "value": {
+      "type": "object",
+      "attributes": {
+        "_type": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "string",
+            "value": "sectionAnchor"
+          }
+        },
+        "anchorId": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "defaultOffsetPercent": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "number"
           },
           "optional": true
         }
@@ -11334,6 +11404,10 @@
               {
                 "type": "string",
                 "value": "contact"
+              },
+              {
+                "type": "string",
+                "value": "anchor-link"
               }
             ]
           },
@@ -11411,6 +11485,20 @@
           "type": "objectAttribute",
           "value": {
             "type": "boolean"
+          },
+          "optional": true
+        },
+        "anchorId": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "anchorOffsetPercent": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "number"
           },
           "optional": true
         },

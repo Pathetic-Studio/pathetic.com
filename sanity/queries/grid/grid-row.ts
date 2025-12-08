@@ -6,12 +6,14 @@ import { gridPostQuery } from "@/sanity/queries/grid/grid-post";
 import { gridTextBlockQuery } from "@/sanity/queries/grid/grid-text-block";
 import { bodyQuery } from "@/sanity/queries/shared/body";
 import { linkQuery } from "@/sanity/queries/shared/link";
+import { anchorQuery } from "../shared/anchor";
 
 // @sanity-typegen-ignore
 export const gridRowQuery = groq`
   _type == "grid-row" => {
     _type,
     _key,
+    ${anchorQuery},
     padding,
     colorVariant,
 

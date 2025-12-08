@@ -20,6 +20,7 @@ import RotatingImages from "@/components/effects/rotating-images";
 import EyeFollow from "@/components/effects/eye-follow";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
+import { getSectionId } from "@/lib/section-id";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRow = Extract<Block, { _type: "grid-row" }>;
@@ -55,6 +56,7 @@ const introPaddingClasses: Record<
 
 export default function GridRow({
   _key,
+  anchor,
   padding,
   colorVariant,
   gridColumns,
@@ -78,6 +80,13 @@ export default function GridRow({
   pinToViewport,
 }: GridRow) {
   const color = stegaClean(colorVariant);
+
+  const sectionId = getSectionId(
+    "grid-row",
+    _key,
+    anchor?.anchorId ?? null
+  );
+
   const gridColsValue = stegaClean(gridColumns);
   const isPinned = Boolean(pinToViewport);
 
@@ -104,7 +113,6 @@ export default function GridRow({
 
   const featureWithExtras = feature as FeatureWithExtras | null;
 
-  const sectionId = `_gridrow-${_key}`;
   const hasIntroOrGridTitle = introHasContent || !!gridTitle;
 
   // Title animation configuration coming from feature
@@ -133,6 +141,13 @@ export default function GridRow({
   if (cleanGridRowGap) gridStyle.rowGap = cleanGridRowGap as string;
   if (cleanGridColumnGap) gridStyle.columnGap = cleanGridColumnGap as string;
 
+  let containerStyle: React.CSSProperties | undefined;
+  if (typeof anchor?.defaultOffsetPercent === "number") {
+    containerStyle = {
+      "--section-anchor-offset": String(anchor.defaultOffsetPercent),
+    } as React.CSSProperties;
+  }
+
   return (
     <section
       id={sectionId}
@@ -157,7 +172,13 @@ export default function GridRow({
         />
       )}
 
-      <SectionContainer color={color} padding={padding}>
+      <SectionContainer
+        id={sectionId}
+        color={color}
+        padding={padding}
+        data-section-anchor-id={anchor?.anchorId || undefined}
+        style={containerStyle}
+      >
         <div
           className={cn(
             "relative",

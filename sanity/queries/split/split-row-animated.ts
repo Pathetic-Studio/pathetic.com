@@ -7,12 +7,14 @@ import { splitImageAnimateQuery } from "./split-image-animate";
 import { splitInfoListQuery } from "./split-info-list";
 import { bodyQuery } from "../shared/body";
 import { linkQuery } from "../shared/link";
+import { anchorQuery } from "../shared/anchor";
 
 // @sanity-typegen-ignore
 export const splitRowAnimatedQuery = groq`
   _type == "split-row-animated" => {
     _type,
     _key,
+            ${anchorQuery},
     padding,
     colorVariant,
     noGap,

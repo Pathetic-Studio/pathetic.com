@@ -12,6 +12,7 @@ import EyeFollow from "@/components/effects/eye-follow";
 import ImageExplode from "@/components/effects/image-explode";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
+import { getSectionId } from "@/lib/section-id";
 
 type Hero2Props = Extract<
   NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number],
@@ -42,6 +43,7 @@ export default function Hero2({
   customHeightMobile,
   customHeightDesktop,
   background,
+  anchor,
 }: Hero2Props) {
   const mouseTrailEnabled = feature?.type === "mouseTrail";
   const rotatingImagesEnabled = feature?.type === "rotatingImages";
@@ -78,6 +80,7 @@ export default function Hero2({
   return (
     <section
       id={sectionId}
+      data-section-anchor-id={anchor?.anchorId || undefined}
       className={`relative ${heightClass} overflow-hidden md:overflow-visible`}
       style={sectionStyle}
     >

@@ -148,22 +148,25 @@ export default function GridTextBlock({
   const hoverEnabled =
     variant === "retro" ? false : !!animateOnHover;
 
+  // Keep card background as bg-background by default on hover.
   const bgHover =
     hoverEnabled && hoverBgColor
       ? hoverBgClass(hoverBgColor)
       : hoverEnabled
-        ? hoverBgClass("primary")
+        ? hoverBgClass("background")
         : "";
 
+  // Default hover text to primary-foreground (what you asked for).
   const textHover =
     hoverEnabled && hoverTextColor
       ? hoverTextClass(hoverTextColor)
       : hoverEnabled
-        ? hoverTextClass("foreground")
+        ? hoverTextClass("onPrimary")
         : "";
 
+  // Turn scale off by default; when used, make it smooth.
   const scaleHover =
-    hoverEnabled && (hoverScaleUp ?? true)
+    hoverEnabled && (hoverScaleUp ?? false)
       ? "group-hover:scale-[1.05]"
       : "";
 
@@ -171,10 +174,15 @@ export default function GridTextBlock({
     shapeHasBorder === false ? "" : "border border-border";
 
   const NormalCard = (
-    <div className={cn("relative w-full", scaleHover)}>
+    <div
+      className={cn(
+        "relative w-full transform transition-transform duration-250 ease-in-out",
+        scaleHover,
+      )}
+    >
       <div
         className={cn(
-          "relative flex w-full flex-col justify-between py-4 lg:py-14  px-6 lg:px-26 transition-colors duration-200 ease-in-out",
+          "relative flex w-full flex-col justify-between py-4 lg:py-14 px-6 lg:px-26 transition-colors duration-250 ease-in-out",
           "bg-background text-primary",
           bgHover,
           textHover,
@@ -193,7 +201,12 @@ export default function GridTextBlock({
   );
 
   const ShapeCard = (
-    <div className={cn("relative w-full", scaleHover)}>
+    <div
+      className={cn(
+        "relative w-full transform transition-transform duration-200 ease-out",
+        scaleHover,
+      )}
+    >
       {/* Shape background */}
       <div
         className={cn(
@@ -217,7 +230,7 @@ export default function GridTextBlock({
       {/* Foreground content */}
       <div
         className={cn(
-          "relative flex w-full flex-col justify-between py-14  px-26 transition-colors duration-200 ease-in-out",
+          "relative flex w-full flex-col justify-between py-14 px-26 transition-colors duration-200 ease-in-out",
           "text-primary",
           textHover,
         )}

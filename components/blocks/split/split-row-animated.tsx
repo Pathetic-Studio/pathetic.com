@@ -18,6 +18,7 @@ import PortableTextRenderer from "@/components/portable-text-renderer";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import TypeOnText from "@/components/ui/type-on-text";
+import { getSectionId } from "@/lib/section-id";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -55,6 +56,8 @@ const IMAGE_FADE_START = "top 75%";
 const TYPE_ON_START = "top 80%";
 
 export default function SplitRowAnimated({
+  _key,
+  anchor,
   padding,
   colorVariant,
   noGap,
@@ -70,6 +73,12 @@ export default function SplitRowAnimated({
 }: SplitRowAnimated) {
   const color = stegaClean(colorVariant);
 
+  const sectionId = getSectionId(
+    "split-row-animated",
+    _key,
+    anchor?.anchorId ?? null
+  );
+
   // 0 = base, 1 = image scaled in, 2 = effect 1 on, 3 = effect 2 on
   const [imageStage, setImageStage] = useState(0);
 
@@ -84,6 +93,15 @@ export default function SplitRowAnimated({
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLDivElement | null>(null);
   const cardsRef = useRef<HTMLDivElement | null>(null);
+
+
+  let containerStyle: React.CSSProperties | undefined;
+  if (typeof anchor?.defaultOffsetPercent === "number") {
+    containerStyle = {
+      "--section-anchor-offset": String(anchor.defaultOffsetPercent),
+    } as React.CSSProperties;
+  }
+
 
   useEffect(() => {
     if (!sectionRef.current) return;
@@ -227,7 +245,14 @@ export default function SplitRowAnimated({
   }, [splitColumns]);
 
   return (
-    <SectionContainer color={color} padding={padding}>
+    <SectionContainer
+      id={sectionId}
+      color={color}
+      padding={padding}
+      data-section-anchor-id={anchor?.anchorId || undefined}
+      style={containerStyle}
+    >
+
       <div ref={sectionRef} className="relative bg-background overflow-visible">
         {introHasContent && (
           <div

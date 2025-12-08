@@ -3,12 +3,14 @@ import { bodyQuery } from "../shared/body";
 import { linkQuery } from "../shared/link";
 import { objectDetectImageQuery } from "./object-detect-image";
 import { imageCardQuery } from "./image-card";
+import { anchorQuery } from "../shared/anchor";
 
 // @sanity-typegen-ignore
 export const gridRowImageQuery = groq`
   _type == "grid-row-image" => {
     _type,
     _key,
+        ${anchorQuery},
     padding,
     colorVariant,
 
