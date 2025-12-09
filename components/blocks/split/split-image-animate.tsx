@@ -84,8 +84,8 @@ export default function SplitImageAnimate({
                       <div
                         key={image._key || image.asset._id}
                         className={`absolute inset-0 transition-opacity duration-500 ${index === clampedIndex
-                            ? "opacity-100"
-                            : "opacity-0"
+                          ? "opacity-100"
+                          : "opacity-0"
                           }`}
                       >
                         <Image
@@ -168,7 +168,7 @@ export default function SplitImageAnimate({
 
                   {/* EFFECT 2 – rotating overlay, soft light, always spinning */}
                   <motion.div
-                    className="absolute inset-0"
+                    className="absolute inset-0 aspect-square"
                     style={{
                       mixBlendMode: "soft-light",
                       transformOrigin: "center center",

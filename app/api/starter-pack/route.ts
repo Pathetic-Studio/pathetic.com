@@ -21,23 +21,31 @@ const genAI = new GoogleGenerativeAI(apiKey);
 const MODEL_ID = process.env.GEMINI_MODEL_ID || "gemini-3.0-flash";
 
 const STARTER_PACK_PROMPT = `
-Generate a @PATHETIC-style starter pack using the attached fit pic.
+ Image composition & framing rules:
+    - The title text must be **fully visible and never cropped**, even at the very top of the frame.
+    - Leave a **clear top and bottom margin equal to at least 20% of total image height** to ensure the title and bottom elements are never cropped.
+    - Leave at least **10–15% margin** on left and right sides too.
+    - All content (title, text, and items) must fit entirely inside this "safe zone."
+    - Center everything inside the safe zone — no element should touch or extend to image edges.
+    - Maintain balanced spacing between each item and caption.
 
-Requirements:
-- Remove the person, isolate only clothing/items.
-- Use up-to-date, recent (as of summer 2025) trends to inform the meme and be specific about certain brands, patterns, items, or tropes that you can pick out and recognize. 
-- This should be biting, funny, and in-line with the references attached. 
-- Include a single, witty title (Arial Narrow font) at the top that captures the vibe, aesthetic, or archetype of the outfit in the top 10% of the image height. 
-- Do not place any other elements (items or captions) inside this top 10% title band.
-- Avoid generic titles like "Textures and Patterns Starter Pack."
-- Below the title band, arrange exactly FOUR items in a clean 2x2 square grid.
-- Each grid cell should be a square.
-- Each item should have a short, cutting caption directly underneath it, funny caption describing the item in meme tone, inside its own cell area.
--  Make the output cutting, funny, and insanely relevant to modern fashion/meme culture.
-- Use a flat, pure white background.
-- Do NOT overlap items. Leave generous margins between items and the canvas edges.
-- Keep everything inside a safe framing area so no text or items are cropped.
-- Output as a single image in roughly 5:6 aspect ratio.
+    Generate a @PATHETIC-style starter pack (examples attached) using the fit pic I attached (the last image). 
+    Take the fit pic and isolate each clothing piece to create the meme.
+
+    Use up-to-date, recent (as of summer 2025) trends to inform the meme and be specific about certain brands, patterns, items, or tropes that you can pick out and recognize. 
+    This should be biting, funny, and in-line with the references attached. 
+
+    Format:
+    - A single, witty title at the top that captures the vibe, aesthetic, or archetype of the outfit. 
+    • Titles should be like the sample images based on the image content itself. 
+    • Avoid generic titles like "Textures and Patterns Starter Pack."
+    - Isolated clothing items below, each with a short, funny caption describing the item in meme tone.
+
+    Remove any person from the output, isolating only the clothing items. 
+    Make the output cutting, funny, and insanely relevant to modern fashion/meme culture.
+    
+    The image output should be in 5:6 aspect ratio.
+
 `;
 
 
