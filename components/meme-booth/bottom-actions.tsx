@@ -1,6 +1,6 @@
 "use client";
 
-import { Repeat, Sparkles } from "lucide-react";
+import { Repeat, Sparkles, Camera } from "lucide-react";
 import type { InputMode } from "./mode-toggle";
 
 type BottomActionsProps = {
@@ -58,7 +58,7 @@ export default function BottomActions({
                         className="absolute inset-0 rounded-full bg-[#7A68FF] blur-[1px]"
                     />
                     <span className="relative inline-flex items-center gap-1 text-white">
-                        <Sparkles className="h-4 w-4 shrink-0 [transform:scaleX(0.8)]" />
+                        <Camera className="h-4 w-4 shrink-0 [transform:scaleX(0.8)]" />
                         <span>{loading ? "Generating…" : "Generate"}</span>
                     </span>
                 </button>
