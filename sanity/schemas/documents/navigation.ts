@@ -33,6 +33,12 @@ export default defineType({
       type: "array",
       of: [{ type: "link" }],
     }),
+    defineField({
+      name: "instagram",
+      type: "url",
+      title: "Instagram Link",
+      description: "Full Instagram profile URL",
+    }),
   ],
   preview: {
     prepare() {

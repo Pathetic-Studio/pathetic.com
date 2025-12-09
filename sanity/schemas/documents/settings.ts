@@ -37,6 +37,7 @@ export default defineType({
         }),
       ],
     }),
+
     defineField({
       name: "siteName",
       type: "string",

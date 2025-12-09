@@ -601,7 +601,7 @@ export default function CameraPanel() {
 
     return (
         <section className="mx-auto max-w-xl py-1">
-            <div className="relative border border-border bg-background/90 px-4 py-5">
+            <div className="relative border border-border bg-background px-4 py-5">
                 {error && (
                     <p className="mb-2 text-xs text-red-600">
                         {error}
@@ -621,7 +621,7 @@ export default function CameraPanel() {
                     className="relative w-full"
                 >
                     <div
-                        className="pointer-events-none absolute inset-0 bg-background/80 opacity-0"
+                        className="pointer-events-none absolute inset-0 bg-background opacity-0"
                         ref={scrimRef}
                     />
 

@@ -3,10 +3,6 @@ import { orderableDocumentListDeskItem } from "@sanity/orderable-document-list";
 import { createBulkActionsTable } from "sanity-plugin-bulk-actions-table";
 import {
   Files,
-  BookA,
-  User,
-  ListCollapse,
-  Quote,
   Menu,
   Settings,
   Mail,
@@ -18,6 +14,7 @@ export const structure = (S: any, context: any) =>
   S.list()
     .title("Content")
     .items([
+      // Pages
       orderableDocumentListDeskItem({
         type: "page",
         title: "Pages",
@@ -25,44 +22,15 @@ export const structure = (S: any, context: any) =>
         S,
         context,
       }),
-      S.listItem()
-        .title("Posts")
-        .schemaType("post")
-        .child(
-          S.documentTypeList("post")
-            .title("Post")
-            .defaultOrdering([{ field: "_createdAt", direction: "desc" }])
-        ),
-      orderableDocumentListDeskItem({
-        type: "category",
-        title: "Categories",
-        icon: BookA,
-        S,
-        context,
-      }),
-      orderableDocumentListDeskItem({
-        type: "author",
-        title: "Authors",
-        icon: User,
-        S,
-        context,
-      }),
-      orderableDocumentListDeskItem({
-        type: "faq",
-        title: "FAQs",
-        icon: ListCollapse,
-        S,
-        context,
-      }),
-      orderableDocumentListDeskItem({
-        type: "testimonial",
-        title: "Testimonials",
-        icon: Quote,
-        S,
-        context,
-      }),
 
-      // Meme Booth – single document tab
+      // HIDDEN:
+      // S.listItem().title("Posts")...
+      // orderableDocumentListDeskItem({ type: "category" })
+      // orderableDocumentListDeskItem({ type: "author" })
+      // orderableDocumentListDeskItem({ type: "faq" })
+      // orderableDocumentListDeskItem({ type: "testimonial" })
+
+      // Meme Booth – single document
       S.listItem()
         .title("Meme Booth")
         .icon(Camera)
@@ -70,10 +38,10 @@ export const structure = (S: any, context: any) =>
           S.editor()
             .id("memeBooth")
             .schemaType("memeBooth")
-            // Force a single document with fixed ID
             .documentId("memeBooth")
         ),
 
+      // Page Loader
       S.listItem()
         .title("Page Loader")
         .icon(Loader2)
@@ -84,7 +52,7 @@ export const structure = (S: any, context: any) =>
             .documentId("pageLoader")
         ),
 
-      // NEW: Contact table item
+      // Contact Submissions
       createBulkActionsTable({
         type: "contactSubmission",
         S,
@@ -94,6 +62,8 @@ export const structure = (S: any, context: any) =>
       }),
 
       S.divider({ title: "Global" }),
+
+      // Navigation
       S.listItem()
         .title("Navigation")
         .icon(Menu)
@@ -103,6 +73,8 @@ export const structure = (S: any, context: any) =>
             .schemaType("navigation")
             .documentId("navigation")
         ),
+
+      // Settings
       S.listItem()
         .title("Settings")
         .icon(Settings)

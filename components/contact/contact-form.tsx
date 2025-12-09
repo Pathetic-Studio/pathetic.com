@@ -3,6 +3,7 @@
 
 import { useState, FormEvent } from "react";
 import { useContactModal } from "./contact-modal-context";
+import { Button } from "@/components/ui/button";
 
 type ContactFormData = {
     name: string;
@@ -112,20 +113,22 @@ export default function ContactForm() {
             )}
 
             <div className="flex justify-between pt-2">
-                <button
+                <Button
                     type="button"
                     onClick={close}
-                    className="border border-border px-3 py-1.5 text-xs font-medium hover:bg-neutral-100"
+                    variant="menu"
+                    className="border border-border px-3 py-1.5 text-xs font-medium "
                 >
                     Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                     type="submit"
+                    variant="default"
                     disabled={status === "submitting"}
-                    className="rounded bg-black px-4 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                    className="  px-4 py-1.5 text-xs font-medium  disabled:opacity-60"
                 >
                     {status === "submitting" ? "Sending..." : "Send message"}
-                </button>
+                </Button>
             </div>
         </form>
 

@@ -13,7 +13,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/logo";
-import { AlignRight, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import {
   SETTINGS_QUERYResult,
   NAVIGATION_QUERYResult,
@@ -22,6 +22,7 @@ import ContactFormTrigger from "@/components/contact/contact-form-trigger";
 import ScrollSmoother from "gsap/ScrollSmoother";
 import gsap from "gsap";
 import { ModeToggle } from "@/components/menu-toggle";
+
 
 type NavigationDoc = NAVIGATION_QUERYResult[0];
 
@@ -182,14 +183,14 @@ export default function MobileNav({
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
           "relative z-[70] flex h-10 w-10 items-center justify-center",
-          "border border-border bg-background rounded-none p-0",
+          " rounded-none p-0",
           "focus-visible:ring-1 focus-visible:ring-offset-1"
         )}
       >
         {open ? (
-          <X className="h-4 w-4 dark:text-white" />
+          <X className="h-4 w-4 scale-x-[0.6] dark:text-white" />
         ) : (
-          <AlignRight className="h-4 w-4 dark:text-white" />
+          <Menu className="h-4 w-4 scale-x-[0.6] dark:text-white" />
         )}
       </Button>
 

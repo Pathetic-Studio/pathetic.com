@@ -301,7 +301,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
     <section
       ref={sectionRef}
       id={SECTION_ID}
-      className="relative min-h-[100dvh] overflow-hidden md:overflow-visible bg-white"
+      className="relative min-h-[100dvh] overflow-hidden md:overflow-visible bg-background"
     >
       {/* Background ImageExplode: mounted once via memoized wrapper so title type-on doesn't re-init it */}
       {showExplode && <ExplodeBackground sprites={sprites} />}

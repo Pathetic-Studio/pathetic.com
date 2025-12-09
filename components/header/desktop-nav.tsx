@@ -10,6 +10,7 @@ import LogoAnimated from "@/components/logo-animated";
 import { ModeToggle } from "@/components/menu-toggle";
 import ContactFormTrigger from "@/components/contact/contact-form-trigger";
 import ScrollSmoother from "gsap/ScrollSmoother";
+import { InstagramIcon } from "../ui/instagram-icon";
 
 type NavigationDoc = NAVIGATION_QUERYResult[0];
 
@@ -62,6 +63,7 @@ export default function DesktopNav({
   settings: any;
 }) {
   const nav = navigation[0];
+  const instagramUrl = nav.instagram;
 
   const leftLinks: SanityLink[] = (nav?.leftLinks as SanityLink[]) ?? [];
   const rightLinks: SanityLink[] = (nav?.rightLinks as SanityLink[]) ?? [];
@@ -247,8 +249,11 @@ export default function DesktopNav({
           })}
         </div>
 
-        <div className="h-full flex items-center border border-border">
+        <div className="h-full flex items-center ">
           <ModeToggle />
+        </div>
+        <div className="h-full flex items-center ">
+          <InstagramIcon instagramUrl={instagramUrl} />
         </div>
       </div>
     </div>
