@@ -1,12 +1,11 @@
 // app/(main)/meme-booth/page.tsx
 import type { Metadata } from "next";
-import CameraPanel from "@/components/meme-booth/camera-panel";
+import MemeBoothShell from "@/components/meme-booth/meme-booth-shell";
 import { fetchMemeBooth } from "@/sanity/lib/fetch";
 
 export async function generateMetadata(): Promise<Metadata> {
     const page = await fetchMemeBooth();
 
-    // Fallbacks so it still works if the doc is missing
     const title = page?.meta_title || page?.title || "Meme Booth";
     const description =
         page?.meta_description || page?.subtitle || "Generate memes in the booth.";
@@ -35,7 +34,6 @@ export default async function MemeBoothPage() {
     const page = await fetchMemeBooth();
 
     return (
-
         <main className="mx-auto max-w-4xl pt-32 px-4">
             <header className="mb-8 text-center">
                 <h1 className="text-5xl font-semibold uppercase">
@@ -49,9 +47,8 @@ export default async function MemeBoothPage() {
                 )}
             </header>
 
-            <CameraPanel />
-
+            {/* Client-only, dynamic, no SSR */}
+            <MemeBoothShell />
         </main>
-
     );
 }

@@ -1,3 +1,4 @@
+//app/(main)/[slug]/page.tsx
 import Blocks from "@/components/blocks";
 import {
   fetchSanityPageBySlug,

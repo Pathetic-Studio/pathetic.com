@@ -8,7 +8,6 @@ import {
 } from "@mediapipe/tasks-vision";
 import { gsap } from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
-import ScrollSmoother from "gsap/ScrollSmoother";
 
 import StarterPackParticles from "@/components/effects/starter-pack-particles";
 import LoadingBar from "@/components/ui/loading-bar";
@@ -19,9 +18,20 @@ import BottomActions from "@/components/meme-booth/bottom-actions";
 import CameraCaptureView from "@/components/meme-booth/camera-capture-view";
 import StarterPackResultView from "@/components/meme-booth/starter-pack-result-view";
 
+
+
 if (typeof window !== "undefined") {
-    gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+    gsap.registerPlugin(ScrollTrigger);
 }
+
+const refreshScroll = () => {
+    if (typeof window === "undefined") return;
+    try {
+        ScrollTrigger.refresh();
+    } catch (err) {
+        console.warn("[CameraPanel] scroll refresh failed", err);
+    }
+};
 
 const USE_SPRITE_MODE = true as const;
 const USE_YOLO_SPLITTER = true as const;
