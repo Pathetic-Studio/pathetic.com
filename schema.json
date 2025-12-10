@@ -8023,6 +8023,13 @@
             "type": "boolean"
           },
           "optional": true
+        },
+        "enablePerspective": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "boolean"
+          },
+          "optional": true
         }
       }
     }

@@ -254,6 +254,16 @@ export default defineType({
       hidden: ({ parent }) =>
         parent?.effectStyle !== "normal" && parent?.effectStyle !== "shape",
     }),
+
+    // PERSPECTIVE TILT
+    defineField({
+      name: "enablePerspective",
+      title: "Enable perspective tilt",
+      type: "boolean",
+      initialValue: false,
+      description:
+        "Adds a subtle 3D tilt effect between the background and the text on pointer move.",
+    }),
   ],
   preview: {
     select: {

@@ -1,4 +1,8 @@
 // components/blocks/grid/grid-text-block.tsx
+"use client";
+
+import React, { useEffect, useRef } from "react";
+import gsap from "gsap";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { stegaClean } from "next-sanity";
@@ -257,7 +261,10 @@ export default function GridTextBlock({
   hoverColorTextCustomToken,
   hoverScaleUp,
   effectStyle,
+  enablePerspective,
 }: GridTextBlockProps) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
   const hasHref = !!link?.href;
   const isContactLink = link?.linkType === "contact";
   const hasAnyLink = !!link;
@@ -287,8 +294,59 @@ export default function GridTextBlock({
 
   const bevelClasses = bevelClass(bevel);
 
+  useEffect(() => {
+    if (!enablePerspective) return;
+
+    const card = cardRef.current;
+    if (!card) return;
+
+    // set perspective on the card container
+    gsap.set(card, { perspective: 650 });
+
+    const outer = card.querySelector<HTMLElement>(".gtb-bg");
+    const inner = card.querySelector<HTMLElement>(".gtb-content");
+
+    if (!outer || !inner) return;
+
+    const outerRX = gsap.quickTo(outer, "rotationX", { ease: "power3" });
+    const outerRY = gsap.quickTo(outer, "rotationY", { ease: "power3" });
+    const innerX = gsap.quickTo(inner, "x", { ease: "power3" });
+    const innerY = gsap.quickTo(inner, "y", { ease: "power3" });
+
+    const handleMove = (e: PointerEvent) => {
+      const rect = card.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+
+      outerRX(gsap.utils.interpolate(15, -15, y));
+      outerRY(gsap.utils.interpolate(-15, 15, x));
+      innerX(gsap.utils.interpolate(-30, 30, x));
+      innerY(gsap.utils.interpolate(-30, 30, y));
+    };
+
+    const handleLeave = () => {
+      outerRX(0);
+      outerRY(0);
+      innerX(0);
+      innerY(0);
+    };
+
+    card.addEventListener("pointermove", handleMove);
+    card.addEventListener("pointerleave", handleLeave);
+
+    return () => {
+      card.removeEventListener("pointermove", handleMove);
+      card.removeEventListener("pointerleave", handleLeave);
+      gsap.set(outer, { rotationX: 0, rotationY: 0 });
+      gsap.set(inner, { x: 0, y: 0 });
+    };
+  }, [enablePerspective]);
+
   const NormalCard = (
     <div
+      ref={cardRef}
       className={cn(
         "relative w-full transform transition-transform duration-250 ease-in-out will-change-[transform]",
         scaleHover,
@@ -296,7 +354,7 @@ export default function GridTextBlock({
     >
       <div
         className={cn(
-          "relative flex w-full flex-col justify-between py-4 lg:py-14 px-6 lg:px-26 transition-colors duration-250 ease-in-out will-change-[background-color,color]",
+          "gtb-bg relative flex w-full flex-col justify-between py-4 lg:py-14 px-6 lg:px-26 transition-colors duration-250 ease-in-out will-change-[background-color,color]",
           baseColors.bg,
           baseColors.text,
           hoverColors.bg,
@@ -305,19 +363,22 @@ export default function GridTextBlock({
           bevelClasses,
         )}
       >
-        <CardContent
-          titlePortable={titlePortable}
-          bodyPortable={bodyPortable}
-          image={image}
-          link={link}
-          showButton={showButton}
-        />
+        <div className="gtb-content will-change-[transform]">
+          <CardContent
+            titlePortable={titlePortable}
+            bodyPortable={bodyPortable}
+            image={image}
+            link={link}
+            showButton={showButton}
+          />
+        </div>
       </div>
     </div>
   );
 
   const ShapeCard = (
     <div
+      ref={cardRef}
       className={cn(
         "relative w-full transform transition-transform duration-200 ease-out will-change-[transform]",
         scaleHover,
@@ -332,10 +393,10 @@ export default function GridTextBlock({
       >
         <div
           className={cn(
+            "gtb-bg transition-colors duration-200 ease-in-out will-change-[background-color]",
             effectiveShape === "square"
               ? "aspect-square h-[90%] w-auto"
               : "w-full h-full",
-            "transition-colors duration-200 ease-in-out will-change-[background-color]",
             baseColors.bg,
             hoverColors.bg,
             shapeClipClass(effectiveShape),
@@ -348,7 +409,7 @@ export default function GridTextBlock({
       {/* Foreground content */}
       <div
         className={cn(
-          "relative flex w-full flex-col justify-between py-14 px-26 transition-colors duration-200 ease-in-out will-change-[color]",
+          "gtb-content relative flex w-full flex-col justify-between py-14 px-26 transition-colors duration-200 ease-in-out will-change-[color,transform]",
           baseColors.text,
           hoverColors.text,
         )}

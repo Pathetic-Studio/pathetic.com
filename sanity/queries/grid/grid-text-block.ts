@@ -47,5 +47,8 @@ export const gridTextBlockQuery = groq`
 
     // hover scale
     hoverScaleUp,
+
+    // perspective tilt
+    enablePerspective,
   }
 `;
