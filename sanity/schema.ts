@@ -57,6 +57,7 @@ import gridRowGrab from "./schemas/blocks/grid/grid-row-grab";
 import sectionAnchor from "./schemas/blocks/shared/section-anchor";
 import pageHeader from "./schemas/blocks/page-header";
 import pageLoader from "./schemas/blocks/page-loader";
+import centralTextBlock from "./schemas/blocks/central-text-block";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -117,5 +118,6 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     sectionAnchor,
     pageHeader,
     pageLoader,
+    centralTextBlock,
   ],
 };

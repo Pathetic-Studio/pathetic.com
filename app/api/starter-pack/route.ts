@@ -77,6 +77,7 @@ Requirements:
 - Do not place any other elements (items or captions) inside this top 10% title band.
 - Avoid generic titles like "Textures and Patterns Starter Pack."
 - Below the title band, arrange exactly FOUR items in a clean 2x2 square grid.
+- Do not use lines to split the cells up. 
 - Each grid cell should be a square.
 - Each item should have a short, cutting caption directly underneath it, funny caption describing the item in meme tone, inside its own cell area.
 - Make the output cutting, funny, and insanely relevant to modern fashion/meme culture.

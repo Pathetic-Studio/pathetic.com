@@ -59,6 +59,7 @@ export default defineType({
         { type: "all-posts" },
         { type: "section-spacer" },
         { type: "page-header" },
+        { type: "central-text-block" },
       ],
       options: {
         insertMenu: {
