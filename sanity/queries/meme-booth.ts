@@ -5,6 +5,7 @@ export const MEME_BOOTH_QUERY = groq`
   *[_type == "memeBooth" && _id == "memeBooth"][0]{
     title,
     subtitle,
+    showNewsletterModalOnView,
     meta_title,
     meta_description,
     noindex,

@@ -1,4 +1,3 @@
-// app/(main)/meme-booth/page.tsx
 import type { Metadata } from "next";
 import MemeBoothShell from "@/components/meme-booth/meme-booth-shell";
 import { fetchMemeBooth } from "@/sanity/lib/fetch";
@@ -33,6 +32,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function MemeBoothPage() {
     const page = await fetchMemeBooth();
 
+    const showNewsletterModalOnView = page?.showNewsletterModalOnView ?? false;
+
     return (
         <main className="mx-auto max-w-4xl pt-32 px-4">
             <header className="mb-8 text-center">
@@ -48,7 +49,7 @@ export default async function MemeBoothPage() {
             </header>
 
             {/* Client-only, dynamic, no SSR */}
-            <MemeBoothShell />
+            <MemeBoothShell showNewsletterModalOnView={showNewsletterModalOnView} />
         </main>
     );
 }

@@ -27,8 +27,16 @@ export default defineType({
       title: "Pin section to viewport",
       type: "boolean",
       description:
-        "When enabled, this section sticks to the bottom of the viewport for 100vh so the next section scrolls over it.",
+        "When enabled, this section sticks to the bottom of the viewport so the next section scrolls over it.",
       initialValue: false,
+    }),
+    defineField({
+      name: "pinDuration",
+      title: "Pin duration (CSS length or multiplier)",
+      type: "string",
+      description:
+        "How long this section should stay pinned. Accepts CSS lengths like 150vh or 300px, or a bare number meaning that many viewport heights (e.g. 1.25 = 125vh).",
+      validation: (rule) => rule.max(50),
     }),
 
     // Feature

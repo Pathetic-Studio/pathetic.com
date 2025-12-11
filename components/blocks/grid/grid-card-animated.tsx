@@ -7,6 +7,7 @@ import Image from "next/image";
 import { urlFor } from "@/sanity/lib/image";
 import { PAGE_QUERYResult, ColorVariant } from "@/sanity.types";
 import CaptionBubble from "./caption-bubble";
+import type { GridCardParallaxConfig } from "./grid-row-animated-parallax";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRowAnimated = Extract<Block, { _type: "grid-row-animated" }>;
@@ -16,6 +17,7 @@ type GridCardAnimatedBlock = Extract<GridColumn, { _type: "grid-card-animated" }
 interface GridCardAnimatedProps
   extends Omit<GridCardAnimatedBlock, "_type" | "_key"> {
   color?: ColorVariant;
+  parallaxConfig?: GridCardParallaxConfig; // NEW
 }
 
 export default function GridCardAnimated({
@@ -25,9 +27,16 @@ export default function GridCardAnimated({
   image,
   link,
   caption,
+  parallaxConfig,
 }: GridCardAnimatedProps) {
   const hasLink = !!link?.href;
   const hasCaptionText = !!caption?.text;
+
+  const imageSpeed = parallaxConfig?.imageSpeed;
+  const bodySpeed = parallaxConfig?.bodySpeed;
+  const captionSpeed = parallaxConfig?.captionSpeed;
+  const buttonSpeed = parallaxConfig?.buttonSpeed;
+  const titleSpeed = parallaxConfig?.titleSpeed;
 
   const CardInner = (
     <div
@@ -38,7 +47,10 @@ export default function GridCardAnimated({
     >
       <div>
         {image && image.asset?._id && (
-          <div className="mb-4 relative w-full aspect-[4/5] h-[300px] lg:h-auto overflow-visible">
+          <div
+            className="mb-4 relative w-full aspect-[4/5] h-[300px] lg:h-auto overflow-visible"
+            data-speed={imageSpeed ?? undefined} // NEW
+          >
             <Image
               src={urlFor(image).url()}
               alt={image.alt || ""}
@@ -58,6 +70,7 @@ export default function GridCardAnimated({
                 side={caption!.side as any}
                 xPercent={caption!.xPercent}
                 yPercent={caption!.yPercent}
+                parallaxSpeed={captionSpeed ?? null} // NEW
               />
             )}
           </div>
@@ -65,11 +78,19 @@ export default function GridCardAnimated({
 
         {title && (
           <div className="mb-4">
-            <h3 className="font-bold text-2xl uppercase">{title}</h3>
+            <h3 className="font-bold text-2xl uppercase"
+              data-speed={titleSpeed ?? undefined}>{title}</h3>
           </div>
         )}
 
-        {excerpt && <p className="mx-auto max-w-prose">{excerpt}</p>}
+        {excerpt && (
+          <p
+            className="mx-auto max-w-prose"
+            data-speed={bodySpeed ?? undefined} // NEW
+          >
+            {excerpt}
+          </p>
+        )}
       </div>
 
       {hasLink && (
@@ -77,6 +98,7 @@ export default function GridCardAnimated({
           className="mt-6"
           size="lg"
           variant={stegaClean(link?.buttonVariant)}
+          data-speed={buttonSpeed ?? undefined} // optional, NEW
         >
           <div>{link?.title ?? "Learn More"}</div>
         </Button>

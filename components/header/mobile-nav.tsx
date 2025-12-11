@@ -316,7 +316,7 @@ export default function MobileNav({
                 }}
                 className="pt-6"
               >
-                <div className="flex justify-center">
+                <div className=" justify-center hidden">
                   <ModeToggle />
                 </div>
               </li>

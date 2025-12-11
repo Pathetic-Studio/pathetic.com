@@ -184,10 +184,11 @@ export default function GridRowGrab({
                     <TitleText
                       variant="stretched"
                       as="h2"
-                      stretchScaleX={0.6}
-                      overallScale={1.3}
+                      size="xl"
                       align="center"
                       maxChars={32}
+                      animation={"typeOn"}
+                      animationSpeed={1.2}
                     >
                       {title}
                     </TitleText>

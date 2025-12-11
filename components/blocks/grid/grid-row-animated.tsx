@@ -16,6 +16,10 @@ import GridCard from "./grid-card";
 import GridCardAnimated from "./grid-card-animated";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
+import {
+  GRID_ROW_ANIMATED_PARALLAX,
+  type GridCardParallaxConfig,
+} from "./grid-row-animated-parallax"; // NEW
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -65,8 +69,6 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   const gridColsValue = stegaClean(gridColumns);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  // Simple desktop check – used to decide if we apply inline CMS padding
-  // and the staggered margin-top animation offsets.
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
@@ -107,8 +109,6 @@ export default function GridRowAnimated(props: GridRowAnimated) {
 
       if (!cards.length) return;
 
-      // Cards already start at opacity-0 / translate-y via Tailwind to avoid FOUC.
-      // These sets just normalise the animation baseline.
       gsap.set(cards, { opacity: 0, y: 40 });
       gsap.set(".caption-bubble", { opacity: 0, scale: 0.8, y: 8 });
 
@@ -153,7 +153,6 @@ export default function GridRowAnimated(props: GridRowAnimated) {
     return () => ctx.revert();
   }, []);
 
-  // Clean CMS values
   const cleanGridPaddingTop = stegaClean(gridPaddingTop);
   const cleanGridPaddingBottom = stegaClean(gridPaddingBottom);
   const cleanGridPaddingLeft = stegaClean(gridPaddingLeft);
@@ -171,7 +170,6 @@ export default function GridRowAnimated(props: GridRowAnimated) {
 
   const gridStyle: CSSProperties = {};
 
-  // Only apply CMS inline padding and gaps on desktop.
   if (isDesktop) {
     if (cleanGridPaddingTop)
       gridStyle.paddingTop = cleanGridPaddingTop as string;
@@ -187,17 +185,11 @@ export default function GridRowAnimated(props: GridRowAnimated) {
       gridStyle.columnGap = cleanGridColumnGap as string;
   }
 
-  // Base grid padding:
-  // - Mobile/tablet: always use this.
-  // - Desktop: if custom padding/gap exists, drop Tailwind padding at lg and
-  //   let inline desktop padding handle it.
   const baseGridPaddingClasses =
     hasCustomGridPadding || hasCustomGridGap
       ? "px-4 py-6 sm:px-6 sm:py-8 lg:px-0 lg:py-0"
       : "px-4 py-8 sm:px-8 sm:py-10 lg:p-12";
 
-  // Shared class for animated cards:
-  // - opacity-0 / translate-y-* ensures no FOUC on initial SSR render.
   const animatedCardClass =
     "animated-card relative opacity-0 translate-y-10 will-change-transform";
 
@@ -211,7 +203,6 @@ export default function GridRowAnimated(props: GridRowAnimated) {
           ref={rootRef}
           className="relative overflow-x-hidden lg:overflow-visible"
         >
-          {/* Background */}
           <BackgroundPanel background={background as any} />
 
           <div className="relative z-20">
@@ -228,13 +219,12 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                 {title && (
                   <TitleText
                     variant="stretched"
-                    animation="typeOn"
-                    animationSpeed={1.2}
                     as="h2"
-                    stretchScaleX={0.55}
-                    overallScale={2}
+                    size="xxl"
                     align="center"
-                    maxChars={26}
+                    maxChars={21}
+                    animation={"typeOn"}
+                    animationSpeed={1.2}
                   >
                     {title}
                   </TitleText>
@@ -279,14 +269,23 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                   !introHasContent && "pt-12",
                 )}
               >
-                <h3 className="text-4xl font-sans font-semibold uppercase max-w-1/3">
+
+                <TitleText
+                  variant="stretched"
+                  as="h3"
+                  size="md"
+                  align="center"
+                  maxChars={26}
+                  animation={"typeOn"}
+                  animationSpeed={1.2}
+                >
                   {gridTitle}
-                </h3>
+                </TitleText>
+
               </div>
             )}
 
             {columns && columns.length > 0 && (
-              // Wrapper ensures pb-40 is always applied and not overridden by inline styles
               <div className="pb-40">
                 <div
                   className={cn(
@@ -296,20 +295,59 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                   )}
                   style={gridStyle}
                 >
-                  {columns.map(
-                    (
-                      column: NonNullable<GridRowAnimated["columns"]>[number],
-                      index: number,
-                    ) => {
-                      // Only stagger vertically on desktop.
-                      const offsetStyle: CSSProperties = isDesktop
-                        ? {
-                          marginTop:
-                            index === 0 ? 0 : index * HEIGHT_STAGGER_PX,
+                  {(() => {
+                    let animatedCardIndex = -1; // NEW: counts only grid-card-animated
+                    return columns.map(
+                      (
+                        column: NonNullable<GridRowAnimated["columns"]>[number],
+                        index: number,
+                      ) => {
+                        const offsetStyle: CSSProperties = isDesktop
+                          ? {
+                            marginTop:
+                              index === 0 ? 0 : index * HEIGHT_STAGGER_PX,
+                          }
+                          : {};
+
+                        if (column._type === "grid-card") {
+                          return (
+                            <div
+                              key={column._key}
+                              className="relative"
+                              style={offsetStyle}
+                            >
+                              <div className={animatedCardClass}>
+                                <GridCard
+                                  {...(column as any)}
+                                  color={color}
+                                />
+                              </div>
+                            </div>
+                          );
                         }
-                        : {};
 
-                      if (column._type === "grid-card") {
+                        if (column._type === "grid-card-animated") {
+                          animatedCardIndex += 1;
+                          const parallaxConfig: GridCardParallaxConfig | undefined =
+                            GRID_ROW_ANIMATED_PARALLAX[animatedCardIndex];
+
+                          return (
+                            <div
+                              key={column._key}
+                              className="relative"
+                              style={offsetStyle}
+                            >
+                              <div className={animatedCardClass}>
+                                <GridCardAnimated
+                                  {...(column as any)}
+                                  color={color}
+                                  parallaxConfig={parallaxConfig}
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div
                             key={column._key}
@@ -317,42 +355,13 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                             style={offsetStyle}
                           >
                             <div className={animatedCardClass}>
-                              <GridCard {...(column as any)} color={color} />
+                              <div data-type={column._type} />
                             </div>
                           </div>
                         );
-                      }
-
-                      if (column._type === "grid-card-animated") {
-                        return (
-                          <div
-                            key={column._key}
-                            className="relative"
-                            style={offsetStyle}
-                          >
-                            <div className={animatedCardClass}>
-                              <GridCardAnimated
-                                {...(column as any)}
-                                color={color}
-                              />
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div
-                          key={column._key}
-                          className="relative"
-                          style={offsetStyle}
-                        >
-                          <div className={animatedCardClass}>
-                            <div data-type={column._type} />
-                          </div>
-                        </div>
-                      );
-                    },
-                  )}
+                      },
+                    );
+                  })()}
                 </div>
               </div>
             )}

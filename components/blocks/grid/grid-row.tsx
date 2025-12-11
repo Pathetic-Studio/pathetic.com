@@ -78,9 +78,9 @@ export default function GridRow({
   gridColumnGap,
   // pinning (from Sanity)
   pinToViewport,
+  pinDuration,
 }: GridRow) {
-  // Boolean at the top controlling viewport behaviour:
-  // "false for tablet and mobile" = pin on desktop only.
+  // Pin only on desktop
   const pinOnDesktopOnly = true;
 
   const color = stegaClean(colorVariant);
@@ -94,6 +94,13 @@ export default function GridRow({
   const gridColsValue = stegaClean(gridColumns);
   const isPinnedFromCms = Boolean(pinToViewport);
   const shouldPin = isPinnedFromCms && pinOnDesktopOnly;
+
+  // Free-form CSS length from Sanity: "150vh", "300px", "1.25", etc.
+  const rawPinDuration = stegaClean(pinDuration as any);
+  const pinDurationValue =
+    typeof rawPinDuration === "string" && rawPinDuration.trim() !== ""
+      ? rawPinDuration.trim()
+      : undefined;
 
   const gridColsClass =
     gridColsValue === "grid-cols-2"
@@ -157,9 +164,13 @@ export default function GridRow({
     <section
       id={sectionId}
       data-pin-to-viewport={shouldPin ? "true" : undefined}
+      data-pin-duration={
+        shouldPin && pinDurationValue ? pinDurationValue : undefined
+      }
+      // NEW: per-section start override
+      data-pin-start={shouldPin ? "bottom bottom" : undefined}
       className={cn(
         "relative overflow-x-hidden lg:overflow-visible",
-        // Section itself can grow; we only force min-h on desktop when pinned
         shouldPin && "lg:min-h-screen",
       )}
     >
@@ -188,7 +199,6 @@ export default function GridRow({
         <div
           className={cn(
             "relative",
-            // Full-height, pinned layout only on desktop
             shouldPin && "lg:min-h-screen lg:flex lg:flex-col lg:justify-end",
           )}
         >
@@ -219,10 +229,11 @@ export default function GridRow({
                     <TitleText
                       variant="stretched"
                       as="h2"
-                      stretchScaleX={0.6}
-                      overallScale={1.4}
+                      size="xl"
                       align="center"
-                      maxChars={32}
+                      maxChars={26}
+                      animation={"typeOn"}
+                      animationSpeed={1.2}
                     >
                       {title}
                     </TitleText>
@@ -259,13 +270,21 @@ export default function GridRow({
               {gridTitle && (
                 <div
                   className={cn(
-                    "relative z-10 mb-8 text-center flex justify-center",
-                    !hasIntroOrGridTitle && "pt-12",
+                    "relative z-10 mb-8 text-center  flex justify-center",
+                    !hasIntroOrGridTitle && "",
                   )}
                 >
-                  <h3 className="text-2xl lg:text-4xl font-sans font-semibold uppercase max-w-[28ch] lg:max-w-[34ch]">
+                  <TitleText
+                    variant="stretched"
+                    as="h4"
+                    size="md"
+                    align="center"
+                    maxChars={36}
+                    animation={"none"}
+                    animationSpeed={1.2}
+                  >
                     {gridTitle}
-                  </h3>
+                  </TitleText>
                 </div>
               )}
 

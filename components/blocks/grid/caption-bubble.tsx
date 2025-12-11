@@ -11,6 +11,7 @@ export interface CaptionBubbleProps {
   side?: CaptionSide | null;
   xPercent?: number | null;
   yPercent?: number | null;
+  parallaxSpeed?: number | null;
 }
 
 const BUBBLE_WIDTH = "12rem";
@@ -22,6 +23,7 @@ export default function CaptionBubble({
   side = "right",
   xPercent,
   yPercent,
+  parallaxSpeed,
 }: CaptionBubbleProps) {
   const safeX = xPercent ?? 70;
   const safeY = yPercent ?? 20;
@@ -58,6 +60,7 @@ export default function CaptionBubble({
         "flex items-center justify-center"
       )}
       style={bubbleStyle}
+      data-speed={parallaxSpeed ?? undefined}
     >
       <span className="block text-left">{text}</span>
 

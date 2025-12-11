@@ -127,12 +127,13 @@ export default function Hero2({
 
           {title && (
             <TitleText
-              variant="stretched"            // or "normal"
+              variant="stretched"
               as="h2"
-              stretchScaleX={0.55}            // your horizontal squish
-              overallScale={1.5}            // bump overall size without font-size
+              size="xl"
               align="center"
               maxChars={32}
+              animation={"typeOn"}
+              animationSpeed={1.2}
             >
               {title}
             </TitleText>

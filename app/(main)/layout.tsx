@@ -9,6 +9,7 @@ import MainLayoutShell from "@/components/main-layout-shell";
 
 import { ContactModalProvider } from "@/components/contact/contact-modal-context";
 import ContactModal from "@/components/contact/contact-modal";
+import NewsletterModal from "@/components/newsletter/newsletter-modal";
 
 import { fetchPageLoader } from "@/sanity/lib/fetch-page-loader";
 import PageLoaderSection from "@/components/page-loader-section";
@@ -27,6 +28,7 @@ export default async function MainLayout({
     <ContactModalProvider>
       <Header />
       <ContactModal />
+      <NewsletterModal />
 
       <MainLayoutShell>
         <main className="overflow-x-hidden md:overflow-visible">

@@ -323,14 +323,14 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
             </h1>
           )}
 
+
           {title && (
             <TitleText
               variant="stretched"
               as="h2"
-              stretchScaleX={0.55}
-              overallScale={1.5}
+              size="xl"
               align="center"
-              maxChars={32}
+              maxChars={26}
               animation={titleActive ? "typeOn" : "none"}
               animationSpeed={1.2}
             >

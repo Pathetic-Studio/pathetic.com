@@ -1,4 +1,3 @@
-// sanity/schemas/documents/meme-booth.ts
 import { defineField, defineType } from "sanity";
 import { Camera } from "lucide-react";
 
@@ -31,6 +30,16 @@ export default defineType({
       type: "text",
       rows: 3,
       group: "content",
+    }),
+
+    defineField({
+      name: "showNewsletterModalOnView",
+      title: "Show newsletter modal when page is viewed",
+      type: "boolean",
+      initialValue: false,
+      group: "content",
+      description:
+        "If enabled, the Meme Booth newsletter modal will open when this page comes into view.",
     }),
 
     // SEO

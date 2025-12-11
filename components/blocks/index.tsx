@@ -10,7 +10,6 @@ import TimelineRow from "@/components/blocks/timeline/timeline-row";
 import Cta1 from "@/components/blocks/cta/cta-1";
 import LogoCloud1 from "@/components/blocks/logo-cloud/logo-cloud-1";
 import FAQs from "@/components/blocks/faqs";
-import FormNewsletter from "@/components/blocks/forms/newsletter";
 import AllPosts from "@/components/blocks/all-posts";
 import SectionSpacer from "@/components/blocks/section-spacer";
 import GridRowImage from "@/components/blocks/grid/grid-row-image";
@@ -38,7 +37,6 @@ const componentMap: {
   "cta-1": Cta1,
   "logo-cloud-1": LogoCloud1,
   faqs: FAQs,
-  "form-newsletter": FormNewsletter,
   "all-posts": AllPosts,
   "section-spacer": SectionSpacer,
   "split-row-animated": SplitRowAnimated,

@@ -1,4 +1,3 @@
-// components/blocks/split/split-row-animated.tsx
 "use client";
 
 import type React from "react";
@@ -19,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import TypeOnText from "@/components/ui/type-on-text";
 import { getSectionId } from "@/lib/section-id";
+import TitleText from "@/components/ui/title-text";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -49,15 +49,12 @@ const introPaddingClasses: Record<
   lg: "pt-20",
 };
 
-// Fallback image fade start
 const IMAGE_FADE_START = "top 75%";
-
-// When the type-on text should start animating
 const TYPE_ON_START = "top 80%";
 
 // imageStage mapping (for useCustomEffect):
 // 0 = off-screen / not entered
-// 1 = base image only (not used heavily here)
+// 1 = base image only
 // 2 = Effect 1
 // 3 = Effect 2
 // 4 = Effect 3
@@ -98,7 +95,6 @@ export default function SplitRowAnimated({
   const cardsRef = useRef<HTMLDivElement | null>(null);
 
   // which card is "active" (drives the effect)
-  // 0 = card 1, 1 = card 2, 2 = card 3
   const [activeCardIndex, setActiveCardIndex] = useState(0);
 
   // whether the image has actually animated into view
@@ -121,26 +117,23 @@ export default function SplitRowAnimated({
       return;
     }
 
-    // Card 1 -> stage 2 (Effect 1)
-    // Card 2 -> stage 3 (Effect 2)
-    // Card 3 -> stage 4 (Effect 3)
     const clampedIndex = Math.max(0, Math.min(activeCardIndex, 2));
     setImageStage(2 + clampedIndex);
   }, [hasImageEntered, activeCardIndex]);
 
   useEffect(() => {
-    if (!sectionRef.current) return;
+    const sectionEl = sectionRef.current;
+    const imageEl = imageRef.current;
+    const cardsContainer = cardsRef.current;
+
+    if (!sectionEl) return;
 
     const ctx = gsap.context(() => {
-      const imageEl = imageRef.current;
-      const cardsEls = cardsRef.current
+      const cardsEls = cardsContainer
         ? Array.from(
-          cardsRef.current.querySelectorAll<HTMLElement>("[data-card-item]"),
+          cardsContainer.querySelectorAll<HTMLElement>("[data-card-item]"),
         )
         : [];
-
-      const isDesktop =
-        typeof window !== "undefined" ? window.innerWidth >= 1024 : true;
 
       const hasAnimatedCards =
         splitColumns?.some(
@@ -149,108 +142,190 @@ export default function SplitRowAnimated({
             (column as any).animateInRight,
         ) ?? false;
 
-      // Desktop only gets diagonal; mobile/tablet = straight stack with gap
-      const animateDiagonal = isDesktop && hasAnimatedCards;
+      const mm = gsap.matchMedia();
 
-      // Trigger position:
-      // - Desktop: top of card hits ~85% (slightly above center)
-      // - Mobile: top of card hits 10% from bottom -> "top 90%"
-      const cardStart = isDesktop ? "top 85%" : "top 90%";
+      mm.add(
+        {
+          isDesktop: "(min-width: 1024px)",
+          isMobile: "(max-width: 1023.98px)",
+        },
+        (context) => {
+          const { isDesktop, isMobile } = context.conditions as {
+            isDesktop: boolean;
+            isMobile: boolean;
+          };
 
-      // IMAGE: animate when its top hits ~85%
-      if (imageEl) {
-        gsap.fromTo(
-          imageEl,
-          { autoAlpha: 0, y: 40, scale: 0.9 },
-          {
-            autoAlpha: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.8,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: imageEl,
-              start: "top 85%",
-              toggleActions: "play none none none",
-              onEnter: () => {
-                // mark image as "ready"; this will lock in Effect 1 for the first card
-                setHasImageEntered(true);
+          // IMAGE ANIMATION
+          if (imageEl) {
+            gsap.fromTo(
+              imageEl,
+              { autoAlpha: 0, y: 40, scale: 0.9 },
+              {
+                autoAlpha: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.8,
+                ease: "power3.out",
+                scrollTrigger: {
+                  trigger: imageEl,
+                  start: "top 85%",
+                  toggleActions: "play none none none",
+                  onEnter: () => {
+                    setHasImageEntered(true);
+                  },
+                },
               },
-            },
-          },
-        );
-      }
+            );
+          } else {
+            if (cardsEls.length && isDesktop) {
+              const firstCard = cardsEls[0];
+              gsap.fromTo(
+                firstCard,
+                { autoAlpha: 0, y: 40 },
+                {
+                  autoAlpha: 1,
+                  y: 0,
+                  duration: 0.8,
+                  ease: "power3.out",
+                  scrollTrigger: {
+                    trigger: firstCard,
+                    start: IMAGE_FADE_START,
+                    once: true,
+                  },
+                },
+              );
+            }
+          }
 
-      if (!cardsEls.length) {
-        // fallback image fade if no cards
-        if (imageEl) {
-          gsap.fromTo(
-            imageEl,
-            { autoAlpha: 0, y: 40 },
-            {
-              autoAlpha: 1,
-              y: 0,
-              duration: 0.8,
-              ease: "power3.out",
-              scrollTrigger: {
-                trigger: imageEl,
-                start: IMAGE_FADE_START,
-                once: true,
+          if (!cardsEls.length) {
+            if (imageEl) {
+              gsap.fromTo(
+                imageEl,
+                { autoAlpha: 0, y: 40 },
+                {
+                  autoAlpha: 1,
+                  y: 0,
+                  duration: 0.8,
+                  ease: "power3.out",
+                  scrollTrigger: {
+                    trigger: imageEl,
+                    start: IMAGE_FADE_START,
+                    once: true,
+                  },
+                },
+              );
+            }
+            return;
+          }
+
+          const animateDiagonal = isDesktop && hasAnimatedCards;
+
+          // DESKTOP: diagonal stagger, hover active
+          if (isDesktop) {
+            const cardStartDesktop = "top 85%";
+
+            cardsEls.forEach((el, index) => {
+              const xOffset = animateDiagonal ? 32 * index : 0;
+              const yOffset = animateDiagonal ? -24 * index : 0;
+
+              gsap.fromTo(
+                el,
+                {
+                  x: xOffset + 120,
+                  y: yOffset,
+                  autoAlpha: 0,
+                  zIndex: 10 + index,
+                },
+                {
+                  x: xOffset,
+                  y: yOffset,
+                  autoAlpha: 1,
+                  duration: 0.6,
+                  ease: "power3.out",
+                  scrollTrigger: {
+                    trigger: el,
+                    start: cardStartDesktop,
+                    toggleActions: "play none none none",
+                  },
+                },
+              );
+            });
+
+            return;
+          }
+
+          // MOBILE/TABLET: pinned section + cards scrolling up from bottom and stacking
+          if (isMobile) {
+            const totalCards = cardsEls.length;
+            if (!totalCards) return;
+
+            const getMobileEnd = () => {
+              const viewport = window.innerHeight || 0;
+              const perCardScroll = Math.max(viewport * 0.8, 1);
+              const total = perCardScroll * totalCards;
+              return "+=" + total;
+            };
+
+            // Initial positions: first card in place, others below
+            cardsEls.forEach((el, index) => {
+              const initialY = index === 0 ? 0 : 80;
+              gsap.set(el, { opacity: 1, y: initialY });
+            });
+
+            // Pin the whole section
+            ScrollTrigger.create({
+              trigger: sectionEl,
+              start: "top top",
+              end: getMobileEnd,
+              pin: true,
+              pinSpacing: true,
+            });
+
+            // Use scroll progress to:
+            // - move each card from bottom (y=80) up into place (y=0)
+            // - determine which card is active (on top) for the image state
+            ScrollTrigger.create({
+              trigger: sectionEl,
+              start: "top top",
+              end: getMobileEnd,
+              onUpdate: (self) => {
+                const progress = self.progress;
+                if (!totalCards) return;
+
+                const perCard = 1 / totalCards;
+                let active = 0;
+
+                cardsEls.forEach((el, index) => {
+                  const cardStart = perCard * index;
+                  const cardEnd = perCard * (index + 1);
+
+                  let t = (progress - cardStart) / (cardEnd - cardStart);
+                  if (t < 0) t = 0;
+                  if (t > 1) t = 1;
+
+                  const y = (1 - t) * 80; // slide up from bottom
+                  gsap.set(el, { y });
+
+                  if (progress >= cardStart && progress < cardEnd) {
+                    active = index;
+                  } else if (progress >= 1 && index === totalCards - 1) {
+                    active = totalCards - 1;
+                  }
+                });
+
+                setActiveCardIndex(active);
               },
-            },
-          );
-        }
-        return;
-      }
+            });
 
-      // CARDS: only scroll-in motion now
-      // effects are handled via hover + React state
-      cardsEls.forEach((el, index) => {
-        const xOffset = animateDiagonal ? 32 * index : 0;
-        const yOffset = animateDiagonal ? -24 * index : 0;
+            // Remove mobile-specific fade-in on cardsContainer (was here before)
+          }
+        },
+      );
+    }, sectionEl);
 
-        if (animateDiagonal) {
-          // Desktop diagonal layout: final position is offset in both x and y
-          gsap.fromTo(
-            el,
-            {
-              x: xOffset + 120,
-              y: yOffset,
-              autoAlpha: 0,
-              zIndex: 10 + index,
-            },
-            {
-              x: xOffset,
-              y: yOffset,
-              autoAlpha: 1,
-              duration: 0.6,
-              ease: "power3.out",
-              scrollTrigger: {
-                trigger: el,
-                start: cardStart,
-                toggleActions: "play none none none",
-              },
-            },
-          );
-        } else {
-          // Mobile/tablet: no diagonal, just straight stack with gap from CSS
-          gsap.from(el, {
-            x: 80,
-            y: 0,
-            autoAlpha: 0,
-            duration: 0.6,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: el,
-              start: cardStart, // on mobile: "top 90%" (10% from bottom)
-              toggleActions: "play none none none",
-            },
-          });
-        }
-      });
-    }, sectionRef);
-
-    return () => ctx.revert();
+    return () => {
+      ctx.revert();
+    };
   }, [splitColumns]);
 
   return (
@@ -281,18 +356,17 @@ export default function SplitRowAnimated({
               )}
 
               {title && (
-                <h2 className="mt-1 font-bold leading-[1.1] uppercase md:text-4xl lg:text-8xl scale-x-70">
-                  {animateText ? (
-                    <TypeOnText
-                      text={title}
-                      className=""
-                      speed={1.2}
-                      start={TYPE_ON_START}
-                    />
-                  ) : (
-                    title
-                  )}
-                </h2>
+                <TitleText
+                  variant="stretched"
+                  as="h2"
+                  size="xl"
+                  align="center"
+                  maxChars={32}
+                  animation={"typeOn"}
+                  animationSpeed={1.2}
+                >
+                  {title}
+                </TitleText>
               )}
 
               {body && (
@@ -354,7 +428,7 @@ export default function SplitRowAnimated({
                   <div
                     key={column._key}
                     ref={imageRef}
-                    className="self-start overflow-visible order-1 lg:order-1 mb-10 lg:mb-0 opacity-0 translate-y-6 will-change-transform"
+                    className="self-start overflow-visible order-1 lg:order-1  lg:mb-0 opacity-0 translate-y-6 will-change-transform"
                   >
                     <SplitImageAnimate
                       {...(column as any)}

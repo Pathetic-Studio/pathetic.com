@@ -19,6 +19,7 @@ export const gridRowQuery = groq`
 
     // Layout behavior
     pinToViewport,
+    pinDuration,
 
     // Intro content
     tagLine,
@@ -50,19 +51,19 @@ export const gridRowQuery = groq`
       enableClickToAddEyes
     },
 
-   background{
-  enabled,
-  layout,
-  border,
-  style,
-  color,
-  fromColor,
-  toColor,
-  angle,
-  image,
-  customHeight,
-  verticalOffsetPercent
-},
+    background{
+      enabled,
+      layout,
+      border,
+      style,
+      color,
+      fromColor,
+      toColor,
+      angle,
+      image,
+      customHeight,
+      verticalOffsetPercent
+    },
 
     // Custom grid container overrides
     gridPaddingTop,

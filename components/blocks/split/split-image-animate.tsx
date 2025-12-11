@@ -52,19 +52,19 @@ export default function SplitImageAnimate({
   const effect3IsActive = !!useCustomEffect && imageStage >= 4;
 
   return (
-    <div className="relative flex items-start justify-center">
+    <div className="relative flex items-start justify-center ">
       <div
         ref={frameRef}
         className="flex justify-center w-full"
         data-image-track
       >
         {/* keep your vertical-ish width scale */}
-        <div className="relative mx-auto w-[55%] sm:w-[60%] md:w-[75%] max-w-md">
+        <div className="relative h-[200px] md:h-auto mx-auto w-[35%] sm:w-[60%] md:w-[75%] max-w-md">
           {/* 3:4 vertical ratio – drives the tall oval */}
-          <div className="relative w-full pt-[133.333%]">
+          <div className="relative h-[200px] md:h-auto w-full pt-[133.333%]">
             {/* SINGLE OVAL CONTAINER: mask + shadow + background */}
             <div
-              className="absolute inset-0"
+              className="absolute h-[200px] md:h-auto inset-0"
               style={{
                 borderRadius: "50%",
                 overflow: "hidden",

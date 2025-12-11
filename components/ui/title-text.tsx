@@ -7,19 +7,64 @@ import TypeOnText from "@/components/ui/type-on-text";
 
 type TitleTextVariant = "normal" | "stretched";
 type TitleTextAnimation = "none" | "typeOn";
+type TitleTextSize = "xxl" | "xl" | "md";
 
 interface TitleTextProps {
   children: React.ReactNode;
-  as?: "h1" | "h2" | "h3" | "p";
+  as?: "h1" | "h2" | "h3" | "h4" | "p";
   variant?: TitleTextVariant;
   animation?: TitleTextAnimation;
   animationSpeed?: number;
   className?: string;
-  stretchScaleX?: number; // horizontal squish
-  overallScale?: number; // overall scale
+
+  size?: TitleTextSize;
+
+  // Optional overrides for current viewport
+  stretchScaleX?: number;
+  overallScale?: number;
+
   align?: "left" | "center";
-  maxChars?: number; // max-w-[Nch]
+  maxChars?: number;
 }
+
+const BASE_TEXT_CLASSES =
+  "font-bold leading-[1.1] uppercase mx-auto";
+
+// size-specific base text classes
+const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
+  md: "text-3xl",
+  xl: "text-6xl",
+  xxl: "text-5xl lg:text-8xl",
+};
+
+function getBreakpoint(width: number) {
+  if (width < 768) return "mobile" as const;
+  if (width < 1024) return "tablet" as const;
+  return "desktop" as const;
+}
+
+type Breakpoint = ReturnType<typeof getBreakpoint>;
+
+const SCALE_CONFIG: Record<
+  TitleTextSize,
+  Record<Breakpoint, { stretchScaleX: number; overallScale: number }>
+> = {
+  xxl: {
+    mobile: { stretchScaleX: 0.55, overallScale: 1.5 },
+    tablet: { stretchScaleX: 0.55, overallScale: 1.6 },
+    desktop: { stretchScaleX: 0.55, overallScale: 2.0 },
+  },
+  xl: {
+    mobile: { stretchScaleX: 0.55, overallScale: 1.2 },
+    tablet: { stretchScaleX: 0.55, overallScale: 1.7 },
+    desktop: { stretchScaleX: 0.55, overallScale: 2.2 },
+  },
+  md: {
+    mobile: { stretchScaleX: 0.55, overallScale: 1.5 },
+    tablet: { stretchScaleX: 0.55, overallScale: 1.5 },
+    desktop: { stretchScaleX: 0.55, overallScale: 1.5 },
+  },
+};
 
 export default function TitleText({
   children,
@@ -28,66 +73,129 @@ export default function TitleText({
   animation = "none",
   animationSpeed = 1.2,
   className,
-  stretchScaleX = 0.6,
-  overallScale = 1.2,
+  size = "md",
+  stretchScaleX,
+  overallScale,
   align = "center",
   maxChars = 26,
 }: TitleTextProps) {
   const Tag = as;
-  const ref = useRef<HTMLHeadingElement | null>(null);
-  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
+
+  // This ref points to the INNER element that actually gets scaled
+  const scaledInnerRef = useRef<HTMLSpanElement | null>(null);
+
+  const [viewportWidth, setViewportWidth] = useState(() => {
+    if (typeof window === "undefined") return 1440;
+    return window.innerWidth;
+  });
+
+  // Natural, unscaled height of the text (layout height)
+  const [baseHeight, setBaseHeight] = useState<number | null>(null);
 
   const isStretched = variant === "stretched";
   const isTypeOn = animation === "typeOn";
 
-  // Measure natural height when stretched so the wrapper can reserve correct space
+  // Track viewport width for breakpoint-based presets
   useLayoutEffect(() => {
-    if (!isStretched) return;
-    const el = ref.current;
+    if (typeof window === "undefined") return;
+
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const breakpoint = getBreakpoint(viewportWidth);
+  const preset = SCALE_CONFIG[size][breakpoint];
+
+  const effectiveStretchScaleX = stretchScaleX ?? preset.stretchScaleX;
+  const effectiveOverallScale = overallScale ?? preset.overallScale;
+
+  // Measure the *unscaled* height of the inner span and then multiply by overallScale.
+  useLayoutEffect(() => {
+    if (!isStretched) {
+      setBaseHeight(null);
+      return;
+    }
+
+    if (typeof window === "undefined") return;
+    const el = scaledInnerRef.current;
     if (!el) return;
 
-    const prevTransform = el.style.transform;
-    el.style.transform = "none";
+    const measure = () => {
+      // Temporarily remove transform to get natural layout height
+      const prevTransform = el.style.transform;
+      el.style.transform = "none";
+      const rect = el.getBoundingClientRect();
+      el.style.transform = prevTransform;
 
-    const rect = el.getBoundingClientRect();
+      if (rect.height > 0) {
+        setBaseHeight(rect.height);
+      }
+    };
 
-    el.style.transform = prevTransform;
+    // Initial measure
+    measure();
 
-    if (rect.height > 0) {
-      setMeasuredHeight(rect.height * overallScale);
+    let resizeObserver: ResizeObserver | null = null;
+
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => {
+        // Type-on adds chars / wrapping changes -> remeasure natural height
+        measure();
+      });
+      resizeObserver.observe(el);
     }
-  }, [children, isStretched, overallScale]);
 
-  const baseTextClasses =
-    "font-bold leading-[1.1] uppercase mx-auto";
-  const alignClasses = align === "center" ? "text-center" : "text-left";
-  const maxWidthClass = `max-w-[${maxChars}ch]`;
+    return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [isStretched, children]);
 
-  // NORMAL MODE (no stretched wrapper)
+  // Final container height = natural height * vertical scale
+  const measuredHeight =
+    isStretched && baseHeight != null
+      ? baseHeight * effectiveOverallScale
+      : null;
+
+  const alignClass = align === "center" ? "text-center" : "text-left";
+
+  const inlineMaxWidthStyle: React.CSSProperties = maxChars
+    ? { maxWidth: `${maxChars}ch` }
+    : {};
+
+  const content = isTypeOn ? (
+    <TypeOnText text={String(children)} speed={animationSpeed} />
+  ) : (
+    children
+  );
+
+  // NORMAL MODE: no scaling logic, just base font size.
   if (!isStretched) {
     return (
       <Tag
         className={cn(
-          baseTextClasses,
-          alignClasses,
-          maxWidthClass,
-          "mt-6 md:text-4xl lg:text-8xl",
+          BASE_TEXT_CLASSES,
+          SIZE_TEXT_CLASSES[size],
+          alignClass,
+          "mt-6",
           className,
         )}
+        style={inlineMaxWidthStyle}
       >
-        {isTypeOn ? (
-          <TypeOnText
-            text={typeof children === "string" ? children : String(children)}
-            speed={animationSpeed}
-          />
-        ) : (
-          children
-        )}
+        {content}
       </Tag>
     );
   }
 
-  // STRETCHED MODE (scaled container with reserved height)
+  // STRETCHED MODE:
+  // - outer div reserves scaled height
+  // - inner span carries the transform (so we can strip it for measurement)
   return (
     <div
       className={cn(
@@ -98,27 +206,22 @@ export default function TitleText({
       style={measuredHeight != null ? { height: `${measuredHeight}px` } : undefined}
     >
       <Tag
-        ref={ref}
         className={cn(
-          baseTextClasses,
-          alignClasses,
-          maxWidthClass,
-          "md:text-4xl lg:text-8xl",
-          "origin-top",
-          "will-change-transform",
+          BASE_TEXT_CLASSES,
+          SIZE_TEXT_CLASSES[size],
+          alignClass,
         )}
-        style={{
-          transform: `scale(${overallScale}) scaleX(${stretchScaleX})`,
-        }}
+        style={inlineMaxWidthStyle}
       >
-        {isTypeOn ? (
-          <TypeOnText
-            text={typeof children === "string" ? children : String(children)}
-            speed={animationSpeed}
-          />
-        ) : (
-          children
-        )}
+        <span
+          ref={scaledInnerRef}
+          className="inline-block origin-top will-change-transform"
+          style={{
+            transform: `scaleX(${effectiveStretchScaleX}) scale(${effectiveOverallScale})`,
+          }}
+        >
+          {content}
+        </span>
       </Tag>
     </div>
   );

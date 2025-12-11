@@ -49,7 +49,45 @@ export default function SmoothScroller({
     let refreshTimer: number | undefined;
     const pinTriggers: ScrollTrigger[] = [];
 
-    // inside useLayoutEffect
+    const parsePinDurationToPx = (raw: string | null, section: HTMLElement) => {
+      const fallback = section.offsetHeight || window.innerHeight;
+
+      if (!raw) return fallback;
+
+      const value = raw.trim();
+      if (!value) return fallback;
+
+      // Bare number: treat as multiplier of viewport height (1.25 => 1.25 * 100vh)
+      if (/^-?\d+(\.\d+)?$/.test(value)) {
+        const factor = parseFloat(value);
+        if (Number.isNaN(factor)) return fallback;
+        return Math.max(factor * window.innerHeight, 0);
+      }
+
+      // vh units
+      if (value.endsWith("vh")) {
+        const num = parseFloat(value.slice(0, -2));
+        if (Number.isNaN(num)) return fallback;
+        return Math.max((num / 100) * window.innerHeight, 0);
+      }
+
+      // px units
+      if (value.endsWith("px")) {
+        const num = parseFloat(value.slice(0, -2));
+        if (Number.isNaN(num)) return fallback;
+        return Math.max(num, 0);
+      }
+
+      // % of the section's own height
+      if (value.endsWith("%")) {
+        const num = parseFloat(value.slice(0, -1));
+        if (Number.isNaN(num)) return fallback;
+        return Math.max((num / 100) * section.offsetHeight, 0);
+      }
+
+      // Fallback
+      return fallback;
+    };
 
     const setupPinning = () => {
       pinTriggers.forEach((t) => t.kill());
@@ -65,17 +103,27 @@ export default function SmoothScroller({
       );
 
       pinnedSections.forEach((section) => {
+        const startAttr = section.getAttribute("data-pin-start");
+        const startValue = startAttr && startAttr.trim() !== "" ? startAttr : "top top";
+
         const trigger = ScrollTrigger.create({
           trigger: section,
-          start: "top top",
-          end: () => `+=${section.offsetHeight}`,
+          start: startValue, // <- per-section start
+          end: () => {
+            const durationAttr = section.getAttribute("data-pin-duration");
+            const px = parsePinDurationToPx(durationAttr, section);
+            return `+=${px}`;
+          },
           pin: true,
           pinSpacing: false,
+          // optional if you see a jump:
+          // anticipatePin: 1,
         });
 
         pinTriggers.push(trigger);
       });
     };
+
 
     try {
       if (isTouch) {

@@ -112,7 +112,6 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     cta1,
     logoCloud1,
     faqs,
-    newsletter,
     allPosts,
     sectionSpacer,
     sectionAnchor,

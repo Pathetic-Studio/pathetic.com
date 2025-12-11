@@ -239,9 +239,7 @@ export default function DesktopNav({
           })}
         </div>
 
-        <div className="h-full flex items-center ">
-          <ModeToggle />
-        </div>
+
         <div className="h-full flex items-center ">
           <InstagramIcon instagramUrl={instagramUrl} />
         </div>
