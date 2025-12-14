@@ -333,6 +333,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
               maxChars={26}
               animation={titleActive ? "typeOn" : "none"}
               animationSpeed={1.2}
+              textOutline
             >
               {title}
             </TitleText>

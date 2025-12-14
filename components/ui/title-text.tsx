@@ -26,6 +26,9 @@ interface TitleTextProps {
 
   align?: "left" | "center";
   maxChars?: number;
+
+  // New: outline toggle
+  textOutline?: boolean;
 }
 
 const BASE_TEXT_CLASSES =
@@ -76,6 +79,7 @@ export default function TitleText({
   overallScale,
   align = "center",
   maxChars = 26,
+  textOutline = false,
 }: TitleTextProps) {
   const Tag = as;
 
@@ -174,6 +178,10 @@ export default function TitleText({
     children
   );
 
+  const outlineClasses = textOutline
+    ? " text-black [-webkit-text-stroke-width:1px] [-webkit-text-stroke-color:white]"
+    : "";
+
   // NORMAL MODE (no stretch transforms)
   if (!isStretched) {
     return (
@@ -183,6 +191,7 @@ export default function TitleText({
           SIZE_TEXT_CLASSES[size],
           alignClass,
           "mt-6",
+          outlineClasses,
           className,
         )}
         style={inlineMaxWidthStyle}
@@ -207,6 +216,7 @@ export default function TitleText({
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],
           alignClass,
+          outlineClasses,
         )}
         style={inlineMaxWidthStyle}
       >
