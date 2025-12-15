@@ -182,34 +182,11 @@ export default function SplitRowAnimated({
             return;
           }
 
-          // DESKTOP: pin whole grid and drive cards + image by stages
+          // DESKTOP: pin whole grid and drive cards + imageStage by stages
           if (isDesktop) {
             if (!gridEl) return;
 
             const animateDiagonal = hasAnimatedCards;
-
-            // initial card state: hidden, shifted right + diagonal
-            cardsEls.forEach((el, index) => {
-              const xOffset = animateDiagonal ? 32 * index : 0;
-              const yOffset = animateDiagonal ? -24 * index : 0;
-
-              gsap.set(el, {
-                autoAlpha: 0,
-                x: xOffset + 120,
-                y: yOffset,
-                zIndex: 10 + index,
-                xPercent: 0,
-                yPercent: 0,
-              });
-            });
-
-            // initial oval: smaller
-            if (ovalEl) {
-              gsap.set(ovalEl, {
-                scale: 0.9,
-                transformOrigin: "50% 50%",
-              });
-            }
 
             const enterCard = (index: number) => {
               const el = cardsEls[index];
@@ -251,29 +228,66 @@ export default function SplitRowAnimated({
               });
             };
 
-            const applyStageChange = (prevStage: number, nextStage: number) => {
-              if (prevStage === nextStage) return;
+            // initial card state: hidden, shifted right + diagonal
+            cardsEls.forEach((el, index) => {
+              const xOffset = animateDiagonal ? 32 * index : 0;
+              const yOffset = animateDiagonal ? -24 * index : 0;
 
-              // image in/out tied to first stage
-              if (imageEl) {
-                if (prevStage < 0 && nextStage >= 0) {
-                  // entering stage 0+: fade/slide image in
+              gsap.set(el, {
+                autoAlpha: 0,
+                x: xOffset + 120,
+                y: yOffset,
+                zIndex: 10 + index,
+                xPercent: 0,
+                yPercent: 0,
+              });
+            });
+
+            // initial oval: smaller
+            if (ovalEl) {
+              gsap.set(ovalEl, {
+                scale: 0.9,
+                transformOrigin: "50% 50%",
+              });
+            }
+
+            // DESKTOP: image + FIRST CARD fade/slide in together, independent of pin
+            if (imageEl) {
+              gsap.set(imageEl, {
+                autoAlpha: 0,
+                y: 40,
+              });
+
+              ScrollTrigger.create({
+                trigger: gridEl, // or imageEl if you prefer
+                start: "top 80%", // tweak for earlier/later fade
+                toggleActions: "play none none none",
+                onEnter: () => {
+                  // image in
                   gsap.to(imageEl, {
                     autoAlpha: 1,
                     y: 0,
                     duration: 0.8,
                     ease: "power3.out",
                   });
-                } else if (prevStage >= 0 && nextStage < 0) {
-                  // leaving pin backwards: hide image again
-                  gsap.to(imageEl, {
-                    autoAlpha: 0,
-                    y: 40,
-                    duration: 0.5,
-                    ease: "power3.in",
-                  });
-                }
-              }
+
+                  // first card in sync with image
+                  if (cardsEls.length > 0) {
+                    enterCard(0);
+                    setActiveCardIndex(0);
+                    setImageStage(2); // first effect
+                  }
+                },
+              });
+            }
+
+            const applyStageChange = (
+              prevStage: number,
+              nextStage: number,
+            ) => {
+              if (prevStage === nextStage) return;
+
+              // IMAGE IS NO LONGER CONTROLLED HERE – separate trigger handles fade-in
 
               // cards: only animate those that actually change
               if (nextStage > prevStage) {

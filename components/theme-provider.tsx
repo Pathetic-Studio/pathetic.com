@@ -1,4 +1,3 @@
-// theme-provider.tsx
 "use client";
 
 import * as React from "react";
@@ -11,7 +10,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       defaultTheme="light"
       forcedTheme="light"
       enableSystem={false}
-      themes={["light", "dark"]} // keep dark defined for future use
+      themes={["light", "dark"]} // dark reserved for future
     >
       {children}
     </NextThemesProvider>

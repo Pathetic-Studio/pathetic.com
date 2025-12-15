@@ -68,12 +68,7 @@ export default function RootLayout({
           arialNarrow.variable
         )}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
           {children}
         </ThemeProvider>
         <Toaster position="top-center" richColors />
