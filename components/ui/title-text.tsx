@@ -7,7 +7,7 @@ import TypeOnText from "@/components/ui/type-on-text";
 
 type TitleTextVariant = "normal" | "stretched";
 type TitleTextAnimation = "none" | "typeOn";
-type TitleTextSize = "xxl" | "xl" | "md";
+type TitleTextSize = "xxl" | "xl" | "lg" | "md";
 
 type Breakpoint = "mobile" | "tablet" | "desktop";
 
@@ -29,12 +29,20 @@ interface TitleTextProps {
 
   // Outline toggle
   textOutline?: boolean;
+
+  // Custom colors
+  textColor?: string;
+  outlineColor?: string;
+
+  // Outline thickness (px)
+  outlineWidth?: number;
 }
 
 const BASE_TEXT_CLASSES = "font-bold leading-[1.1] uppercase mx-auto";
 
 const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   md: "text-3xl",
+  lg: "text-5xl",
   xl: "text-6xl",
   xxl: "text-5xl lg:text-8xl",
 };
@@ -52,6 +60,11 @@ const SCALE_CONFIG: Record<
     mobile: { stretchScaleX: 0.55, overallScale: 1.2 },
     tablet: { stretchScaleX: 0.55, overallScale: 1.7 },
     desktop: { stretchScaleX: 0.55, overallScale: 2.2 },
+  },
+  lg: {
+    mobile: { stretchScaleX: 0.55, overallScale: 1.5 },
+    tablet: { stretchScaleX: 0.55, overallScale: 1.5 },
+    desktop: { stretchScaleX: 0.55, overallScale: 1.5 },
   },
   md: {
     mobile: { stretchScaleX: 0.55, overallScale: 1.5 },
@@ -79,6 +92,9 @@ export default function TitleText({
   align = "center",
   maxChars = 26,
   textOutline = false,
+  textColor,
+  outlineColor = "white",
+  outlineWidth = 1,
 }: TitleTextProps) {
   const Tag = as;
 
@@ -121,13 +137,18 @@ export default function TitleText({
     const measure = () => {
       const prevTransform = el.style.transform;
       el.style.transform = "none";
-      const rect = el.getBoundingClientRect();
+
+      const h = el.offsetHeight;
+
       el.style.transform = prevTransform;
 
-      if (rect.height > 0) setBaseHeight(rect.height);
+      if (h > 0) setBaseHeight(h);
     };
 
     measure();
+    requestAnimationFrame(measure);
+
+    (document as any).fonts?.ready?.then?.(measure);
 
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined") {
@@ -149,11 +170,21 @@ export default function TitleText({
     ? { maxWidth: `${maxChars}ch` }
     : {};
 
-  // IMPORTANT CHANGE:
-  // If we're doing type-on, apply the stroke to the per-char spans (inside TypeOnText),
-  // not the parent Tag. Otherwise the stroke can be visible before the fill animates.
+  const safeOutlineWidth = Math.max(0, outlineWidth);
+
+  // CSS vars (avoid passing style into TypeOnText)
+  const varsStyle: React.CSSProperties = {
+    ...(textColor ? ({ ["--tt-fill" as any]: textColor } as React.CSSProperties) : {}),
+    ...(textOutline ? ({ ["--tt-stroke" as any]: outlineColor } as React.CSSProperties) : {}),
+    ...(textOutline
+      ? ({ ["--tt-stroke-w" as any]: `${safeOutlineWidth}px` } as React.CSSProperties)
+      : {}),
+  };
+
+  const fillClass = textColor ? "text-[var(--tt-fill)]" : "";
+
   const outlineClasses = textOutline
-    ? "text-black [-webkit-text-stroke-width:1px] [-webkit-text-stroke-color:white]"
+    ? "[-webkit-text-stroke-width:var(--tt-stroke-w)] [-webkit-text-stroke-color:var(--tt-stroke)]"
     : "";
 
   const tagOutlineClasses = !isTypeOn ? outlineClasses : "";
@@ -163,7 +194,7 @@ export default function TitleText({
     <TypeOnText
       text={String(children)}
       speed={animationSpeed}
-      className={typeOnOutlineClasses}
+      className={cn(fillClass, typeOnOutlineClasses)}
     />
   ) : (
     children
@@ -176,10 +207,11 @@ export default function TitleText({
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],
           alignClass,
+          fillClass,
           tagOutlineClasses,
           className,
         )}
-        style={inlineMaxWidthStyle}
+        style={{ ...inlineMaxWidthStyle, ...varsStyle }}
       >
         {content}
       </Tag>
@@ -204,9 +236,10 @@ export default function TitleText({
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],
           alignClass,
+          fillClass,
           tagOutlineClasses,
         )}
-        style={inlineMaxWidthStyle}
+        style={{ ...inlineMaxWidthStyle, ...varsStyle }}
       >
         <span
           ref={scaledInnerRef}
@@ -214,9 +247,10 @@ export default function TitleText({
           style={
             breakpoint
               ? {
+                ...varsStyle,
                 transform: `scaleX(${effectiveStretchScaleX}) scale(${effectiveOverallScale})`,
               }
-              : undefined
+              : varsStyle
           }
         >
           {content}

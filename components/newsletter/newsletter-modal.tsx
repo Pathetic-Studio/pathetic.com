@@ -1,3 +1,4 @@
+//components/newsletter/newsletter-modal.tsx
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
@@ -171,19 +172,21 @@ export default function NewsletterModal() {
             <div className="relative z-10 mt-2 mb-2 text-center flex justify-center">
               <TitleText
                 variant="stretched"
-                as="h3"
-                size="md"
+                as="h4"
+                size="lg"
                 align="center"
                 maxChars={26}
-
                 textOutline
+                outlineWidth={2}
+                textColor="#ffffff"
+                outlineColor="#000000"
               >
                 Be first to know what we drop next
               </TitleText>
             </div>
 
 
-            <div className="mb-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
+            <div className="mb-6 text-lg font-semibold uppercase tracking-[0.18em] text-white">
               Join our Newsletter
             </div>
 
