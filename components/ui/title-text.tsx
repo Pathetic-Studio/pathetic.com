@@ -27,12 +27,11 @@ interface TitleTextProps {
   align?: "left" | "center";
   maxChars?: number;
 
-  // New: outline toggle
+  // Outline toggle
   textOutline?: boolean;
 }
 
-const BASE_TEXT_CLASSES =
-  "font-bold leading-[1.1] uppercase mx-auto";
+const BASE_TEXT_CLASSES = "font-bold leading-[1.1] uppercase mx-auto";
 
 const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   md: "text-3xl",
@@ -85,43 +84,29 @@ export default function TitleText({
 
   const scaledInnerRef = useRef<HTMLSpanElement | null>(null);
 
-  // Breakpoint starts as null so we don't assume desktop on SSR.
   const [breakpoint, setBreakpoint] = useState<Breakpoint | null>(null);
-
-  // Natural, unscaled height of the text (layout height)
   const [baseHeight, setBaseHeight] = useState<number | null>(null);
-
-  // Prevent FOUC in stretched mode until we've measured and applied transform/height
   const [isReady, setIsReady] = useState(variant !== "stretched");
 
   const isStretched = variant === "stretched";
   const isTypeOn = animation === "typeOn";
 
-  // Detect breakpoint on the client and keep it in sync with resize.
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
 
-    const measureBreakpoint = () => {
-      setBreakpoint(getBreakpoint(window.innerWidth));
-    };
-
+    const measureBreakpoint = () => setBreakpoint(getBreakpoint(window.innerWidth));
     measureBreakpoint();
-    window.addEventListener("resize", measureBreakpoint);
 
-    return () => {
-      window.removeEventListener("resize", measureBreakpoint);
-    };
+    window.addEventListener("resize", measureBreakpoint);
+    return () => window.removeEventListener("resize", measureBreakpoint);
   }, []);
 
-  // If we don't know the breakpoint yet, fall back to a neutral scale
   const resolvedBreakpoint: Breakpoint = breakpoint ?? "desktop";
-
   const preset = SCALE_CONFIG[size][resolvedBreakpoint];
 
   const effectiveStretchScaleX = stretchScaleX ?? preset.stretchScaleX;
   const effectiveOverallScale = overallScale ?? preset.overallScale;
 
-  // Measure the *unscaled* height and then multiply by the vertical scale.
   useLayoutEffect(() => {
     if (!isStretched) {
       setBaseHeight(null);
@@ -139,38 +124,24 @@ export default function TitleText({
       const rect = el.getBoundingClientRect();
       el.style.transform = prevTransform;
 
-      if (rect.height > 0) {
-        setBaseHeight(rect.height);
-      }
+      if (rect.height > 0) setBaseHeight(rect.height);
     };
 
-    // Initial measure
     measure();
 
     let resizeObserver: ResizeObserver | null = null;
-
     if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(() => {
-        measure();
-      });
+      resizeObserver = new ResizeObserver(measure);
       resizeObserver.observe(el);
     }
 
-    // Once we've measured at least once, we can safely show the text
     setIsReady(true);
 
-    return () => {
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-    };
-    // Re-measure when breakpoint or size/scale changes
+    return () => resizeObserver?.disconnect();
   }, [isStretched, children, size, resolvedBreakpoint, effectiveOverallScale]);
 
   const measuredHeight =
-    isStretched && baseHeight != null
-      ? baseHeight * effectiveOverallScale
-      : null;
+    isStretched && baseHeight != null ? baseHeight * effectiveOverallScale : null;
 
   const alignClass = align === "center" ? "text-center" : "text-left";
 
@@ -178,17 +149,26 @@ export default function TitleText({
     ? { maxWidth: `${maxChars}ch` }
     : {};
 
+  // IMPORTANT CHANGE:
+  // If we're doing type-on, apply the stroke to the per-char spans (inside TypeOnText),
+  // not the parent Tag. Otherwise the stroke can be visible before the fill animates.
+  const outlineClasses = textOutline
+    ? "text-black [-webkit-text-stroke-width:1px] [-webkit-text-stroke-color:white]"
+    : "";
+
+  const tagOutlineClasses = !isTypeOn ? outlineClasses : "";
+  const typeOnOutlineClasses = isTypeOn ? outlineClasses : "";
+
   const content = isTypeOn ? (
-    <TypeOnText text={String(children)} speed={animationSpeed} />
+    <TypeOnText
+      text={String(children)}
+      speed={animationSpeed}
+      className={typeOnOutlineClasses}
+    />
   ) : (
     children
   );
 
-  const outlineClasses = textOutline
-    ? " text-black [-webkit-text-stroke-width:1px] [-webkit-text-stroke-color:white]"
-    : "";
-
-  // NORMAL MODE (no stretch transforms)
   if (!isStretched) {
     return (
       <Tag
@@ -196,7 +176,7 @@ export default function TitleText({
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],
           alignClass,
-          outlineClasses,
+          tagOutlineClasses,
           className,
         )}
         style={inlineMaxWidthStyle}
@@ -206,7 +186,6 @@ export default function TitleText({
     );
   }
 
-  // STRETCHED MODE
   return (
     <div
       className={cn(
@@ -225,7 +204,7 @@ export default function TitleText({
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],
           alignClass,
-          outlineClasses,
+          tagOutlineClasses,
         )}
         style={inlineMaxWidthStyle}
       >

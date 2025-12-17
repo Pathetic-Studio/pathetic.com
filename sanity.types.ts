@@ -1723,7 +1723,7 @@ export type SectionPadding = {
   bottom?: boolean;
 };
 
-export type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "underline" | "link" | "menu";
+export type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "underline" | "link" | "menu" | "footer";
 
 export type ColorVariant = "background" | "primary" | "secondary" | "card" | "accent" | "destructive" | "muted";
 

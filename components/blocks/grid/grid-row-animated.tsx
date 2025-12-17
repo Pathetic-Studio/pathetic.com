@@ -138,12 +138,10 @@ export default function GridRowAnimated(props: GridRowAnimated) {
               tl.to(
                 caption,
                 {
-                  opacity: 1,
-                  scale: 1,
-                  y: 0,
-                  duration: 0.4,
+                  autoAlpha: 1, // sets opacity + visibility
+                  duration: 0.25,
                 },
-                "-=0.25",
+                "-=0.2",
               );
             }
           });

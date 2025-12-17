@@ -45,31 +45,55 @@
   }
 }
 
-/* Chrome, Edge, Safari (WebKit browsers) */
+/* ===== Scrollbar (Chrome / Edge / Safari) ===== */
+
+/* width of the whole scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 12px;
 }
 
+/* make the real track transparent; we’ll draw the track with borders */
 ::-webkit-scrollbar-track {
-  background: #dddddd;
-  /* track color */
+  background: transparent;
+  border: 2px solid #000;
+  /* track outline */
+  border-radius: 0;
+  /* not rounded */
+  background-clip: padding-box;
 }
 
+/* optional: control the “small margin” around the outlined track */
+::-webkit-scrollbar-track-piece {
+  background: transparent;
+  margin: 4px;
+  /* outer margin from page edge */
+}
+
+/* thumb */
 ::-webkit-scrollbar-thumb {
-  background-color: #426bff;
-  /* scrollbar color */
-  border-radius: 0px;
-  border: 2px solid #0d0d0d;
-  /* optional: creates padding around thumb */
+  background: #000;
+  /* black thumb */
+  border-radius: 0;
+  /* not rounded */
+  border: 2px solid transparent;
+  /* inner padding inside outline */
+  background-clip: padding-box;
+  /* keeps black inset from outline */
 }
 
-/* Firefox */
+/* on hover (optional) */
+::-webkit-scrollbar-thumb:hover {
+  background: #000;
+}
+
+/* ===== Firefox ===== */
+/* Firefox can’t do outline+inset padding like WebKit; you only get colors + thickness */
 * {
   scrollbar-width: thin;
-  /* auto | thin | none */
-  scrollbar-color: #426bff #dddddd;
+  scrollbar-color: #000 transparent;
   /* thumb | track */
 }
+
 
 
 @theme inline {

@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type CaptionSide = "left" | "right";
@@ -38,11 +38,9 @@ export default function CaptionBubble({
 
   const [dynamicMaxWidth, setDynamicMaxWidth] = useState<string | undefined>();
 
-  // Compute dynamic max-width on mobile based on distance to nearest viewport edge
-  useEffect(() => {
+  // Use layout effect so width is computed before paint (reduces “flash/resize”)
+  useLayoutEffect(() => {
     const updateMaxWidth = () => {
-      if (typeof window === "undefined") return;
-
       const vw = window.innerWidth;
 
       // Only apply this logic on mobile
@@ -60,7 +58,6 @@ export default function CaptionBubble({
       const oneRem = rootFontSize || 16;
 
       const maxWidthPx = Math.max(0, nearestEdgePx - oneRem);
-
       setDynamicMaxWidth(`${maxWidthPx}px`);
     };
 
@@ -69,18 +66,17 @@ export default function CaptionBubble({
     return () => window.removeEventListener("resize", updateMaxWidth);
   }, [clampedX]);
 
-  // x%, y% are always from the image's top-left corner.
-  // side === "right"  -> left edge of bubble at x%
-  // side === "left"   -> right edge of bubble at x%
+  // IMPORTANT:
+  // - Use `translate` (not `transform`) so parallax (transform) can't clobber anchoring.
   const horizontalPosition: CSSProperties =
     side === "left"
       ? {
         left: `${clampedX}%`,
-        transform: "translateX(-100%)", // anchor right edge at x%
+        translate: "-100% 0", // anchor right edge at x%
       }
       : {
         left: `${clampedX}%`,
-        transform: "translateX(0)", // anchor left edge at x%
+        translate: "0 0", // anchor left edge at x%
       };
 
   const bubbleStyle: CSSProperties = {
@@ -89,15 +85,19 @@ export default function CaptionBubble({
     backgroundColor: bgColor || "rgba(0,0,0,0.85)",
     color: textColor || "#ffffff",
     transformOrigin: side === "left" ? "top right" : "top left",
-    // Prevent FOUC: start fully hidden, GSAP fades it in
+
+    // Hard anti-FOUC (works even before CSS loads)
     opacity: 0,
+    visibility: "hidden",
+
     maxWidth: dynamicMaxWidth ?? BUBBLE_WIDTH,
+    willChange: "transform, opacity",
   };
 
   return (
     <div
       className={cn(
-        "caption-bubble absolute z-20 rounded-2xl px-3 py-2 text-xs tracking-wide opacity-0",
+        "caption-bubble absolute z-20 rounded-2xl px-3 py-2 text-xs tracking-wide",
         "flex items-center justify-center",
       )}
       style={bubbleStyle}
@@ -113,10 +113,7 @@ export default function CaptionBubble({
             ? "right-0 translate-x-1/2"
             : "left-0 -translate-x-1/2",
         )}
-        style={{
-          width: "24px",
-          height: "20px",
-        }}
+        style={{ width: "24px", height: "20px" }}
       >
         <svg
           width="24"
@@ -126,9 +123,7 @@ export default function CaptionBubble({
           className="origin-top"
           style={{
             transform:
-              side === "left"
-                ? "scaleX(1)"
-                : "scaleY(-1) rotate(180deg)",
+              side === "left" ? "scaleX(1)" : "scaleY(-1) rotate(180deg)",
             transformOrigin: "top center",
           }}
         >

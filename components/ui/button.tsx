@@ -1,12 +1,15 @@
+// components/ui/button.tsx
 "use client";
 
 import * as React from "react";
 import Link from "next/link";
 import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 import ContactFormTrigger from "@/components/contact/contact-form-trigger";
+
+// ✅ server-safe variants live in a separate file
+import { buttonVariants, type ButtonVariantProps } from "@/components/ui/button-variants";
 
 import gsap from "gsap";
 import { Physics2DPlugin } from "gsap/Physics2DPlugin";
@@ -22,7 +25,13 @@ type ParticleImage = {
 type CMSLink = {
   href?: string | null;
   target?: boolean | null;
-  linkType?: "internal" | "external" | "contact" | "anchor-link" | "download" | null;
+  linkType?:
+  | "internal"
+  | "external"
+  | "contact"
+  | "anchor-link"
+  | "download"
+  | null;
   title?: string | null;
 
   // download
@@ -40,39 +49,6 @@ type CMSLink = {
   backgroundImageAnimateEnabled?: boolean | null;
   backgroundImageHoverEffect?: "squeeze" | "bloat" | "spin" | null;
 };
-
-const buttonVariants = cva(
-  "relative inline-flex items-center justify-center gap-2 whitespace-nowrap font-sans text-sm transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-8 [&_svg]:shrink-0 ring-ring/10 dark:ring-ring/20 dark:outline-ring/40 outline-ring/50 focus-visible:ring-4 focus-visible:outline-1 aria-invalid:focus-visible:ring-0 cursor-pointer",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-primary text-primary-foreground hover:bg-primary/90 font-semibold uppercase underline-offset-4 hover:underline",
-        destructive:
-          "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90",
-        outline:
-          "border border-primary bg-background uppercase underline hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
-        underline: "underline",
-        link: "text-primary underline-offset-4 hover:underline",
-        menu:
-          "font-semibold uppercase text-primary underline-offset-4 hover:underline",
-        icon: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 px-6 has-[>svg]:px-4",
-        icon: "size-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-);
 
 // Fire a single burst of particles from a given root element
 function fireParticles(
@@ -136,16 +112,14 @@ function fireParticles(
       rotation: gsap.utils.random(-180, 180),
       opacity: 0,
       onComplete: () => {
-        if (el.parentNode) {
-          el.parentNode.removeChild(el);
-        }
+        if (el.parentNode) el.parentNode.removeChild(el);
       },
     });
   }
 }
 
 type BaseButtonProps = React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
+  ButtonVariantProps & {
     asChild?: boolean;
   };
 
@@ -156,7 +130,7 @@ type LinkableButtonProps = {
   target?: "_blank" | "_self";
 };
 
-type ButtonProps = BaseButtonProps & LinkableButtonProps;
+export type ButtonProps = BaseButtonProps & LinkableButtonProps;
 
 function Button({
   className,
@@ -170,6 +144,7 @@ function Button({
   ...props
 }: ButtonProps) {
   const cmsLink = link;
+
   const isContactLink = cmsLink?.linkType === "contact";
   const isDownloadLink = cmsLink?.linkType === "download";
 
@@ -199,6 +174,7 @@ function Button({
 
   // Prefer CMS link href if present, otherwise raw href prop
   const url = cmsLink?.href ?? href ?? undefined;
+
   const openInNewTab =
     typeof cmsLink?.target === "boolean" ? cmsLink.target : target === "_blank";
 
@@ -235,7 +211,6 @@ function Button({
 
     switch (backgroundImageHoverEffect) {
       case "squeeze":
-        // squeeze horizontally (width) and hold
         hoverAnimRef.current = gsap.to(el, {
           scaleX: 0.85,
           scaleY: 1,
@@ -244,7 +219,6 @@ function Button({
         });
         break;
       case "bloat":
-        // widen horizontally and hold
         hoverAnimRef.current = gsap.to(el, {
           scaleX: 1.15,
           scaleY: 1,
@@ -253,7 +227,6 @@ function Button({
         });
         break;
       case "spin":
-        // continuous spin while hovering
         hoverAnimRef.current = gsap.to(el, {
           rotation: 360,
           duration: 2,
@@ -272,7 +245,6 @@ function Button({
       hoverAnimRef.current = null;
     }
     if (bgImageRef.current) {
-      // return to normal on hover off
       gsap.to(bgImageRef.current, {
         duration: 0.25,
         scaleX: 1,
@@ -300,7 +272,7 @@ function Button({
           intervalRef.current = window.setInterval(() => {
             if (!hoverRef.current || !targetRef.current) return;
             fireParticles(targetRef.current, cmsLink?.particleImages);
-          }, 220); // tweak speed here
+          }, 220);
         }
       }
     }
@@ -312,13 +284,11 @@ function Button({
   const handleMouseLeave = () => {
     hoverRef.current = false;
 
-    // Stop particle bursts
     if (intervalRef.current != null) {
       window.clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
 
-    // Stop background image hover animation and reset
     stopBackgroundImageHoverAnim();
   };
 
@@ -405,6 +375,7 @@ function Button({
       <Link
         href={url}
         target={openInNewTab ? "_blank" : undefined}
+        rel={openInNewTab ? "noopener noreferrer" : undefined}
         className={buttonClassName}
       >
         {renderInner()}

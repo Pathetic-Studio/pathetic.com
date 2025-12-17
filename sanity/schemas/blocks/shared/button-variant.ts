@@ -8,6 +8,7 @@ export const BUTTON_VARIANTS = [
   { title: "Underline", value: "underline" },
   { title: "Link", value: "link" },
   { title: "Menu", value: "menu" },
+  { title: "Footer", value: "footer" },
 ];
 
 export const buttonVariant = defineType({

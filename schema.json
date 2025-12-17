@@ -12919,6 +12919,10 @@
         {
           "type": "string",
           "value": "menu"
+        },
+        {
+          "type": "string",
+          "value": "footer"
         }
       ]
     }

@@ -12,13 +12,14 @@ if (typeof window !== "undefined") {
 
 type TypeOnTextProps = {
   text: string;
-  speed?: number;
+  speed?: number; // higher = faster
   className?: string;
   start?: string; // ScrollTrigger start, e.g. "top 80%"
 };
 
 export default function TypeOnText({
   text,
+  speed = 1,
   className,
   start = "top 80%",
 }: TypeOnTextProps) {
@@ -28,19 +29,14 @@ export default function TypeOnText({
     const el = wrapperRef.current;
     if (!el) return;
 
-    // Ensure the element contains the full text before splitting
     el.textContent = text;
 
-    // Split into characters (and lines/words if needed later)
-    const split = new SplitText(el, {
-      type: "chars,words,lines",
-    });
-
+    const split = new SplitText(el, { type: "chars,words,lines" });
     const chars = split.chars || [];
     if (!chars.length) return;
 
-    // Initial state: all chars invisible
-    gsap.set(chars, { opacity: 0 });
+    // Initial state: all chars invisible (including their stroke, since stroke is on these spans now)
+    gsap.set(chars, { opacity: 0, willChange: "opacity" });
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
@@ -48,12 +44,12 @@ export default function TypeOnText({
         start,
         once: true,
         onEnter: () => {
-          // Hardcoded per-letter timing
-          const staggerPerChar = 0.04; // seconds between each char
+          const baseStagger = 0.04; // seconds between chars at speed=1
+          const staggerPerChar = baseStagger / Math.max(0.1, speed);
 
           gsap.to(chars, {
-            opacity: 1,      // 0 -> 1 instantly
-            duration: 0,     // no fade time, just a jump
+            opacity: 1,
+            duration: 0,
             stagger: staggerPerChar,
             ease: "none",
           });
@@ -63,22 +59,19 @@ export default function TypeOnText({
 
     return () => {
       ctx.revert();
-      split.revert(); // restore original text DOM
+      split.revert();
     };
-  }, [text, start]);
-
-  const combinedClassName = [
-    "inline-block whitespace-pre-wrap",
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  }, [text, start, speed]);
 
   return (
     <span
       ref={wrapperRef}
-      className={combinedClassName}
+      className={cn("inline-block whitespace-pre-wrap", className)}
       aria-label={text}
     />
   );
+}
+
+function cn(...classes: Array<string | undefined | false | null>) {
+  return classes.filter(Boolean).join(" ");
 }

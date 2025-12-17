@@ -20,7 +20,7 @@ const STAR_POINTS = 32;
 const INNER_RATIO = 0.8;
 
 /** Stroke + padding (prevents clipping) */
-const STROKE_W = 6; // viewBox units
+const STROKE_W = 2; // viewBox units
 const PAD = 12; // viewBox units
 
 function starSvgPoints(opts: {
@@ -87,14 +87,14 @@ export default function NewsletterModal() {
 
     gsap.set(modal, {
       scale: 0.4,
-      rotation: -1080,
+
       y: -40,
       transformOrigin: "50% 50%",
     });
 
     const intro = gsap.to(modal, {
       scale: 1,
-      rotation: 0,
+
       y: 0,
       duration: 1,
       ease: "back.out(1.8)",
@@ -168,18 +168,19 @@ export default function NewsletterModal() {
         <div className="absolute inset-0 z-10 flex items-center justify-center p-10">
           <div className="w-full max-w-[440px] text-center">
 
+            <div className="relative z-10 mt-2 mb-2 text-center flex justify-center">
+              <TitleText
+                variant="stretched"
+                as="h3"
+                size="md"
+                align="center"
+                maxChars={26}
 
-            <TitleText
-              variant="stretched"
-              as="h2"
-              size="md"
-              align="center"
-              maxChars={26}
-
-              textOutline
-            >
-              Be first to know what we drop next
-            </TitleText>
+                textOutline
+              >
+                Be first to know what we drop next
+              </TitleText>
+            </div>
 
 
             <div className="mb-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
