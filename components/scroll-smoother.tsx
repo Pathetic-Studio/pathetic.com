@@ -1,7 +1,7 @@
 // components/scroll-smoother.tsx
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { gsap } from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
@@ -24,7 +24,32 @@ export default function SmoothScroller({
   // in-memory only (prevents “come back to overlay section” on navigation)
   const savedTabScrollRef = useRef<number>(0);
 
+  // Decide if we should use smooth scrolling at all.
+  // Key: on mobile/touch, we MUST allow native scrolling (no overflow-hidden wrapper).
+  const [enableSmooth, setEnableSmooth] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const compute = () => {
+      const isTouch =
+        "ontouchstart" in window ||
+        navigator.maxTouchPoints > 0 ||
+        (navigator as any).msMaxTouchPoints > 0;
+
+      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+
+      // Only enable smoother on desktop non-touch.
+      setEnableSmooth(isDesktop && !isTouch);
+    };
+
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+
   useLayoutEffect(() => {
+    if (!enableSmooth) return;
     if (typeof window === "undefined") return;
 
     const wrapper = wrapperRef.current;
@@ -48,13 +73,10 @@ export default function SmoothScroller({
     document.documentElement.style.overflowAnchor = "none";
     document.body.style.overflowAnchor = "none";
 
-    const isTouch =
-      "ontouchstart" in window ||
-      navigator.maxTouchPoints > 0 ||
-      (navigator as any).msMaxTouchPoints > 0;
-
+    // Kill any existing instance first (hot reload / route changes)
     ScrollSmoother.get()?.kill();
 
+    // Ensure we start from top on route changes when using smoother
     try {
       window.scrollTo(0, 0);
     } catch {
@@ -189,7 +211,6 @@ export default function SmoothScroller({
       suppressRefresh = true;
 
       smoother?.paused(true);
-
       ScrollTrigger.getAll().forEach((t) => t.disable(false));
     };
 
@@ -207,7 +228,7 @@ export default function SmoothScroller({
 
         requestAnimationFrame(() => {
           setScrollY(y);
-          smoother?.paused(false); // <-- fixes TS18047
+          smoother?.paused(false);
           ScrollTrigger.refresh();
           suppressRefresh = false;
         });
@@ -233,35 +254,22 @@ export default function SmoothScroller({
     window.addEventListener("pageshow", onPageShow);
 
     try {
-      if (isTouch) {
-        content.style.transform = "none";
-        gsap.set(content, { opacity: 1 });
+      smoother = ScrollSmoother.create({
+        wrapper,
+        content,
+        smooth: 1,
+        smoothTouch: 0, // keep touch fully native by disabling smoother on touch entirely
+        effects: true,
+        normalizeScroll: false,
+      });
 
-        requestAnimationFrame(() => {
-          try {
-            window.scrollTo(0, 0);
-          } catch {
-            // ignore
-          }
-        });
-      } else {
-        smoother = ScrollSmoother.create({
-          wrapper,
-          content,
-          smooth: 1,
-          smoothTouch: 0.1,
-          effects: true,
-          normalizeScroll: false,
-        });
+      setupPinning();
 
-        setupPinning();
-
-        requestAnimationFrame(() => {
-          setScrollY(0);
-          gsap.to(content, { opacity: 1, duration: 0.15, ease: "none" });
-          requestAnimationFrame(() => ScrollTrigger.refresh());
-        });
-      }
+      requestAnimationFrame(() => {
+        setScrollY(0);
+        gsap.to(content, { opacity: 1, duration: 0.15, ease: "none" });
+        requestAnimationFrame(() => ScrollTrigger.refresh());
+      });
     } catch (err) {
       console.error("[SmoothScroller] ScrollSmoother.create failed", err);
       setupPinning();
@@ -277,8 +285,18 @@ export default function SmoothScroller({
       pinTriggers.forEach((t) => t.kill());
       smoother?.kill();
     };
-  }, [pathname]);
+  }, [pathname, enableSmooth]);
 
+  // ✅ Mobile/touch: do NOT render the overflow-hidden wrapper at all.
+  if (!enableSmooth) {
+    return (
+      <div className="relative overflow-x-hidden">
+        {children}
+      </div>
+    );
+  }
+
+  // Desktop: render GSAP smoother wrapper
   return (
     <div
       id="smooth-wrapper"
