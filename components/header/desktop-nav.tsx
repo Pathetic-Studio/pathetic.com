@@ -74,7 +74,7 @@ export default function DesktopNav({
 
   const { overrides } = useHeaderNavOverrides();
 
-  // ✅ cache replacement links so we can animate them OUT even after overrides reset to null
+  // Cache replacement links so we can animate them OUT after overrides reset to null
   const [cachedReplaceLinks, setCachedReplaceLinks] = useState<NavLinkLite[]>([]);
 
   useEffect(() => {
@@ -84,15 +84,24 @@ export default function DesktopNav({
     }
   }, [overrides?.leftNavReplace]);
 
+  // Use overrides when present; fall back to cache for "animate out after leaving"
+  const replaceLinks: NavLinkLite[] = useMemo(() => {
+    const live = overrides?.leftNavReplace ?? null;
+    if (live && live.length) return live;
+    return cachedReplaceLinks;
+  }, [overrides?.leftNavReplace, cachedReplaceLinks]);
+
   const needsLeftReplace = useMemo(() => {
     return isMemeBoothRoute && (overrides?.leftNavReplace?.length ?? 0) > 0;
   }, [isMemeBoothRoute, overrides?.leftNavReplace]);
 
   const targetLeftSlot: "default" | "replace" = needsLeftReplace ? "replace" : "default";
 
+  // Right intended state
   const rightOpen =
     !isMemeBoothRoute ? true : (overrides?.showDesktopRightLinks ?? true);
 
+  // Gate initialization on meme-booth until overrides arrive (prevents wrong-state flash)
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
 
   const handleAnchorClick = useCallback(
@@ -242,7 +251,15 @@ export default function DesktopNav({
   useEffect(() => {
     if (!leftDefaultRef.current || !leftReplaceRef.current) return;
 
+    // Not ready (cold meme-booth before overrides): keep both hidden
     if (!readyToInitialize) {
+      leftDefaultRef.current.setOpenImmediate(false);
+      leftReplaceRef.current.setOpenImmediate(false);
+      return;
+    }
+
+    // If we need replacement but links haven't arrived yet, wait.
+    if (targetLeftSlot === "replace" && replaceLinks.length === 0) {
       leftDefaultRef.current.setOpenImmediate(false);
       leftReplaceRef.current.setOpenImmediate(false);
       return;
@@ -258,7 +275,7 @@ export default function DesktopNav({
       const prev = LAST_LEFT_SLOT;
       const next = targetLeftSlot;
 
-      // cold load: just open correct slot
+      // Cold load: open correct slot only (no swap)
       if (prev === null) {
         if (next === "replace") await leftReplaceRef.current!.open();
         else await leftDefaultRef.current!.open();
@@ -266,7 +283,7 @@ export default function DesktopNav({
         return;
       }
 
-      // swap: animate prev out then next in
+      // Swap: animate prev out then next in
       if (prev !== next) {
         if (prev === "replace") leftReplaceRef.current!.setOpenImmediate(true);
         else leftDefaultRef.current!.setOpenImmediate(true);
@@ -274,7 +291,7 @@ export default function DesktopNav({
         if (prev === "replace") await leftReplaceRef.current!.close();
         else await leftDefaultRef.current!.close();
 
-        // ✅ after replace closes, clear cached links (so it doesn't linger)
+        // After replace closes, clear cache so it doesn't linger
         if (prev === "replace") setCachedReplaceLinks([]);
 
         if (!stillCurrent()) return;
@@ -286,7 +303,7 @@ export default function DesktopNav({
         return;
       }
 
-      // same slot: ensure open
+      // Same slot: ensure open
       if (next === "replace") await leftReplaceRef.current!.open();
       else await leftDefaultRef.current!.open();
 
@@ -294,7 +311,7 @@ export default function DesktopNav({
     };
 
     void run();
-  }, [readyToInitialize, targetLeftSlot]);
+  }, [readyToInitialize, targetLeftSlot, replaceLinks.length]);
 
   return (
     <div className="hidden xl:flex w-full items-center justify-between text-primary">
@@ -312,7 +329,7 @@ export default function DesktopNav({
             ref={leftReplaceRef}
             className="flex items-center gap-4 [grid-area:1/1]"
           >
-            {renderLeftLinks(cachedReplaceLinks)}
+            {renderLeftLinks(replaceLinks)}
           </DesktopNavLeftAnim>
         </div>
       </div>
