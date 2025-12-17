@@ -1,4 +1,3 @@
-// app/(main)/layout.tsx
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { DisableDraftMode } from "@/components/disable-draft-mode";
@@ -15,45 +14,46 @@ import { fetchPageLoader } from "@/sanity/lib/fetch-page-loader";
 import PageLoaderSection from "@/components/page-loader-section";
 
 import TransitionShell from "@/components/layout/transition-shell";
+import { HeaderNavOverridesProvider } from "@/components/header/nav-overrides";
 
 export default async function MainLayout({
-  children,
+    children,
 }: {
-  children: React.ReactNode;
+    children: React.ReactNode;
 }) {
-  const draft = await draftMode();
+    const draft = await draftMode();
 
-  const loaderDoc = await fetchPageLoader();
-  const loaderEnabled = loaderDoc?.enabled ?? false;
+    const loaderDoc = await fetchPageLoader();
+    const loaderEnabled = loaderDoc?.enabled ?? false;
 
-  return (
-    <ContactModalProvider>
-      <Header />
-      <ContactModal />
-      <NewsletterModal />
+    return (
+        <HeaderNavOverridesProvider>
+            <ContactModalProvider>
+                <Header />
+                <ContactModal />
+                <NewsletterModal />
 
-      <MainLayoutShell>
-        <main className="overflow-x-hidden md:overflow-visible">
-          <TransitionShell>
-            {/* This is now both loader + landing section */}
-            {loaderEnabled && loaderDoc && <PageLoaderSection data={loaderDoc} />}
+                <MainLayoutShell>
+                    <main className="overflow-x-hidden md:overflow-visible">
+                        <TransitionShell>
+                            {loaderEnabled && loaderDoc && <PageLoaderSection data={loaderDoc} />}
+                            {children}
+                        </TransitionShell>
+                    </main>
 
-            {children}
-          </TransitionShell>
-        </main>
+                    <SanityLive />
 
-        <SanityLive />
+                    {draft.isEnabled && (
+                        <>
+                            <DisableDraftMode />
+                            <VisualEditing />
+                            <DisableDraftMode />
+                        </>
+                    )}
 
-        {draft.isEnabled && (
-          <>
-            <DisableDraftMode />
-            <VisualEditing />
-            <DisableDraftMode />
-          </>
-        )}
-
-        <Footer />
-      </MainLayoutShell>
-    </ContactModalProvider>
-  );
+                    <Footer />
+                </MainLayoutShell>
+            </ContactModalProvider>
+        </HeaderNavOverridesProvider>
+    );
 }

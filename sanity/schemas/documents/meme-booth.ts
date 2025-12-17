@@ -1,3 +1,4 @@
+// sanity/schemas/meme-booth.ts
 import { defineField, defineType } from "sanity";
 import { Camera } from "lucide-react";
 
@@ -7,14 +8,9 @@ export default defineType({
   title: "Meme Booth",
   icon: Camera,
   groups: [
-    {
-      name: "content",
-      title: "Content",
-    },
-    {
-      name: "seo",
-      title: "SEO",
-    },
+    { name: "content", title: "Content" },
+    { name: "seo", title: "SEO" },
+    { name: "nav", title: "Nav Overrides" },
   ],
   fields: [
     defineField({
@@ -31,7 +27,6 @@ export default defineType({
       rows: 3,
       group: "content",
     }),
-
     defineField({
       name: "showNewsletterModalOnView",
       title: "Show newsletter modal when page is viewed",
@@ -40,6 +35,26 @@ export default defineType({
       group: "content",
       description:
         "If enabled, the Meme Booth newsletter modal will open when this page comes into view.",
+    }),
+
+    // ✅ NAV OVERRIDES
+    defineField({
+      name: "showDesktopRightLinks",
+      title: "Show desktop right links",
+      type: "boolean",
+      initialValue: true,
+      group: "nav",
+      description:
+        "If disabled, the desktop right links will animate off on the Meme Booth route.",
+    }),
+    defineField({
+      name: "leftNavReplace",
+      title: "Left nav replace (desktop)",
+      type: "array",
+      group: "nav",
+      description:
+        "If this has items, the normal desktop left links animate off and these links animate on for Meme Booth.",
+      of: [{ type: "link" }],
     }),
 
     // SEO
@@ -67,21 +82,13 @@ export default defineType({
       title: "Open Graph Image - [1200x630]",
       type: "image",
       group: "seo",
-      options: {
-        hotspot: true,
-      },
+      options: { hotspot: true },
     }),
   ],
   preview: {
-    select: {
-      title: "title",
-      subtitle: "subtitle",
-    },
+    select: { title: "title", subtitle: "subtitle" },
     prepare({ title, subtitle }) {
-      return {
-        title: title || "Meme Booth",
-        subtitle,
-      };
+      return { title: title || "Meme Booth", subtitle };
     },
   },
 });

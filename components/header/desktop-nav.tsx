@@ -1,22 +1,22 @@
 // components/header/desktop-nav.tsx
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { NAVIGATION_QUERYResult } from "@/sanity.types";
 import LogoAnimated from "@/components/logo-animated";
-import { ModeToggle } from "@/components/menu-toggle";
 import ContactFormTrigger from "@/components/contact/contact-form-trigger";
 import ScrollSmoother from "gsap/ScrollSmoother";
 import { InstagramIcon } from "../ui/instagram-icon";
+import DesktopNavRightAnim from "./desktop-nav-right-anim";
+import DesktopNavLeftAnim, { DesktopNavLeftAnimHandle } from "./desktop-nav-left-anim";
+import { useHeaderNavOverrides, type NavLinkLite } from "./nav-overrides";
 
 type NavigationDoc = NAVIGATION_QUERYResult[0];
-
-type SanityLink = NonNullable<
-  NonNullable<NavigationDoc["leftLinks"]>[number]
->;
+type NavLink = NonNullable<NonNullable<NavigationDoc["leftLinks"]>[number]>;
 
 type AnchorLinkExtra = {
   linkType: "anchor-link";
@@ -24,14 +24,12 @@ type AnchorLinkExtra = {
   anchorOffsetPercent?: number | null;
 };
 
-function getAnchorData(navItem: SanityLink): AnchorLinkExtra | null {
+function getAnchorData(navItem: NavLinkLite): AnchorLinkExtra | null {
   if (navItem.linkType !== "anchor-link") return null;
-
-  const itemWithAnchor = navItem as SanityLink & AnchorLinkExtra;
   return {
     linkType: "anchor-link",
-    anchorId: itemWithAnchor.anchorId,
-    anchorOffsetPercent: itemWithAnchor.anchorOffsetPercent,
+    anchorId: navItem.anchorId ?? null,
+    anchorOffsetPercent: navItem.anchorOffsetPercent ?? null,
   };
 }
 
@@ -55,6 +53,9 @@ function scrollToAnchor(anchorId: string, offsetPercent?: number | null) {
   }
 }
 
+/** Persist last visible left slot across remounts */
+let LAST_LEFT_SLOT: "default" | "replace" | null = null;
+
 export default function DesktopNav({
   navigation,
   settings,
@@ -65,16 +66,39 @@ export default function DesktopNav({
   const nav = navigation[0];
   const instagramUrl = nav.instagram;
 
-  const leftLinks: SanityLink[] = (nav?.leftLinks as SanityLink[]) ?? [];
-  const rightLinks: SanityLink[] = (nav?.rightLinks as SanityLink[]) ?? [];
+  const defaultLeftLinks: NavLink[] = (nav?.leftLinks as NavLink[]) ?? [];
+  const rightLinks: NavLink[] = (nav?.rightLinks as NavLink[]) ?? [];
+
+  const pathname = usePathname();
+  const isMemeBoothRoute = !!pathname?.startsWith("/meme-booth");
+
+  const { overrides } = useHeaderNavOverrides();
+
+  // ✅ cache replacement links so we can animate them OUT even after overrides reset to null
+  const [cachedReplaceLinks, setCachedReplaceLinks] = useState<NavLinkLite[]>([]);
+
+  useEffect(() => {
+    const incoming = overrides?.leftNavReplace ?? null;
+    if (incoming && incoming.length) {
+      setCachedReplaceLinks(incoming);
+    }
+  }, [overrides?.leftNavReplace]);
+
+  const needsLeftReplace = useMemo(() => {
+    return isMemeBoothRoute && (overrides?.leftNavReplace?.length ?? 0) > 0;
+  }, [isMemeBoothRoute, overrides?.leftNavReplace]);
+
+  const targetLeftSlot: "default" | "replace" = needsLeftReplace ? "replace" : "default";
+
+  const rightOpen =
+    !isMemeBoothRoute ? true : (overrides?.showDesktopRightLinks ?? true);
+
+  const readyToInitialize = !isMemeBoothRoute || overrides !== null;
 
   const handleAnchorClick = useCallback(
-    (
-      e: React.MouseEvent<HTMLAnchorElement>,
-      navItem: SanityLink
-    ) => {
+    (e: React.MouseEvent<HTMLAnchorElement>, navItem: NavLinkLite) => {
       const anchorData = getAnchorData(navItem);
-      if (!anchorData || !anchorData.anchorId) return;
+      if (!anchorData?.anchorId) return;
 
       e.preventDefault();
       scrollToAnchor(anchorData.anchorId, anchorData.anchorOffsetPercent);
@@ -87,57 +111,51 @@ export default function DesktopNav({
     []
   );
 
-  return (
-    <div className="hidden xl:flex w-full items-center justify-between text-primary">
-      {/* Left links */}
-      <div className="flex flex-1 items-center justify-start gap-4">
-        {leftLinks.map((navItem) => {
-          // CONTACT → keep as ContactFormTrigger (no particles here)
-          if (navItem.linkType === "contact") {
-            return (
+  const leftDefaultRef = useRef<DesktopNavLeftAnimHandle | null>(null);
+  const leftReplaceRef = useRef<DesktopNavLeftAnimHandle | null>(null);
+  const seqIdRef = useRef(0);
+
+  const renderLeftLinks = (links: NavLinkLite[]) => (
+    <>
+      {links.map((navItem) => {
+        const key = navItem._key;
+
+        if (navItem.linkType === "contact") {
+          return (
+            <span key={key} data-left-nav-item className="inline-flex">
               <ContactFormTrigger
-                key={navItem._key}
-                className={cn(
-                  buttonVariants({
-                    variant: "menu",
-                    size: "sm",
-                  })
-                )}
+                className={cn(buttonVariants({ variant: "menu", size: "sm" }))}
               >
                 {navItem.title}
               </ContactFormTrigger>
-            );
-          }
+            </span>
+          );
+        }
 
-          // ANCHOR → keep special scroll behavior (no Button here)
-          if (navItem.linkType === "anchor-link") {
-            const anchorData = getAnchorData(navItem);
-            const href =
-              anchorData?.anchorId ? `#${anchorData.anchorId}` : "#";
+        if (navItem.linkType === "anchor-link") {
+          const anchorData = getAnchorData(navItem);
+          const href = anchorData?.anchorId ? `#${anchorData.anchorId}` : "#";
 
-            return (
+          return (
+            <span key={key} data-left-nav-item className="inline-flex">
               <Link
-                key={navItem._key}
                 href={href}
                 onClick={(e) => handleAnchorClick(e, navItem)}
                 className={cn(
-                  buttonVariants({
-                    variant: "menu",
-                    size: "sm",
-                  }),
+                  buttonVariants({ variant: "menu", size: "sm" }),
                   "transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0"
                 )}
               >
                 {navItem.title}
               </Link>
-            );
-          }
+            </span>
+          );
+        }
 
-          // NORMAL LINK → use Button so particles can run if enabled on this link
-          return (
+        return (
+          <span key={key} data-left-nav-item className="inline-flex">
             <Button
-              key={navItem._key}
-              link={navItem}
+              link={navItem as any}
               variant="menu"
               size="sm"
               className={cn(
@@ -146,8 +164,157 @@ export default function DesktopNav({
             >
               {navItem.title}
             </Button>
+          </span>
+        );
+      })}
+    </>
+  );
+
+  const renderRightLinks = (links: NavLinkLite[]) => (
+    <>
+      {links.map((navItem) => {
+        const variant =
+          (navItem.buttonVariant as
+            | "link"
+            | "default"
+            | "destructive"
+            | "outline"
+            | "secondary"
+            | "underline"
+            | "menu"
+            | "icon"
+            | null
+            | undefined) ?? "underline";
+
+        if (navItem.linkType === "contact") {
+          return (
+            <ContactFormTrigger
+              key={navItem._key}
+              data-right-nav-item
+              className={cn(
+                buttonVariants({ variant, size: "sm" }),
+                "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
+              )}
+            >
+              {navItem.title}
+            </ContactFormTrigger>
           );
-        })}
+        }
+
+        if (navItem.linkType === "anchor-link") {
+          const anchorData = getAnchorData(navItem);
+          const href = anchorData?.anchorId ? `#${anchorData.anchorId}` : "#";
+
+          return (
+            <Link
+              key={navItem._key}
+              href={href}
+              onClick={(e) => handleAnchorClick(e, navItem)}
+              data-right-nav-item
+              className={cn(
+                buttonVariants({ variant, size: "sm" }),
+                "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
+              )}
+            >
+              {navItem.title}
+            </Link>
+          );
+        }
+
+        return (
+          <Button
+            key={navItem._key}
+            link={navItem as any}
+            variant={variant}
+            size="sm"
+            data-right-nav-item
+            className={cn(
+              "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
+            )}
+          >
+            {navItem.title}
+          </Button>
+        );
+      })}
+    </>
+  );
+
+  useEffect(() => {
+    if (!leftDefaultRef.current || !leftReplaceRef.current) return;
+
+    if (!readyToInitialize) {
+      leftDefaultRef.current.setOpenImmediate(false);
+      leftReplaceRef.current.setOpenImmediate(false);
+      return;
+    }
+
+    const seq = ++seqIdRef.current;
+    const stillCurrent = () => seqIdRef.current === seq;
+
+    const run = async () => {
+      leftDefaultRef.current!.setOpenImmediate(false);
+      leftReplaceRef.current!.setOpenImmediate(false);
+
+      const prev = LAST_LEFT_SLOT;
+      const next = targetLeftSlot;
+
+      // cold load: just open correct slot
+      if (prev === null) {
+        if (next === "replace") await leftReplaceRef.current!.open();
+        else await leftDefaultRef.current!.open();
+        LAST_LEFT_SLOT = next;
+        return;
+      }
+
+      // swap: animate prev out then next in
+      if (prev !== next) {
+        if (prev === "replace") leftReplaceRef.current!.setOpenImmediate(true);
+        else leftDefaultRef.current!.setOpenImmediate(true);
+
+        if (prev === "replace") await leftReplaceRef.current!.close();
+        else await leftDefaultRef.current!.close();
+
+        // ✅ after replace closes, clear cached links (so it doesn't linger)
+        if (prev === "replace") setCachedReplaceLinks([]);
+
+        if (!stillCurrent()) return;
+
+        if (next === "replace") await leftReplaceRef.current!.open();
+        else await leftDefaultRef.current!.open();
+
+        LAST_LEFT_SLOT = next;
+        return;
+      }
+
+      // same slot: ensure open
+      if (next === "replace") await leftReplaceRef.current!.open();
+      else await leftDefaultRef.current!.open();
+
+      LAST_LEFT_SLOT = next;
+    };
+
+    void run();
+  }, [readyToInitialize, targetLeftSlot]);
+
+  return (
+    <div className="hidden xl:flex w-full items-center justify-between text-primary">
+      {/* Left links */}
+      <div className="flex flex-1 items-center justify-start">
+        <div className="grid">
+          <DesktopNavLeftAnim
+            ref={leftDefaultRef}
+            className="flex items-center gap-4 [grid-area:1/1]"
+          >
+            {renderLeftLinks(defaultLeftLinks as unknown as NavLinkLite[])}
+          </DesktopNavLeftAnim>
+
+          <DesktopNavLeftAnim
+            ref={leftReplaceRef}
+            className="flex items-center gap-4 [grid-area:1/1]"
+          >
+            {renderLeftLinks(cachedReplaceLinks)}
+          </DesktopNavLeftAnim>
+        </div>
       </div>
 
       {/* Center logo */}
@@ -163,84 +330,13 @@ export default function DesktopNav({
         </Link>
       </div>
 
-      {/* Right links + mode toggle */}
+      {/* Right links + instagram */}
       <div className="flex flex-1 justify-end gap-2 items-stretch">
-        <div className="flex items-center gap-2 border border-border bg-background/100 px-3 py-0">
-          {rightLinks.map((navItem) => {
-            const variant =
-              (navItem.buttonVariant as
-                | "link"
-                | "default"
-                | "destructive"
-                | "outline"
-                | "secondary"
-                | "underline"
-                | "menu"
-                | "icon"
-                | null
-                | undefined) ?? "underline";
+        <DesktopNavRightAnim ready={readyToInitialize} isOpen={rightOpen}>
+          {renderRightLinks(rightLinks as unknown as NavLinkLite[])}
+        </DesktopNavRightAnim>
 
-            // CONTACT → keep as ContactFormTrigger
-            if (navItem.linkType === "contact") {
-              return (
-                <ContactFormTrigger
-                  key={navItem._key}
-                  className={cn(
-                    buttonVariants({
-                      variant,
-                      size: "sm",
-                    }),
-                    "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
-                  )}
-                >
-                  {navItem.title}
-                </ContactFormTrigger>
-              );
-            }
-
-            // ANCHOR → keep special scroll behavior
-            if (navItem.linkType === "anchor-link") {
-              const anchorData = getAnchorData(navItem);
-              const href =
-                anchorData?.anchorId ? `#${anchorData.anchorId}` : "#";
-
-              return (
-                <Link
-                  key={navItem._key}
-                  href={href}
-                  onClick={(e) => handleAnchorClick(e, navItem)}
-                  className={cn(
-                    buttonVariants({
-                      variant,
-                      size: "sm",
-                    }),
-                    "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
-                  )}
-                >
-                  {navItem.title}
-                </Link>
-              );
-            }
-
-            // NORMAL LINK → use Button so particles can run if enabled
-            return (
-              <Button
-                key={navItem._key}
-                link={navItem}
-                variant={variant}
-                size="sm"
-                className={cn(
-                  "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
-                )}
-              >
-                {navItem.title}
-              </Button>
-            );
-          })}
-        </div>
-
-
-        <div className="h-full flex items-center ">
+        <div className="h-full flex items-center">
           <InstagramIcon instagramUrl={instagramUrl} />
         </div>
       </div>

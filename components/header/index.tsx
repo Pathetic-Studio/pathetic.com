@@ -4,10 +4,7 @@ import MobileNav from "@/components/header/mobile-nav";
 import DesktopNav from "@/components/header/desktop-nav";
 import LogoAnimated from "@/components/logo-animated";
 import { InstagramIcon } from "../ui/instagram-icon";
-import {
-  fetchSanitySettings,
-  fetchSanityNavigation,
-} from "@/sanity/lib/fetch";
+import { fetchSanitySettings, fetchSanityNavigation } from "@/sanity/lib/fetch";
 
 export default async function Header() {
   const settings = await fetchSanitySettings();
@@ -17,16 +14,11 @@ export default async function Header() {
   const instagramUrl = navDoc?.instagram ?? null;
 
   return (
-    <header
-      id="site-header-root"
-      className="fixed inset-x-0 top-0 z-[70]"
-    >
+    <header id="site-header-root" className="fixed inset-x-0 top-0 z-[70]">
       <div className="w-full px-4 flex items-center justify-between py-4">
         {/* Mobile layout */}
         <div className="flex flex-1 items-center xl:hidden">
-          {instagramUrl && (
-            <InstagramIcon instagramUrl={instagramUrl} />
-          )}
+          {instagramUrl && <InstagramIcon instagramUrl={instagramUrl} />}
         </div>
 
         <div className="flex justify-center xl:hidden">
@@ -45,7 +37,7 @@ export default async function Header() {
           <MobileNav navigation={navigation} settings={settings} />
         </div>
 
-        {/* Desktop layout: logo centered by DesktopNav */}
+        {/* Desktop layout */}
         <DesktopNav navigation={navigation} settings={settings} />
       </div>
     </header>
