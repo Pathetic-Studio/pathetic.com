@@ -51,7 +51,7 @@ export default async function MainLayout({
                         </>
                     )}
 
-                    <Footer />
+
                 </MainLayoutShell>
             </ContactModalProvider>
         </HeaderNavOverridesProvider>

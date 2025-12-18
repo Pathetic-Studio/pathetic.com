@@ -1,4 +1,3 @@
-// sanity/queries/meme-booth.ts
 import { groq } from "next-sanity";
 import { linkQuery } from "./shared/link";
 
@@ -8,10 +7,15 @@ export const MEME_BOOTH_QUERY = groq`
     subtitle,
     showNewsletterModalOnView,
 
+    // Desktop overrides
     showDesktopRightLinks,
-
-    // ✅ replacement links have the exact same shape as everywhere else
     leftNavReplace[]{
+      ${linkQuery}
+    },
+
+    // Mobile overrides
+    showMobileBottomLinks,
+    mobileTopReplace[]{
       ${linkQuery}
     },
 

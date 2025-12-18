@@ -1,34 +1,36 @@
-// components/header/mobile-nav.tsx
 "use client";
 
 import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent,
 } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import Logo from "@/components/logo";
-import { Menu, X } from "lucide-react";
-import {
-  SETTINGS_QUERYResult,
-  NAVIGATION_QUERYResult,
-} from "@/sanity.types";
-import ContactFormTrigger from "@/components/contact/contact-form-trigger";
-import ScrollSmoother from "gsap/ScrollSmoother";
+import { usePathname, useRouter } from "next/navigation";
 import gsap from "gsap";
-import { ModeToggle } from "@/components/menu-toggle";
+import ScrollSmoother from "gsap/ScrollSmoother";
+import { Menu, X } from "lucide-react";
 
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { SETTINGS_QUERYResult, NAVIGATION_QUERYResult } from "@/sanity.types";
+import ContactFormTrigger from "@/components/contact/contact-form-trigger";
+import { ModeToggle } from "@/components/menu-toggle";
+import {
+  useHeaderNavOverrides,
+  type NavLinkLite,
+} from "@/components/header/nav-overrides";
+
+/* -------------------------------------------------------------------------- */
+/* TYPES                                                                      */
+/* -------------------------------------------------------------------------- */
 
 type NavigationDoc = NAVIGATION_QUERYResult[0];
-
-type SanityLink = NonNullable<
-  NonNullable<NavigationDoc["leftLinks"]>[number]
->;
 
 type AnchorLinkExtra = {
   linkType: "anchor-link";
@@ -36,14 +38,43 @@ type AnchorLinkExtra = {
   anchorOffsetPercent?: number | null;
 };
 
-function getAnchorData(navItem: SanityLink): AnchorLinkExtra | null {
+type BtnVariant =
+  | "link"
+  | "default"
+  | "destructive"
+  | "outline"
+  | "secondary"
+  | "underline"
+  | "menu"
+  | "icon";
+
+/* -------------------------------------------------------------------------- */
+/* HELPERS                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function getAnchorData(navItem: NavLinkLite): AnchorLinkExtra | null {
   if (navItem.linkType !== "anchor-link") return null;
-  const itemWithAnchor = navItem as SanityLink & AnchorLinkExtra;
   return {
     linkType: "anchor-link",
-    anchorId: itemWithAnchor.anchorId,
-    anchorOffsetPercent: itemWithAnchor.anchorOffsetPercent,
+    anchorId: navItem.anchorId ?? null,
+    anchorOffsetPercent: navItem.anchorOffsetPercent ?? null,
   };
+}
+
+function normalizeAnchorHref(rawHref: string) {
+  const h = (rawHref ?? "").trim();
+  if (!h) return h;
+
+  // "/#id" or "/some#id" already fine
+  if (h.startsWith("/")) return h;
+
+  // "#id" => assume homepage
+  if (h.startsWith("#")) return `/${h}`;
+
+  // "who-we-are" => treat as id
+  if (!h.includes("#") && !h.includes("/")) return `/#${h}`;
+
+  return h;
 }
 
 function scrollToAnchor(anchorId: string, offsetPercent?: number | null) {
@@ -51,20 +82,24 @@ function scrollToAnchor(anchorId: string, offsetPercent?: number | null) {
   if (!target) return;
 
   const smoother = ScrollSmoother.get();
-  const offsetPct = typeof offsetPercent === "number" ? offsetPercent : 0;
-  const offsetPx = (offsetPct / 100) * window.innerHeight;
+  const offsetPx =
+    ((typeof offsetPercent === "number" ? offsetPercent : 0) / 100) *
+    window.innerHeight;
 
   if (smoother) {
-    const contentY = smoother.offset(target, "top");
-    const finalY = contentY - offsetPx;
-    smoother.scrollTo(finalY, true);
+    smoother.scrollTo(smoother.offset(target, "top") - offsetPx, true);
   } else {
     const rect = target.getBoundingClientRect();
-    const scrollY = window.scrollY || window.pageYOffset;
-    const finalY = rect.top + scrollY - offsetPx;
-    window.scrollTo({ top: finalY, behavior: "smooth" });
+    window.scrollTo({
+      top: rect.top + window.scrollY - offsetPx,
+      behavior: "smooth",
+    });
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* COMPONENT                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export default function MobileNav({
   navigation,
@@ -73,257 +108,406 @@ export default function MobileNav({
   navigation: NAVIGATION_QUERYResult;
   settings: SETTINGS_QUERYResult;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const navDoc: NavigationDoc | undefined = navigation[0];
+  useEffect(() => setMounted(true), []);
 
-  const leftLinks: SanityLink[] =
-    (navDoc?.leftLinks as SanityLink[]) ?? [];
-  const rightLinks: SanityLink[] =
-    (navDoc?.rightLinks as SanityLink[]) ?? [];
+  const isMemeBoothRoute = !!pathname?.startsWith("/meme-booth");
+  const { overrides } = useHeaderNavOverrides();
 
-  const links: SanityLink[] = [...leftLinks, ...rightLinks];
+  const readyToInitialize = !isMemeBoothRoute || overrides !== null;
 
-  const handleAnchorClick = useCallback(
-    (e: MouseEvent<HTMLAnchorElement>, navItem: SanityLink) => {
-      const anchorData = getAnchorData(navItem);
-      if (!anchorData || !anchorData.anchorId) return;
+  /* ---------------- NAV DATA ---------------- */
 
-      e.preventDefault();
-      setOpen(false);
-      scrollToAnchor(anchorData.anchorId, anchorData.anchorOffsetPercent);
-    },
-    []
+  const navDoc: NavigationDoc | undefined = navigation?.[0];
+
+  const defaultTopLinks: NavLinkLite[] = useMemo(
+    () => (navDoc?.leftLinks ?? []) as unknown as NavLinkLite[],
+    [navDoc]
   );
 
-  // GSAP refs
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const itemsRef = useRef<(HTMLLIElement | null)[]>([]);
+  const defaultBottomLinks: NavLinkLite[] = useMemo(
+    () => (navDoc?.rightLinks ?? []) as unknown as NavLinkLite[],
+    [navDoc]
+  );
 
-  // Initial GSAP state
-  useLayoutEffect(() => {
-    const panel = panelRef.current;
-    if (!panel) return;
+  const topLinks: NavLinkLite[] = useMemo(() => {
+    const replace = overrides?.mobileTopReplace ?? null;
+    if (isMemeBoothRoute && replace && replace.length) return replace;
+    return defaultTopLinks;
+  }, [defaultTopLinks, isMemeBoothRoute, overrides?.mobileTopReplace]);
 
-    const ctx = gsap.context(() => {
-      gsap.set(panel, {
-        transformOrigin: "top right",
-        scaleX: 0.2,
-        scaleY: 0,
-        opacity: 0,
-      });
+  const showBottomLinks = useMemo(() => {
+    if (!isMemeBoothRoute) return true;
+    return overrides?.showMobileBottomLinks ?? true;
+  }, [isMemeBoothRoute, overrides?.showMobileBottomLinks]);
 
-      const items = itemsRef.current.filter(Boolean);
-      if (items.length) {
-        gsap.set(items, { opacity: 0, y: 10 });
+  const closeMenu = useCallback(() => setOpen(false), []);
+  const toggleMenu = useCallback(() => setOpen((p) => !p), []);
+
+  const handleAnchorClick = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>, navItem: NavLinkLite) => {
+      const anchor = getAnchorData(navItem);
+      if (!anchor?.anchorId) return;
+
+      // This may be "#id" from Sanity, or "/#id" if you update GROQ later.
+      const rawHref =
+        (navItem as any)?.href ||
+        (anchor.anchorId ? `#${anchor.anchorId}` : "");
+
+      const targetHref = normalizeAnchorHref(rawHref); // ensures "/#id" at minimum
+
+      // If we're already on "/", do a smooth scroll in-place.
+      if (pathname === "/") {
+        e.preventDefault();
+        closeMenu();
+        scrollToAnchor(anchor.anchorId, anchor.anchorOffsetPercent);
+        return;
       }
-    }, panel);
 
-    return () => ctx.revert();
+      // Otherwise, navigate to the correct page+hash (don't try to scroll on this page)
+      e.preventDefault();
+      closeMenu();
+      router.push(targetHref);
+    },
+    [closeMenu, pathname, router]
+  );
+
+  /* ---------------- ICON SWAP (NO FOUC) ---------------- */
+
+  const [icon, setIcon] = useState<"menu" | "close">("menu");
+  const iconWrapRef = useRef<HTMLSpanElement | null>(null);
+  const currentIconRef = useRef<"menu" | "close">("menu");
+  const outTweenRef = useRef<gsap.core.Tween | null>(null);
+
+  useLayoutEffect(() => {
+    if (!iconWrapRef.current) return;
+    gsap.set(iconWrapRef.current, {
+      scale: 1,
+      opacity: 1,
+      transformOrigin: "50% 50%",
+    });
   }, []);
 
-  // Open / close animation
   useEffect(() => {
-    const panel = panelRef.current;
-    if (!panel) return;
+    const el = iconWrapRef.current;
+    if (!el) return;
 
-    const items = itemsRef.current.filter(Boolean);
+    const next: "menu" | "close" = open ? "close" : "menu";
+    if (next === currentIconRef.current) return;
+
+    outTweenRef.current?.kill();
+    outTweenRef.current = gsap.to(el, {
+      duration: 0.28,
+      scale: 0,
+      opacity: 0,
+      ease: "elastic.in(1, 1)",
+      overwrite: "auto",
+      onComplete: () => {
+        currentIconRef.current = next;
+        setIcon(next);
+      },
+    });
+
+    return () => {
+      outTweenRef.current?.kill();
+      outTweenRef.current = null;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    const el = iconWrapRef.current;
+    if (!el) return;
+
+    gsap.fromTo(
+      el,
+      { scale: 0, opacity: 0 },
+      {
+        duration: 0.42,
+        scale: 1,
+        opacity: 1,
+        ease: "elastic.out(1, 1)",
+        overwrite: "auto",
+      }
+    );
+  }, [icon]);
+
+  /* ---------------- OVERLAY + GSAP (RELIABLE) ---------------- */
+
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const bgRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const tlRef = useRef<gsap.core.Timeline | null>(null);
+
+  const resetToClosed = useCallback(() => {
+    const shell = shellRef.current;
+    const bg = bgRef.current;
+    const panel = panelRef.current;
+    if (!shell || !bg || !panel) return;
+
+    const items = gsap.utils.toArray<HTMLElement>(
+      shell.querySelectorAll("[data-mobile-nav-item]")
+    );
+
+    gsap.set(shell, { visibility: "hidden", pointerEvents: "none" });
+    gsap.set(bg, { autoAlpha: 0 });
+    gsap.set(panel, { scaleY: 0, transformOrigin: "top center" });
+    gsap.set(items, {
+      autoAlpha: 0,
+      scale: 0.9,
+      y: 10,
+      transformOrigin: "center center",
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!mounted) return;
+    resetToClosed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (!readyToInitialize) {
+      tlRef.current?.kill();
+      tlRef.current = null;
+      resetToClosed();
+      return;
+    }
+
+    const shell = shellRef.current;
+    const bg = bgRef.current;
+    const panel = panelRef.current;
+    if (!shell || !bg || !panel) return;
+
+    const items = gsap.utils.toArray<HTMLElement>(
+      shell.querySelectorAll("[data-mobile-nav-item]")
+    );
+
+    tlRef.current?.kill();
+    tlRef.current = null;
 
     if (open) {
-      const tl = gsap.timeline();
+      gsap.set(shell, { visibility: "visible", pointerEvents: "auto" });
+      gsap.set(bg, { autoAlpha: 0 });
+      gsap.set(panel, { scaleY: 0, transformOrigin: "top center" });
+      gsap.set(items, { autoAlpha: 0, scale: 0.9, y: 10 });
 
-      // width (scaleX) first
-      tl.to(panel, {
-        duration: 0.25,
-        scaleX: 1,
-        opacity: 1,
-        ease: "power2.out",
-      })
-        // then height (scaleY)
-        .to(
-          panel,
-          {
-            duration: 0.25,
-            scaleY: 1,
-            ease: "power2.out",
-          },
-          "-=0.05"
-        )
-        // then stagger in menu items
+      const tl = gsap
+        .timeline({ defaults: { overwrite: "auto" } })
+        .to(bg, { duration: 0.2, autoAlpha: 1, ease: "power1.out" }, 0)
+        .to(panel, { duration: 0.25, scaleY: 1, ease: "power2.out" }, 0.05)
         .to(
           items,
           {
-            duration: 0.2,
-            opacity: 1,
+            duration: 0.6,
+            autoAlpha: 1,
+            scale: 1,
             y: 0,
-            stagger: 0.05,
-            ease: "power2.out",
+            stagger: 0.06,
+            ease: "elastic.out(1, 1)",
           },
-          "-=0.1"
+          0.12
         );
+
+      tlRef.current = tl;
     } else {
-      // reset for next open
-      gsap.set(panel, {
-        scaleX: 0.2,
-        scaleY: 0,
-        opacity: 0,
+      const tl = gsap.timeline({
+        defaults: { overwrite: "auto" },
+        onComplete: () => resetToClosed(),
       });
-      if (items.length) {
-        gsap.set(items, { opacity: 0, y: 10 });
-      }
+
+      tl.to(items, {
+        duration: 0.35,
+        autoAlpha: 0,
+        scale: 0.9,
+        y: 10,
+        stagger: { each: 0.03, from: "end" },
+        ease: "power2.inOut",
+      });
+      tl.to(panel, { duration: 0.18, scaleY: 0, ease: "power2.inOut" }, "-=0.08");
+      tl.to(bg, { duration: 0.14, autoAlpha: 0, ease: "power1.inOut" }, "-=0.10");
+
+      tlRef.current = tl;
     }
-  }, [open]);
 
-  return (
-    <>
-      {/* Menu button in header – square box, bg/background, border, no radius */}
-      <Button
-        aria-label={open ? "Close Menu" : "Open Menu"}
-        variant="menu"
-        onClick={() => setOpen((prev) => !prev)}
-        className={cn(
-          "relative z-[70] flex h-10 w-10 items-center justify-center",
-          " rounded-none p-0",
-          "focus-visible:ring-1 focus-visible:ring-offset-1"
-        )}
+    return () => {
+      tlRef.current?.kill();
+      tlRef.current = null;
+    };
+  }, [open, mounted, readyToInitialize, resetToClosed]);
+
+  /* ---------------- LINK STYLING + RENDERING ---------------- */
+
+  const mobileTextBump = "text-xl md:text-sm";
+
+  const isBgButton = (navItem: NavLinkLite) =>
+    !!(navItem as any)?.backgroundImageEnabled &&
+    ((navItem as any)?.backgroundImages?.length ?? 0) > 0;
+
+  const getVariant = (navItem: NavLinkLite): BtnVariant => {
+    const v = (navItem as any)?.buttonVariant as BtnVariant | null | undefined;
+    return v ?? "underline";
+  };
+
+  const baseItemClass = cn(
+    "transition-colors hover:text-foreground/90 text-foreground/70",
+    "inline-flex items-center justify-center",
+    "bg-transparent hover:bg-transparent",
+    "whitespace-nowrap"
+  );
+
+  const pillItemClass = cn(baseItemClass, "h-8 px-3 rounded-full", mobileTextBump);
+
+  const bgItemClass = cn(
+    baseItemClass,
+    "h-auto px-0 py-0 rounded-none",
+    "w-full",
+    mobileTextBump
+  );
+
+  const renderLinkItem = (navItem: NavLinkLite) => {
+    const variant = getVariant(navItem);
+    const hasBg = isBgButton(navItem);
+
+    if (navItem.linkType === "contact") {
+      return (
+        <li key={navItem._key} data-mobile-nav-item className="flex justify-center">
+          <span onClick={closeMenu} className="inline-flex">
+            <ContactFormTrigger
+              className={cn(
+                buttonVariants({ variant, size: "sm" }),
+                hasBg ? bgItemClass : pillItemClass
+              )}
+            >
+              {navItem.title}
+            </ContactFormTrigger>
+          </span>
+        </li>
+      );
+    }
+
+    if (navItem.linkType === "anchor-link") {
+      const anchor = getAnchorData(navItem);
+      const anchorId = anchor?.anchorId ?? null;
+
+      const rawHref =
+        (navItem as any)?.href || (anchorId ? `#${anchorId}` : "");
+
+      const href = normalizeAnchorHref(rawHref); // always "/#id" minimum
+
+      return (
+        <li
+          key={navItem._key}
+          data-mobile-nav-item
+          className={cn("flex justify-center", hasBg && "w-full")}
+        >
+          <Link
+            href={href}
+            scroll={false}
+            onClick={(e) => handleAnchorClick(e, navItem)}
+            className={cn(
+              buttonVariants({ variant, size: "sm" }),
+              hasBg ? bgItemClass : pillItemClass
+            )}
+          >
+            {navItem.title}
+          </Link>
+        </li>
+      );
+    }
+
+    return (
+      <li
+        key={navItem._key}
+        data-mobile-nav-item
+        className={cn("flex justify-center", hasBg && "w-full")}
       >
-        {open ? (
-          <X className="h-4 w-4 scale-x-[0.6] dark:text-white" />
-        ) : (
-          <Menu className="h-4 w-4 scale-x-[0.6] dark:text-white" />
-        )}
-      </Button>
+        <span onClick={closeMenu} className={cn("inline-flex", hasBg && "w-full")}>
+          <Button
+            link={navItem as any}
+            variant={variant}
+            size="sm"
+            className={cn(hasBg ? bgItemClass : pillItemClass)}
+          >
+            {navItem.title}
+          </Button>
+        </span>
+      </li>
+    );
+  };
 
-      {/* Custom overlay + panel */}
+  const hasBottom = showBottomLinks && defaultBottomLinks.length > 0;
+
+  const overlay =
+    mounted &&
+    createPortal(
       <div
-        className={cn(
-          "fixed inset-0 z-40 flex items-start justify-end pt-20 pr-4 transition-opacity duration-300",
-          open
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        )}
+        ref={shellRef}
+        className="fixed inset-0 z-[60] flex items-start justify-center pt-20 px-4"
       >
-        {/* Dimmed background, click to close */}
-        <div
-          className="absolute inset-0 bg-black/80"
-          onClick={() => setOpen(false)}
-        />
+        <div ref={bgRef} className="absolute inset-0 bg-white" onClick={closeMenu} />
 
-        {/* Inner animated panel, aligned to top-right */}
         <div
           ref={panelRef}
           className="relative w-full max-w-md border bg-background/95 px-6 py-8"
+          style={{ transform: "scaleY(0)", transformOrigin: "top center" }}
         >
-          <div className="p-0 flex flex-col gap-1.5">
-
-            <div className="sr-only">
-              <h2>Main Navigation</h2>
-              <p>Navigate to the website pages</p>
-            </div>
+          <div className="sr-only">
+            <h2>Main Navigation</h2>
+            <p>Navigate to the website pages</p>
           </div>
 
           <div className="pt-8 pb-4">
             <ul className="list-none text-center uppercase space-y-3">
-              {links.map((navItem, index) => {
-                const variant =
-                  navItem.buttonVariant === "menu"
-                    ? "link"
-                    : ((navItem.buttonVariant as
-                      | "link"
-                      | "default"
-                      | "destructive"
-                      | "outline"
-                      | "secondary"
-                      | "underline"
-                      | "menu"
-                      | "icon"
-                      | null
-                      | undefined) ?? "default");
+              {topLinks.map(renderLinkItem)}
 
-                const setItemRef = (el: HTMLLIElement | null) => {
-                  itemsRef.current[index] = el;
-                };
+              {hasBottom && <>{defaultBottomLinks.map(renderLinkItem)}</>}
 
-                if (navItem.linkType === "contact") {
-                  return (
-                    <li key={navItem._key} ref={setItemRef}>
-                      <ContactFormTrigger
-                        className={cn(
-                          buttonVariants({
-                            variant,
-                          }),
-                          navItem.buttonVariant === "menu" &&
-                          "hover:text-decoration-none hover:opacity-50 text-lg p-0 h-auto hover:bg-transparent"
-                        )}
-                      >
-                        {navItem.title}
-                      </ContactFormTrigger>
-                    </li>
-                  );
-                }
-
-                if (navItem.linkType === "anchor-link") {
-                  const anchorData = getAnchorData(navItem);
-                  const href =
-                    anchorData?.anchorId ? `#${anchorData.anchorId}` : "#";
-
-                  return (
-                    <li key={navItem._key} ref={setItemRef}>
-                      <Link
-                        href={href}
-                        onClick={(e) => handleAnchorClick(e, navItem)}
-                        className={cn(
-                          buttonVariants({
-                            variant,
-                          }),
-                          navItem.buttonVariant === "menu" &&
-                          "hover:text-decoration-none hover:opacity-50 text-lg p-0 h-auto hover:bg-transparent"
-                        )}
-                      >
-                        {navItem.title}
-                      </Link>
-                    </li>
-                  );
-                }
-
-                return (
-                  <li key={navItem._key} ref={setItemRef}>
-                    <Link
-                      onClick={() => setOpen(false)}
-                      href={navItem.href || "#"}
-                      target={navItem.target ? "_blank" : undefined}
-                      rel={
-                        navItem.target ? "noopener noreferrer" : undefined
-                      }
-                      className={cn(
-                        buttonVariants({
-                          variant,
-                        }),
-                        navItem.buttonVariant === "menu" &&
-                        "hover:text-decoration-none hover:opacity-50 text-lg p-0 h-auto hover:bg-transparent"
-                      )}
-                    >
-                      {navItem.title}
-                    </Link>
-                  </li>
-                );
-              })}
-
-              {/* Mode toggle inside the menu (last item) */}
-              <li
-                ref={(el) => {
-                  itemsRef.current[links.length] = el;
-                }}
-                className="pt-6"
-              >
-                <div className=" justify-center hidden">
+              <li data-mobile-nav-item className="pt-6">
+                <div className="justify-center hidden">
                   <ModeToggle />
                 </div>
               </li>
             </ul>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
+    );
+
+  return (
+    <>
+      <Button
+        aria-label={open ? "Close Menu" : "Open Menu"}
+        variant="menu"
+        onClick={toggleMenu}
+        className={cn(
+          "relative z-[70] h-10 w-10 rounded-none",
+          "!p-0",
+          "!inline-flex !items-center !justify-center",
+          "!leading-none"
+        )}
+        style={{ lineHeight: 0 }}
+      >
+        <span
+          ref={iconWrapRef}
+          className={cn("h-full w-full", "inline-flex items-center justify-center", "leading-none")}
+          style={{ lineHeight: 0 }}
+        >
+          {icon === "menu" ? (
+            <Menu className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
+          ) : (
+            <X className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
+          )}
+        </span>
+      </Button>
+
+      {overlay}
     </>
   );
 }

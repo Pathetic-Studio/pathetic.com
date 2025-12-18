@@ -76,23 +76,28 @@ export default function NewsletterForm() {
       </div>
 
       {/* Email */}
-      <div className="grid grid-cols-[70px_1fr] items-center gap-1">
-        <label
-          htmlFor="newsletter-email"
-          className="text-left uppercase text-xl underline-offset-4 underline  text-black"
-        >
-          Email:
-        </label>
-        <input
-          id="newsletter-email"
-          name="email"
-          type="email"
-          required
-          value={form.email}
-          onChange={handleChange}
-          className="bg-transparent text-xl text-black outline-none border-0 border-b-2 border-black px-1 py-0 focus:border-black"
-        />
+      {/* Email */}
+      <div className="flex justify-center">
+        <div className="grid grid-cols-[70px_auto] items-center gap-1">
+          <label
+            htmlFor="newsletter-email"
+            className="text-left uppercase text-xl underline-offset-4 underline text-black"
+          >
+            Email:
+          </label>
+
+          <input
+            id="newsletter-email"
+            name="email"
+            type="email"
+            required
+            value={form.email}
+            onChange={handleChange}
+            className="bg-transparent w-[140px] sm:w-[220px] text-xl text-black outline-none border-0 border-b-2 border-black px-1 py-0 focus:border-black"
+          />
+        </div>
       </div>
+
 
       {status === "error" && (
         <p className="text-xs text-black text-center">

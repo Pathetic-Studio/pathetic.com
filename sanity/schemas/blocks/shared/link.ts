@@ -51,6 +51,17 @@ export default defineType({
       hidden: ({ parent }) => parent?.linkType !== "external",
     }),
 
+    // ✅ NEW: which page owns the anchor
+    defineField({
+      name: "anchorPage",
+      type: "reference",
+      title: "Anchor page (optional)",
+      description:
+        "If set, anchor links will navigate to that page + the anchor. Leave empty for same-page anchors.",
+      to: [{ type: "page" }],
+      hidden: ({ parent }) => parent?.linkType !== "anchor-link",
+    }),
+
     defineField({
       name: "anchorId",
       type: "string",
@@ -83,8 +94,7 @@ export default defineType({
       name: "downloadFilename",
       type: "string",
       title: "Download filename (optional)",
-      description:
-        "If empty, the browser will use the original file name.",
+      description: "If empty, the browser will use the original file name.",
       hidden: ({ parent }) => parent?.linkType !== "download",
     }),
 
@@ -99,7 +109,6 @@ export default defineType({
       title: "Button Variant",
     }),
 
-    // NEW: particles toggle
     defineField({
       name: "particlesEnabled",
       type: "boolean",
@@ -115,18 +124,14 @@ export default defineType({
       of: [
         {
           type: "image",
-          options: {
-            hotspot: true,
-          },
+          options: { hotspot: true },
         },
       ],
       hidden: ({ parent }: { parent?: { particlesEnabled?: boolean } }) =>
         !parent?.particlesEnabled,
       validation: (Rule) =>
         Rule.custom((val, ctx) => {
-          const parent = ctx.parent as
-            | { particlesEnabled?: boolean }
-            | undefined;
+          const parent = ctx.parent as { particlesEnabled?: boolean } | undefined;
           if (parent?.particlesEnabled && (!val || val.length === 0)) {
             return "Add at least one particle image or turn particles off.";
           }
@@ -134,17 +139,14 @@ export default defineType({
         }),
     }),
 
-    // NEW: background image toggle
     defineField({
       name: "imageEnabled",
       type: "boolean",
       title: "Image (on/off)",
       initialValue: false,
-      description:
-        "If on, an image will be placed behind the button (centered).",
+      description: "If on, an image will be placed behind the button (centered).",
     }),
 
-    // NEW: single image behind button (array, max 1)
     defineField({
       name: "imageBehindButton",
       type: "array",
@@ -152,9 +154,7 @@ export default defineType({
       of: [
         {
           type: "image",
-          options: {
-            hotspot: true,
-          },
+          options: { hotspot: true },
         },
       ],
       hidden: ({ parent }: { parent?: { imageEnabled?: boolean } }) =>
@@ -163,18 +163,13 @@ export default defineType({
         Rule.custom((val, ctx) => {
           const parent = ctx.parent as { imageEnabled?: boolean } | undefined;
           if (parent?.imageEnabled) {
-            if (!val || val.length === 0) {
-              return "Add an image or turn the image off.";
-            }
-            if (val.length > 1) {
-              return "Only one image is allowed.";
-            }
+            if (!val || val.length === 0) return "Add an image or turn the image off.";
+            if (val.length > 1) return "Only one image is allowed.";
           }
           return true;
         }),
     }),
 
-    // NEW: background image hover animation toggle
     defineField({
       name: "imageHoverEnabled",
       type: "boolean",
@@ -185,7 +180,6 @@ export default defineType({
         !parent?.imageEnabled,
     }),
 
-    // NEW: background image hover effect choice
     defineField({
       name: "imageHoverEffect",
       type: "string",
@@ -206,12 +200,8 @@ export default defineType({
       }) => !parent?.imageEnabled || !parent?.imageHoverEnabled,
       validation: (Rule) =>
         Rule.custom((val, ctx) => {
-          const parent = ctx.parent as
-            | { imageHoverEnabled?: boolean }
-            | undefined;
-          if (parent?.imageHoverEnabled && !val) {
-            return "Choose a hover effect.";
-          }
+          const parent = ctx.parent as { imageHoverEnabled?: boolean } | undefined;
+          if (parent?.imageHoverEnabled && !val) return "Choose a hover effect.";
           return true;
         }),
     }),
@@ -220,8 +210,10 @@ export default defineType({
     select: {
       title: "title",
       linkType: "linkType",
+      anchorId: "anchorId",
+      anchorPageSlug: "anchorPage.slug.current",
     },
-    prepare({ title, linkType }) {
+    prepare({ title, linkType, anchorId, anchorPageSlug }) {
       const prefix =
         linkType === "contact"
           ? "Contact →"
@@ -233,9 +225,14 @@ export default defineType({
                 ? "Download →"
                 : "Internal →";
 
+      const extra =
+        linkType === "anchor-link"
+          ? ` ${anchorPageSlug ? `/${anchorPageSlug}` : "(this page)"}#${anchorId ?? ""}`
+          : "";
+
       return {
         title: title || "Untitled link",
-        subtitle: prefix,
+        subtitle: `${prefix}${extra}`,
       };
     },
   },

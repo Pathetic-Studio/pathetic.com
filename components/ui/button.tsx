@@ -126,6 +126,20 @@ type LinkableButtonProps = {
 
 export type ButtonProps = BaseButtonProps & LinkableButtonProps;
 
+function normalizeAnchorHref(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+
+  // Already a full path with hash
+  if (trimmed.startsWith("/")) return trimmed;
+
+  // Hash-only => assume homepage anchor
+  if (trimmed.startsWith("#")) return `/${trimmed}`;
+
+  // Something else (fallback)
+  return trimmed;
+}
+
 function Button({
   className,
   variant,
@@ -141,6 +155,7 @@ function Button({
 
   const isContactLink = cmsLink?.linkType === "contact";
   const isDownloadLink = cmsLink?.linkType === "download";
+  const isAnchorLink = cmsLink?.linkType === "anchor-link";
 
   const hasParticles =
     !!cmsLink?.particlesEnabled &&
@@ -166,7 +181,12 @@ function Button({
     ? cmsLink?.backgroundImageHoverEffect
     : null;
 
-  const url = cmsLink?.href ?? href ?? undefined;
+  let url = cmsLink?.href ?? href ?? undefined;
+
+  // ✅ Make anchor links work cross-page (/#section instead of #section)
+  if (url && isAnchorLink) {
+    url = normalizeAnchorHref(url);
+  }
 
   const openInNewTab =
     typeof cmsLink?.target === "boolean" ? cmsLink.target : target === "_blank";
@@ -361,9 +381,6 @@ function Button({
               backgroundSize: "contain",
               backgroundRepeat: "no-repeat",
               backgroundPosition: "center",
-
-              // ✅ min-width applies to the IMAGE element itself (not the button)
-              // This prevents the image from collapsing with a narrow label.
               width: "clamp(220px, 100%, 520px)",
               height: "250px",
             }}
@@ -410,6 +427,8 @@ function Button({
     return (
       <Link
         href={url}
+        // ✅ let SmoothScroller handle hash scroll consistently
+        scroll={isAnchorLink ? false : true}
         target={openInNewTab ? "_blank" : undefined}
         rel={openInNewTab ? "noopener noreferrer" : undefined}
         className={buttonClassName}

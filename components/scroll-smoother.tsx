@@ -1,7 +1,7 @@
-// components/scroll-smoother.tsx
+//components/scroll-smoother.tsx
 "use client";
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { gsap } from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
@@ -45,6 +45,51 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     return () => window.removeEventListener("resize", compute);
   }, []);
 
+  const scrollToHashIfPresent = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const hash = window.location.hash;
+    if (!hash || hash === "#") return;
+
+    const id = decodeURIComponent(hash.slice(1));
+    if (!id) return;
+
+    const target = document.getElementById(id);
+    if (!target) return;
+
+    const smoother = ScrollSmoother.get();
+
+    // Run after layout/paint so DOM + measurements are ready
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (smoother) {
+          // ScrollSmoother path
+          try {
+            const y = smoother.offset(target, "top");
+            smoother.scrollTo(y, true);
+          } catch {
+            // fallback
+            const rect = target.getBoundingClientRect();
+            window.scrollTo({ top: rect.top + window.scrollY, behavior: "instant" as any });
+          }
+        } else {
+          // Native path
+          try {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          } catch {
+            const rect = target.getBoundingClientRect();
+            window.scrollTo({ top: rect.top + window.scrollY });
+          }
+        }
+
+        // Keep ScrollTrigger aligned after the jump
+        try {
+          ScrollTrigger.refresh();
+        } catch { }
+      });
+    });
+  }, []);
+
   useLayoutEffect(() => {
     if (!enableSmooth) return;
     if (typeof window === "undefined") return;
@@ -73,10 +118,6 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     document.body.style.overflowAnchor = "none";
 
     ScrollSmoother.get()?.kill();
-
-    try {
-      window.scrollTo(0, 0);
-    } catch { }
 
     gsap.set(content, { opacity: 0 });
 
@@ -149,7 +190,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       if (!isDesktop) return;
 
       const pinnedSections = gsap.utils.toArray<HTMLElement>(
-        '[data-pin-to-viewport="true"]',
+        '[data-pin-to-viewport="true"]'
       );
 
       pinnedSections.forEach((el) => {
@@ -254,7 +295,13 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       setupPinning();
 
       requestAnimationFrame(() => {
-        setScrollY(0);
+        // ✅ If there's a hash, go there. Otherwise, go top.
+        if (window.location.hash) {
+          scrollToHashIfPresent();
+        } else {
+          setScrollY(0);
+        }
+
         gsap.to(content, { opacity: 1, duration: 0.15, ease: "none" });
         requestAnimationFrame(() => ScrollTrigger.refresh());
       });
@@ -263,6 +310,8 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       setupPinning();
       ScrollTrigger.refresh();
       gsap.set(content, { opacity: 1 });
+      // still try hash
+      scrollToHashIfPresent();
     }
 
     return () => {
@@ -273,14 +322,19 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       pinTriggers.forEach((t) => t.kill());
       smoother?.kill();
     };
-  }, [pathname, enableSmooth]);
+  }, [pathname, enableSmooth, scrollToHashIfPresent]);
 
   // ✅ Mobile/tablet: native scroll, no wrapper
+  useEffect(() => {
+    if (enableSmooth) return;
+    // On route change, if URL has a hash, scroll to it (native path)
+    scrollToHashIfPresent();
+  }, [pathname, enableSmooth, scrollToHashIfPresent]);
+
   if (!enableSmooth) {
     return <div className="relative overflow-x-hidden">{children}</div>;
   }
 
-  // Desktop smoother wrapper (still fine to avoid vh)
   return (
     <div
       id="smooth-wrapper"

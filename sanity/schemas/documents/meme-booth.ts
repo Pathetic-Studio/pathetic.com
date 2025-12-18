@@ -13,6 +13,9 @@ export default defineType({
     { name: "nav", title: "Nav Overrides" },
   ],
   fields: [
+    // -----------------------------
+    // CONTENT
+    // -----------------------------
     defineField({
       name: "title",
       title: "Title",
@@ -37,7 +40,11 @@ export default defineType({
         "If enabled, the Meme Booth newsletter modal will open when this page comes into view.",
     }),
 
-    // ✅ NAV OVERRIDES
+    // -----------------------------
+    // NAV OVERRIDES
+    // -----------------------------
+
+    // Desktop
     defineField({
       name: "showDesktopRightLinks",
       title: "Show desktop right links",
@@ -57,7 +64,29 @@ export default defineType({
       of: [{ type: "link" }],
     }),
 
+    // Mobile menu
+    defineField({
+      name: "showMobileBottomLinks",
+      title: "Show mobile bottom links",
+      type: "boolean",
+      initialValue: true,
+      group: "nav",
+      description:
+        "If disabled, the bottom section of the mobile menu is hidden on Meme Booth.",
+    }),
+    defineField({
+      name: "mobileTopReplace",
+      title: "Mobile top replace (mobile menu)",
+      type: "array",
+      group: "nav",
+      description:
+        "If this has items, the normal mobile TOP links are replaced by these links on Meme Booth.",
+      of: [{ type: "link" }],
+    }),
+
+    // -----------------------------
     // SEO
+    // -----------------------------
     defineField({
       name: "meta_title",
       title: "Meta Title",

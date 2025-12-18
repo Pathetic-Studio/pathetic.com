@@ -6,17 +6,27 @@ export type NavLinkLite = {
   _key: string;
   _type?: "link";
   title?: string | null;
+  href?: string | null;
+  target?: boolean | null;
+
   linkType?: "anchor-link" | "contact" | "download" | "external" | "internal";
   buttonVariant?: string | null;
+
   anchorId?: string | null;
   anchorOffsetPercent?: number | null;
+
   [key: string]: any;
 };
 
 export type HeaderNavOverrides =
   | {
+    // Desktop
     showDesktopRightLinks?: boolean | null;
     leftNavReplace?: NavLinkLite[] | null;
+
+    // Mobile menu
+    showMobileBottomLinks?: boolean | null;
+    mobileTopReplace?: NavLinkLite[] | null;
   }
   | null;
 
@@ -40,7 +50,7 @@ export function HeaderNavOverridesProvider({ children }: { children: React.React
 export function useHeaderNavOverrides(): Ctx {
   const ctx = useContext(HeaderNavOverridesContext);
 
-  // ✅ Safe fallback when rendered outside provider (e.g. not-found tree)
+  // Safe fallback outside provider (e.g. not-found tree)
   const noop = useMemo(
     () => ({
       overrides: null as HeaderNavOverrides,

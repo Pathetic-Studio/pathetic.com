@@ -34,12 +34,13 @@ export default function TransitionShell({
 
                 gsap.killTweensOf(el);
 
-                // Make sure we start hidden, then fade in
                 gsap.set(el, { opacity: 0 });
 
-                // Optional: force top on route enter
+                // ✅ Only force top when we're NOT navigating to a hash
                 try {
-                    window.scrollTo(0, 0);
+                    if (!window.location.hash) {
+                        window.scrollTo(0, 0);
+                    }
                 } catch {
                     // ignore
                 }
@@ -52,7 +53,6 @@ export default function TransitionShell({
                 });
             }}
         >
-            {/* Only this fades (nav/footer stay outside) */}
             <div id="page-transition-root" ref={pageRef}>
                 {children}
             </div>

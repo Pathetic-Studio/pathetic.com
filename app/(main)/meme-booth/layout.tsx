@@ -14,8 +14,13 @@ export default async function MemeBoothLayout({
         <>
             <HeaderNavOverridesSetter
                 value={{
+                    // Desktop
                     showDesktopRightLinks: memeBooth?.showDesktopRightLinks ?? true,
                     leftNavReplace: (memeBooth?.leftNavReplace ?? []) as any[],
+
+                    // Mobile
+                    showMobileBottomLinks: memeBooth?.showMobileBottomLinks ?? true,
+                    mobileTopReplace: (memeBooth?.mobileTopReplace ?? []) as any[],
                 }}
             />
             {children}
