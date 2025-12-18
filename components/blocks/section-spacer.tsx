@@ -22,7 +22,7 @@ export default function SectionSpacer({ _key, height }: SectionSpacerBlock) {
         {`
           @media (max-width: 640px) {
             #${spacerId} {
-              height: 0 !important;
+
             }
           }
         `}
