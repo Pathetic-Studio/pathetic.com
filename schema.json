@@ -1561,6 +1561,20 @@
             "type": "string"
           },
           "optional": true
+        },
+        "heightTablet": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "heightMobile": {
+          "type": "objectAttribute",
+          "value": {
+            "type": "string"
+          },
+          "optional": true
         }
       }
     }

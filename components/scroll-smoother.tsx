@@ -267,7 +267,7 @@ export default function SmoothScroller({
         wrapper,
         content,
         smooth: 1,       // desktop intensity
-        smoothTouch: 1,  // ✅ same intensity on mobile/tablet
+        smoothTouch: 0.4,  // ✅ same intensity on mobile/tablet
         effects: true,
         normalizeScroll: false,
       });
