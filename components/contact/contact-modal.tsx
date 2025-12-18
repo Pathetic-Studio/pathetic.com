@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import gsap from "gsap";
 import Draggable from "gsap/Draggable";
 import { InertiaPlugin } from "gsap/InertiaPlugin";
-import { useContactModal } from "./contact-modal-context";
+import { useContactModal } from "@/components/contact/contact-modal-context";
 import ContactForm from "./contact-form";
 
 gsap.registerPlugin(Draggable, InertiaPlugin);

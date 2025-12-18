@@ -1,3 +1,4 @@
+// app/api/newsletter/route.ts (or wherever this route lives)
 import { NextResponse } from "next/server";
 
 function getClientIp(req: Request) {
@@ -8,7 +9,6 @@ function getClientIp(req: Request) {
 
 type Body = {
     email?: unknown;
-    name?: unknown;
     source?: unknown;
     website?: unknown; // honeypot
 };
@@ -24,7 +24,6 @@ export async function POST(req: Request) {
         }
 
         const email = typeof body.email === "string" ? body.email.trim() : "";
-        const name = typeof body.name === "string" ? body.name.trim() : "";
         const source = typeof body.source === "string" ? body.source.trim() : "";
 
         if (!email) {
@@ -48,7 +47,6 @@ export async function POST(req: Request) {
         };
 
         const custom_fields: { name: string; value: string }[] = [];
-        if (name) custom_fields.push({ name: "first_name", value: name });
         if (source) custom_fields.push({ name: "source", value: source });
         if (custom_fields.length) payload.custom_fields = custom_fields;
 

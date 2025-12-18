@@ -1,4 +1,4 @@
-//components/contact/contact-modal-context.tsx
+// components/contact/contact-modal-context.tsx
 "use client";
 
 import {
@@ -7,6 +7,7 @@ import {
     useContext,
     useMemo,
     useState,
+    useEffect,
     type ReactNode,
 } from "react";
 
@@ -26,7 +27,6 @@ interface ProviderProps {
     children: ReactNode;
 }
 
-// Backwards-compatible name, but now handles all modals
 export function ContactModalProvider({ children }: ProviderProps) {
     const [activeModal, setActiveModal] = useState<ModalType>(null);
 
@@ -39,6 +39,31 @@ export function ContactModalProvider({ children }: ProviderProps) {
     const closeNewsletter = useCallback(() => {
         setActiveModal((current) => (current === "newsletter" ? null : current));
     }, []);
+
+    // ---- DEBUG: expose hooks + state on window (dev only) ----
+    useEffect(() => {
+        if (process.env.NODE_ENV === "production") return;
+
+        (window as any).__modal = {
+            get active() {
+                return activeModal;
+            },
+            openContact,
+            closeContact,
+            openNewsletter,
+            closeNewsletter,
+            closeAll: () => setActiveModal(null),
+        };
+
+        // Helpful trace
+        // eslint-disable-next-line no-console
+        console.log("[modal] activeModal =", activeModal);
+
+        return () => {
+            if ((window as any).__modal) delete (window as any).__modal;
+        };
+    }, [activeModal, openContact, closeContact, openNewsletter, closeNewsletter]);
+    // ---------------------------------------------------------
 
     const value = useMemo(
         () => ({
@@ -54,15 +79,12 @@ export function ContactModalProvider({ children }: ProviderProps) {
     return <ModalContext.Provider value={value}>{children}</ModalContext.Provider>;
 }
 
-// CONTACT hook (unchanged usage)
 export function useContactModal() {
     const ctx = useContext(ModalContext);
     if (!ctx) {
         throw new Error("useContactModal must be used within ContactModalProvider");
     }
-
     const { activeModal, openContact, closeContact } = ctx;
-
     return {
         isOpen: activeModal === "contact",
         open: openContact,
@@ -70,17 +92,12 @@ export function useContactModal() {
     };
 }
 
-// NEWSLETTER hook (new)
 export function useNewsletterModal() {
     const ctx = useContext(ModalContext);
     if (!ctx) {
-        throw new Error(
-            "useNewsletterModal must be used within ContactModalProvider",
-        );
+        throw new Error("useNewsletterModal must be used within ContactModalProvider");
     }
-
     const { activeModal, openNewsletter, closeNewsletter } = ctx;
-
     return {
         isOpen: activeModal === "newsletter",
         open: openNewsletter,

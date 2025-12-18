@@ -3,7 +3,8 @@
 
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { useContactModal } from "./contact-modal-context";
+import { useContactModal } from "@/components/contact/contact-modal-context";
+
 
 type ContactFormTriggerProps = {
     className?: string;

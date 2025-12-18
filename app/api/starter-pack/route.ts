@@ -7,57 +7,30 @@ import path from "path";
 export const runtime = "nodejs";
 
 const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not set");
-}
+if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+
+const MODEL_ID = process.env.GEMINI_MODEL_ID || "gemini-3.0-flash";
+
+// Debug switches
+const DEBUG = process.env.STARTER_PACK_DEBUG === "1";
+const DEBUG_MODE = process.env.STARTER_PACK_DEBUG_MODE || "all"; // all | userOnly | refsOnly | promptOnly | singleRef:N
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-/**
- * IMPORTANT:
- * - Set GEMINI_MODEL_ID in your env to the actual Gemini 3 model ID
- *   from Google AI Studio (e.g. the one that supports image output).
- */
-const MODEL_ID = process.env.GEMINI_MODEL_ID || "gemini-3.0-flash";
+if (DEBUG) {
+    console.log("[starter-pack] NODE_ENV:", process.env.NODE_ENV);
+    console.log("[starter-pack] GEMINI_MODEL_ID:", MODEL_ID);
+    console.log("[starter-pack] GEMINI_API_KEY present:", !!process.env.GEMINI_API_KEY);
+    console.log("[starter-pack] DEBUG_MODE:", DEBUG_MODE);
+}
 
-/**
- * Reference images that live in your /public folder.
- *
- * Example structure:
- *   public/
- *     starter-pack-refs/
- *       ref-1.png
- *       ref-2.png
- */
-const REFERENCE_IMAGES = [
-    {
-        filename: "starter-pack-refs/ref-1.webp",
-        mimeType: "image/webp",
-    },
-    {
-        filename: "starter-pack-refs/ref-2.webp",
-        mimeType: "image/webp",
-    },
-    {
-        filename: "starter-pack-refs/ref-3.webp",
-        mimeType: "image/webp",
-    },
-    {
-        filename: "starter-pack-refs/ref-4.webp",
-        mimeType: "image/webp",
-    },
-    {
-        filename: "starter-pack-refs/ref-5.webp",
-        mimeType: "image/webp",
-    },
-    {
-        filename: "starter-pack-refs/ref-6.webp",
-        mimeType: "image/webp",
-    },
-    {
-        filename: "starter-pack-refs/ref-7.webp",
-        mimeType: "image/webp",
-    },
+const REFERENCE_IMAGES: Array<{ filename: string; mimeType: string }> = [
+    { filename: "starter-pack-refs/ref-1.webp", mimeType: "image/webp" },
+    { filename: "starter-pack-refs/ref-2.webp", mimeType: "image/webp" },
+    { filename: "starter-pack-refs/ref-3.webp", mimeType: "image/webp" },
+    { filename: "starter-pack-refs/ref-4.webp", mimeType: "image/webp" },
+    { filename: "starter-pack-refs/ref-5.webp", mimeType: "image/webp" },
+    { filename: "starter-pack-refs/ref-6.webp", mimeType: "image/webp" },
 ];
 
 const STARTER_PACK_PROMPT = `
@@ -95,17 +68,23 @@ Do NOT crop items or text.
 Do NOT overlap elements.
 
 Output the final result as a single image.
-`;
+`.trim();
 
-/**
- * Load reference images from /public and convert them to Gemini inlineData parts.
- * Called on each request; you can memoize if needed, but this is fine to start.
- */
-async function loadReferenceImageParts() {
-    const parts = [];
+type GeminiPart =
+    | { text: string }
+    | { inlineData: { data: string; mimeType: string } };
 
-    for (const ref of REFERENCE_IMAGES) {
+async function loadReferenceImageParts(indices?: number[]): Promise<GeminiPart[]> {
+    const parts: GeminiPart[] = [];
+    const which = indices?.length ? indices : REFERENCE_IMAGES.map((_, i) => i);
+
+    for (const idx of which) {
+        const ref = REFERENCE_IMAGES[idx];
         const filePath = path.join(process.cwd(), "public", ref.filename);
+
+        const stat = await fs.stat(filePath);
+        if (DEBUG) console.log("[starter-pack] ref:", ref.filename, "bytes:", stat.size);
+
         const buffer = await fs.readFile(filePath);
         const base64Data = buffer.toString("base64");
 
@@ -120,6 +99,20 @@ async function loadReferenceImageParts() {
     return parts;
 }
 
+function parseDebugMode(mode: string): { kind: string; singleRefIndex?: number } {
+    if (mode.startsWith("singleRef:")) {
+        const n = Number(mode.split(":")[1]);
+        if (Number.isFinite(n) && n >= 1 && n <= REFERENCE_IMAGES.length) {
+            return { kind: "singleRef", singleRefIndex: n - 1 };
+        }
+        return { kind: "all" };
+    }
+    if (mode === "userOnly" || mode === "refsOnly" || mode === "promptOnly" || mode === "all") {
+        return { kind: mode };
+    }
+    return { kind: "all" };
+}
+
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
@@ -130,69 +123,133 @@ export async function POST(req: NextRequest) {
         }
 
         if (file.size > 20 * 1024 * 1024) {
-            return NextResponse.json(
-                { error: "Image too large (max ~20MB)" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Image too large (max ~20MB)" }, { status: 400 });
         }
 
-        // User-uploaded image (treated as the LAST / main prompt image)
         const arrayBuffer = await file.arrayBuffer();
-        const base64Data = Buffer.from(arrayBuffer).toString("base64");
+        const userBase64 = Buffer.from(arrayBuffer).toString("base64");
 
-        const userImagePart = {
+        const userImagePart: GeminiPart = {
             inlineData: {
-                data: base64Data,
+                data: userBase64,
                 mimeType: file.type || "image/png",
             },
         };
 
-        // Load reference images from /public (FIRST images)
-        const referenceImageParts = await loadReferenceImageParts();
+        const parsed = parseDebugMode(DEBUG_MODE);
 
-        const model = genAI.getGenerativeModel({
-            model: MODEL_ID,
-        });
+        // Decide which parts to send
+        let referenceParts: GeminiPart[] = [];
+        let includeRefs = true;
+        let includeUser = true;
+        let includePrompt = true;
+        let refIndicesUsed: number[] = [];
 
-        // Order matters:
-        // 1) Text prompt
-        // 2) Reference images (from public)
-        // 3) User-uploaded image (main fit pic)
-        const parts = [
-            { text: STARTER_PACK_PROMPT },
-            ...referenceImageParts,
-            userImagePart,
-        ];
+        if (parsed.kind === "promptOnly") {
+            includeRefs = false;
+            includeUser = false;
+        } else if (parsed.kind === "refsOnly") {
+            includeUser = false;
+            refIndicesUsed = REFERENCE_IMAGES.map((_, i) => i);
+            referenceParts = await loadReferenceImageParts(refIndicesUsed);
+        } else if (parsed.kind === "userOnly") {
+            includeRefs = false;
+        } else if (parsed.kind === "singleRef") {
+            includeRefs = true;
+            includeUser = true;
+            refIndicesUsed = [parsed.singleRefIndex!];
+            referenceParts = await loadReferenceImageParts(refIndicesUsed);
+        } else {
+            // all
+            includeRefs = true;
+            includeUser = true;
+            refIndicesUsed = REFERENCE_IMAGES.map((_, i) => i);
+            referenceParts = await loadReferenceImageParts(refIndicesUsed);
+        }
 
+        const parts: GeminiPart[] = [];
+        if (includePrompt) parts.push({ text: STARTER_PACK_PROMPT });
+        if (includeRefs) parts.push(...referenceParts);
+        if (includeUser) parts.push(userImagePart);
+
+        const model = genAI.getGenerativeModel({ model: MODEL_ID });
         const result = await model.generateContent(parts);
-
         const response = result.response;
-        const candidates = response.candidates || [];
+
+        const promptFeedback = (response as any).promptFeedback;
+        if (promptFeedback) {
+            console.error("[starter-pack] promptFeedback:", JSON.stringify(promptFeedback, null, 2));
+        }
+
+        if (promptFeedback?.blockReason) {
+            return NextResponse.json(
+                {
+                    error: "Gemini blocked the prompt",
+                    blockReason: promptFeedback.blockReason,
+                    promptFeedback,
+                    debug: DEBUG
+                        ? {
+                            debugMode: DEBUG_MODE,
+                            includePrompt,
+                            includeRefs,
+                            includeUser,
+                            refsUsed: refIndicesUsed.map((i) => REFERENCE_IMAGES[i]?.filename),
+                        }
+                        : undefined,
+                },
+                { status: 400 }
+            );
+        }
+
+        const candidates = (response as any).candidates ?? [];
+        if (!candidates.length) {
+            return NextResponse.json(
+                {
+                    error: "Gemini returned no candidates (empty response).",
+                    promptFeedback: promptFeedback ?? null,
+                    usageMetadata: (response as any).usageMetadata ?? null,
+                    debug: DEBUG
+                        ? {
+                            debugMode: DEBUG_MODE,
+                            includePrompt,
+                            includeRefs,
+                            includeUser,
+                            refsUsed: refIndicesUsed.map((i) => REFERENCE_IMAGES[i]?.filename),
+                        }
+                        : undefined,
+                },
+                { status: 400 }
+            );
+        }
 
         let dataUrl: string | null = null;
+        const contentParts = candidates[0]?.content?.parts ?? [];
 
-        if (candidates.length) {
-            const contentParts = candidates[0].content?.parts || [];
-            for (const part of contentParts) {
-                const inline = (part as any).inlineData;
-                if (inline?.data) {
-                    const mime = inline.mimeType || "image/png";
-                    dataUrl = `data:${mime};base64,${inline.data}`;
-                    break;
-                }
+        for (const part of contentParts) {
+            const inline = part?.inlineData;
+            if (inline?.data) {
+                const mime = inline.mimeType || "image/png";
+                dataUrl = `data:${mime};base64,${inline.data}`;
+                break;
             }
         }
 
         if (!dataUrl) {
-            console.error(
-                "Gemini did not return inlineData image. Full response:",
-                JSON.stringify(response, null, 2)
-            );
-
+            console.error("[starter-pack] no inlineData image. Full response:", JSON.stringify(response, null, 2));
             return NextResponse.json(
                 {
-                    error:
-                        "Gemini did not return an image (check model ID / config / quota).",
+                    error: "Gemini did not return an inlineData image.",
+                    usageMetadata: (response as any).usageMetadata ?? null,
+                    candidateCount: candidates.length,
+                    debug: DEBUG
+                        ? {
+                            debugMode: DEBUG_MODE,
+                            includePrompt,
+                            includeRefs,
+                            includeUser,
+                            refsUsed: refIndicesUsed.map((i) => REFERENCE_IMAGES[i]?.filename),
+                        }
+                        : undefined,
                 },
                 { status: 500 }
             );
@@ -200,13 +257,8 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ image: dataUrl });
     } catch (err: any) {
-        console.error("starter-pack error", err);
-
-        const message =
-            err?.message ||
-            err?.error?.message ||
-            "Internal server error from Gemini";
-
+        console.error("[starter-pack] error", err);
+        const message = err?.message || err?.error?.message || "Internal server error from Gemini";
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }

@@ -6,23 +6,21 @@ import { createPortal } from "react-dom";
 import gsap from "gsap";
 import Draggable from "gsap/Draggable";
 import { InertiaPlugin } from "gsap/InertiaPlugin";
-import { useNewsletterModal } from "../contact/contact-modal-context";
+import { useNewsletterModal } from "@/components/contact/contact-modal-context";
 import NewsletterForm from "./newsletter-form";
 import TitleText from "../ui/title-text";
+import LogoRound from "@/components/logo-round";
 
 gsap.registerPlugin(Draggable, InertiaPlugin);
 
-/** ✅ Only change these two to control the star size */
-const STAR_W = 900; // px + SVG viewBox width
-const STAR_H = 650; // px + SVG viewBox height
+const STAR_W = 900;
+const STAR_H = 650;
 
-/** Star look */
 const STAR_POINTS = 32;
 const INNER_RATIO = 0.8;
 
-/** Stroke + padding (prevents clipping) */
-const STROKE_W = 2; // viewBox units
-const PAD = 12; // viewBox units
+const STROKE_W = 2;
+const PAD = 12;
 
 function starSvgPoints(opts: {
   points: number;
@@ -36,7 +34,6 @@ function starSvgPoints(opts: {
   const cx = w / 2;
   const cy = h / 2;
 
-  // ✅ Separate radii so BOTH width and height affect the star
   const outerRx = Math.max(0, w / 2 - pad);
   const outerRy = Math.max(0, h / 2 - pad);
 
@@ -54,10 +51,11 @@ function starSvgPoints(opts: {
 
     const a = startAngle + (i * Math.PI) / points;
 
-    const x = cx + Math.cos(a) * rx;
-    const y = cy + Math.sin(a) * ry;
-
-    pts.push(`${x.toFixed(3)},${y.toFixed(3)}`);
+    pts.push(
+      `${(cx + Math.cos(a) * rx).toFixed(3)},${(
+        cy + Math.sin(a) * ry
+      ).toFixed(3)}`,
+    );
   }
 
   return pts.join(" ");
@@ -73,13 +71,12 @@ export default function NewsletterModal() {
   const closeTweenRef = useRef<gsap.core.Tween | null>(null);
 
   const starPoints = useMemo(() => {
-    const safePad = PAD + STROKE_W / 2;
     return starSvgPoints({
       points: STAR_POINTS,
       innerRatio: INNER_RATIO,
       w: STAR_W,
       h: STAR_H,
-      pad: safePad,
+      pad: PAD + STROKE_W / 2,
     });
   }, []);
 
@@ -87,10 +84,7 @@ export default function NewsletterModal() {
     if (isClosingRef.current) return;
 
     const modal = modalRef.current;
-    if (!modal) {
-      close();
-      return;
-    }
+    if (!modal) return close();
 
     isClosingRef.current = true;
 
@@ -108,12 +102,10 @@ export default function NewsletterModal() {
   };
 
   useEffect(() => {
-    if (!isOpen) return;
-    if (!constraintsRef.current || !modalRef.current) return;
+    if (!isOpen || !constraintsRef.current || !modalRef.current) return;
 
     const modal = modalRef.current;
 
-    // If a close tween was mid-flight, cancel it when opening again
     closeTweenRef.current?.kill();
     isClosingRef.current = false;
 
@@ -135,9 +127,7 @@ export default function NewsletterModal() {
       bounds: constraintsRef.current,
       inertia: true,
       edgeResistance: 0.85,
-      allowContextMenu: true,
       dragClickables: true,
-      allowEventDefault: true,
       zIndexBoost: false,
       cursor: "grab",
       activeCursor: "grabbing",
@@ -146,6 +136,7 @@ export default function NewsletterModal() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") animateClose();
     };
+
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
@@ -155,8 +146,7 @@ export default function NewsletterModal() {
     };
   }, [isOpen]);
 
-  if (typeof document === "undefined") return null;
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   return createPortal(
     <div
@@ -169,12 +159,9 @@ export default function NewsletterModal() {
       <div
         ref={modalRef}
         className="relative select-none"
-        style={{
-          width: `${STAR_W}px`,
-          height: `${STAR_H}px`,
-        }}
-        aria-label="Newsletter modal"
+        style={{ width: STAR_W, height: STAR_H }}
         role="dialog"
+        aria-label="Newsletter modal"
       >
         <svg
           className="absolute inset-0 h-full w-full"
@@ -187,7 +174,6 @@ export default function NewsletterModal() {
             fill="#FF3939"
             stroke="#000"
             strokeWidth={STROKE_W}
-            strokeLinejoin="miter"
             vectorEffect="non-scaling-stroke"
           />
         </svg>
@@ -195,7 +181,7 @@ export default function NewsletterModal() {
         <button
           type="button"
           onClick={animateClose}
-          className="absolute right-10 top-10 z-20 text-4xl font-semibold leading-none text-white hover:text-white/90"
+          className="absolute right-10 top-10 z-20 text-4xl font-semibold text-white"
           aria-label="Close"
         >
           ×
@@ -203,23 +189,27 @@ export default function NewsletterModal() {
 
         <div className="absolute inset-0 z-10 flex items-center justify-center p-10">
           <div className="w-full max-w-[440px] text-center">
-            <div className="relative z-10 mb-2 mt-2 flex justify-center text-center">
+            <div className="mb-4 flex justify-center">
+              <LogoRound size={64} />
+            </div>
+
+            <div className="mb-2 flex justify-center">
               <TitleText
                 variant="stretched"
                 as="h4"
                 size="lg"
                 align="center"
-                maxChars={26}
+                maxChars={14}
                 textOutline
                 outlineWidth={2}
                 textColor="#ffffff"
                 outlineColor="#000000"
               >
-                Be first to know what we drop next
+                See what we drop next
               </TitleText>
             </div>
 
-            <div className="mb-6 text-lg font-semibold uppercase tracking-[0.18em] text-white">
+            <div className="mb-6 text-lg font-normal uppercase text-black">
               Join our Newsletter
             </div>
 

@@ -1,3 +1,4 @@
+//app/(main)/meme-booth/layout.tsx
 import { ReactNode } from "react";
 import { fetchMemeBooth } from "@/sanity/lib/fetch";
 import { HeaderNavOverridesSetter } from "@/components/header/nav-overrides";

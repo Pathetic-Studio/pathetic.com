@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { useContactModal } from "./contact-modal-context";
+import { useContactModal } from "@/components/contact/contact-modal-context";
 import { Button } from "@/components/ui/button";
 
 type ContactFormData = {

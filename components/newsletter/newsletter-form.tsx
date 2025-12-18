@@ -1,12 +1,12 @@
+// components/newsletter/newsletter-form.tsx (or wherever NewsletterForm lives)
 "use client";
 
 import type React from "react";
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useNewsletterModal } from "../contact/contact-modal-context";
+import { useNewsletterModal } from "@/components/contact/contact-modal-context";
 
 type NewsletterFormData = {
-  name: string;
   email: string;
   website: string; // honeypot
 };
@@ -17,7 +17,6 @@ export default function NewsletterForm() {
   const { close } = useNewsletterModal();
 
   const [form, setForm] = useState<NewsletterFormData>({
-    name: "",
     email: "",
     website: "",
   });
@@ -43,7 +42,6 @@ export default function NewsletterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: form.email,
-          name: form.name || undefined,
           source: SOURCE_VALUE,
           website: form.website,
         }),
@@ -55,7 +53,7 @@ export default function NewsletterForm() {
       }
 
       setStatus("success");
-      setForm({ name: "", email: "", website: "" });
+      setForm({ email: "", website: "" });
     } catch (err: any) {
       setStatus("error");
       setError(err?.message || "Something went wrong");
@@ -77,30 +75,13 @@ export default function NewsletterForm() {
         />
       </div>
 
-      {/* Name */}
-      <div className="grid grid-cols-[70px_1fr] items-center gap-3">
-        <label
-          htmlFor="newsletter-name"
-          className="text-left uppercase tracking-[0.16em] text-white"
-        >
-          Name
-        </label>
-        <input
-          id="newsletter-name"
-          name="name"
-          value={form.name}
-          onChange={handleChange}
-          className="bg-transparent text-white outline-none border-0 border-b border-black px-1 py-2 focus:border-black"
-        />
-      </div>
-
       {/* Email */}
-      <div className="grid grid-cols-[70px_1fr] items-center gap-3">
+      <div className="grid grid-cols-[70px_1fr] items-center gap-1">
         <label
           htmlFor="newsletter-email"
-          className="text-left uppercase tracking-[0.16em] text-white"
+          className="text-left uppercase text-xl underline-offset-4 underline  text-black"
         >
-          Email
+          Email:
         </label>
         <input
           id="newsletter-email"
@@ -109,7 +90,7 @@ export default function NewsletterForm() {
           required
           value={form.email}
           onChange={handleChange}
-          className="bg-transparent text-white outline-none border-0 border-b border-black px-1 py-2 focus:border-black"
+          className="bg-transparent text-xl text-black outline-none border-0 border-b-2 border-black px-1 py-0 focus:border-black"
         />
       </div>
 
@@ -120,22 +101,15 @@ export default function NewsletterForm() {
       )}
 
       {status === "success" && (
-        <p className="text-xs text-black text-center">You’re subscribed.</p>
+        <p className="text-xl text-black text-center">You’re subscribed!</p>
       )}
 
       <div className="flex justify-center gap-3 pt-2">
-        <Button
-          type="button"
-          onClick={close}
-          variant="menu"
-          className="border border-black bg-transparent px-3 py-1.5 text-xs font-medium text-black hover:bg-black hover:text-white"
-        >
-          Cancel
-        </Button>
+
         <Button
           type="submit"
           disabled={disabled}
-          className="px-4 py-1.5 text-xs font-medium bg-black text-white hover:bg-black/90 disabled:opacity-60"
+          className="px-4 py-1.5 text-lg font-normal underline bg-white text-black hover:bg-white/90 disabled:opacity-60"
         >
           {disabled ? "Subscribing..." : "Subscribe"}
         </Button>

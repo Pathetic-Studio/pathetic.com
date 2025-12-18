@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { useTransitionState } from "next-transition-router";
 import { useNewsletterModal } from "@/components/contact/contact-modal-context";
 
-const CameraPanel = dynamic(() => import("./camera-panel"), { ssr: false });
+const CameraPanel = dynamic(() => import("./panel/camera-panel"), { ssr: true });
 
 interface MemeBoothShellProps {
     showNewsletterModalOnView?: boolean;
@@ -19,40 +19,72 @@ export default function MemeBoothShell({
     showNewsletterModalOnView = false,
 }: MemeBoothShellProps) {
     const pathname = usePathname();
-    const { stage, isReady } = useTransitionState();
-    const { open: openNewsletter } = useNewsletterModal();
+    const { isOpen, open } = useNewsletterModal();
+    const { isReady } = useTransitionState();
 
     const timerRef = useRef<number | null>(null);
-    const hasScheduledRef = useRef(false);
+
+    // auto-open only once per entry into /meme-booth
+    const autoOpenedThisEntryRef = useRef(false);
+    const lastPathRef = useRef<string | null>(null);
 
     useEffect(() => {
-        // Only on meme booth
-        if (pathname !== "/meme-booth") {
-            hasScheduledRef.current = false;
-            if (timerRef.current) window.clearTimeout(timerRef.current);
-            timerRef.current = null;
-            return;
-        }
+        const last = lastPathRef.current;
+        lastPathRef.current = pathname;
 
-        if (!showNewsletterModalOnView) return;
+        const onMemeBooth = pathname === "/meme-booth";
+        const wasOnMemeBooth = last === "/meme-booth";
 
-        // Wait until transition has fully finished
-        const transitionDone = isReady && stage === "none";
-        if (!transitionDone) return;
-
-        // Ensure we only schedule once per entry
-        if (hasScheduledRef.current) return;
-        hasScheduledRef.current = true;
-
-        timerRef.current = window.setTimeout(() => {
-            openNewsletter();
-        }, NEWSLETTER_DELAY_MS);
-
-        return () => {
+        const clearTimer = () => {
             if (timerRef.current) window.clearTimeout(timerRef.current);
             timerRef.current = null;
         };
-    }, [pathname, showNewsletterModalOnView, isReady, stage, openNewsletter]);
+
+        // Leaving page resets latch
+        if (!onMemeBooth && wasOnMemeBooth) {
+            autoOpenedThisEntryRef.current = false;
+            clearTimer();
+            return;
+        }
+
+        // Entering page resets latch
+        if (onMemeBooth && !wasOnMemeBooth) {
+            autoOpenedThisEntryRef.current = false;
+            clearTimer();
+        }
+
+        // wrong page or flag off => do nothing
+        if (!onMemeBooth || !showNewsletterModalOnView) {
+            clearTimer();
+            return;
+        }
+
+        // already auto-opened this visit => never schedule again (even if user closes)
+        if (autoOpenedThisEntryRef.current) return;
+
+        // if it's already open, mark as done so it won't re-open after close
+        if (isOpen) {
+            autoOpenedThisEntryRef.current = true;
+            clearTimer();
+            return;
+        }
+
+        // only one timer at a time
+        if (timerRef.current) return;
+
+        timerRef.current = window.setTimeout(() => {
+            timerRef.current = null;
+
+            // latch before opening so close won’t retrigger later
+            autoOpenedThisEntryRef.current = true;
+
+            // If transition router isn't ready yet (cold hydration), still open.
+            // If it is ready, open as well.
+            open();
+        }, NEWSLETTER_DELAY_MS);
+
+        return () => clearTimer();
+    }, [pathname, showNewsletterModalOnView, isOpen, open, isReady]);
 
     return (
         <div>
