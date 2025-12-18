@@ -311,7 +311,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         <div
           ref={contentRef}
           className={cn(
-            "min-h-[100dvh] flex flex-col justify-center py-20 lg:pt-40 text-center",
+            "min-h-[100svh] flex flex-col justify-center py-20 lg:pt-40 text-center",
             loaderState !== "skipped" && "opacity-0 translate-y-8",
           )}
         >
