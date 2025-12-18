@@ -1,67 +1,56 @@
 // components/scroll-smoother.tsx
 "use client";
 
-import React, { useEffect, useLayoutEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { gsap } from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
 import ScrollSmoother from "gsap/ScrollSmoother";
+import { useViewportVars } from "@/components/hooks/use-viewport-vars";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 }
 
-function useVisualViewportCssVars() {
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const vv = window.visualViewport;
-
-    const setVars = () => {
-      const h = vv?.height ?? window.innerHeight;
-      document.documentElement.style.setProperty("--app-height", `${h}px`);
-      document.documentElement.style.setProperty("--vh", `${h * 0.01}px`);
-    };
-
-    setVars();
-
-    vv?.addEventListener("resize", setVars);
-    vv?.addEventListener("scroll", setVars);
-    window.addEventListener("resize", setVars);
-    window.addEventListener("orientationchange", setVars);
-
-    return () => {
-      vv?.removeEventListener("resize", setVars);
-      vv?.removeEventListener("scroll", setVars);
-      window.removeEventListener("resize", setVars);
-      window.removeEventListener("orientationchange", setVars);
-    };
-  }, []);
-}
-
-export default function SmoothScroller({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function SmoothScroller({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Prevent mobile browser chrome height changes from causing layout jump
-  useVisualViewportCssVars();
+  // ✅ sets --app-height / --vh for mobile chrome changes
+  useViewportVars();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // in-memory only
   const savedTabScrollRef = useRef<number>(0);
 
+  const [enableSmooth, setEnableSmooth] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const compute = () => {
+      const isTouch =
+        "ontouchstart" in window ||
+        navigator.maxTouchPoints > 0 ||
+        (navigator as any).msMaxTouchPoints > 0;
+
+      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+
+      // ✅ Desktop only
+      setEnableSmooth(isDesktop && !isTouch);
+    };
+
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+
   useLayoutEffect(() => {
+    if (!enableSmooth) return;
     if (typeof window === "undefined") return;
 
     const prefersReduced =
       window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-
-    // Respect reduced motion (native scroll)
     if (prefersReduced) return;
 
     const wrapper = wrapperRef.current;
@@ -83,10 +72,8 @@ export default function SmoothScroller({
     document.documentElement.style.overflowAnchor = "none";
     document.body.style.overflowAnchor = "none";
 
-    // Kill any existing instance first (hot reload / route changes)
     ScrollSmoother.get()?.kill();
 
-    // Ensure we start from top on route changes when using smoother
     try {
       window.scrollTo(0, 0);
     } catch { }
@@ -117,8 +104,7 @@ export default function SmoothScroller({
 
     const parsePinDurationToPx = (raw: string | null, section: HTMLElement) => {
       const natural =
-        Math.max(section.scrollHeight, section.offsetHeight) ||
-        window.innerHeight;
+        Math.max(section.scrollHeight, section.offsetHeight) || window.innerHeight;
 
       if (!raw) return natural;
 
@@ -159,7 +145,6 @@ export default function SmoothScroller({
       ro?.disconnect();
       ro = null;
 
-      // Keep your existing behavior: pinning only on desktop
       const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
       if (!isDesktop) return;
 
@@ -179,20 +164,14 @@ export default function SmoothScroller({
 
       pinnedSections.forEach((section) => {
         const startAttr = section.getAttribute("data-pin-start");
-        const startValue =
-          startAttr && startAttr.trim() !== "" ? startAttr : "top top";
+        const startValue = startAttr && startAttr.trim() !== "" ? startAttr : "top top";
 
         const pinSpacingAttr = section.getAttribute("data-pin-spacing");
         const pinSpacing =
-          pinSpacingAttr === "false"
-            ? false
-            : pinSpacingAttr === "true"
-              ? true
-              : true;
+          pinSpacingAttr === "false" ? false : pinSpacingAttr === "true" ? true : true;
 
         const pinTarget =
-          section.querySelector<HTMLElement>('[data-pin-target="true"]') ||
-          section;
+          section.querySelector<HTMLElement>('[data-pin-target="true"]') || section;
 
         const trigger = ScrollTrigger.create({
           trigger: section,
@@ -266,8 +245,8 @@ export default function SmoothScroller({
       smoother = ScrollSmoother.create({
         wrapper,
         content,
-        smooth: 1,       // desktop intensity
-        smoothTouch: 0.4,  // ✅ same intensity on mobile/tablet
+        smooth: 1,
+        smoothTouch: 0, // irrelevant since smoother only enabled on desktop
         effects: true,
         normalizeScroll: false,
       });
@@ -294,9 +273,14 @@ export default function SmoothScroller({
       pinTriggers.forEach((t) => t.kill());
       smoother?.kill();
     };
-  }, [pathname]);
+  }, [pathname, enableSmooth]);
 
-  // Always render the smoother wrapper (desktop + tablet + mobile)
+  // ✅ Mobile/tablet: native scroll, no wrapper
+  if (!enableSmooth) {
+    return <div className="relative overflow-x-hidden">{children}</div>;
+  }
+
+  // Desktop smoother wrapper (still fine to avoid vh)
   return (
     <div
       id="smooth-wrapper"
