@@ -13,7 +13,6 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import gsap from "gsap";
-import ScrollSmoother from "gsap/ScrollSmoother";
 import { Menu, X } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -25,10 +24,6 @@ import {
   useHeaderNavOverrides,
   type NavLinkLite,
 } from "@/components/header/nav-overrides";
-
-/* -------------------------------------------------------------------------- */
-/* TYPES                                                                      */
-/* -------------------------------------------------------------------------- */
 
 type NavigationDoc = NAVIGATION_QUERYResult[0];
 
@@ -48,10 +43,6 @@ type BtnVariant =
   | "menu"
   | "icon";
 
-/* -------------------------------------------------------------------------- */
-/* HELPERS                                                                    */
-/* -------------------------------------------------------------------------- */
-
 function getAnchorData(navItem: NavLinkLite): AnchorLinkExtra | null {
   if (navItem.linkType !== "anchor-link") return null;
   return {
@@ -64,42 +55,21 @@ function getAnchorData(navItem: NavLinkLite): AnchorLinkExtra | null {
 function normalizeAnchorHref(rawHref: string) {
   const h = (rawHref ?? "").trim();
   if (!h) return h;
-
-  // "/#id" or "/some#id" already fine
   if (h.startsWith("/")) return h;
-
-  // "#id" => assume homepage
   if (h.startsWith("#")) return `/${h}`;
-
-  // "who-we-are" => treat as id
   if (!h.includes("#") && !h.includes("/")) return `/#${h}`;
-
   return h;
 }
 
-function scrollToAnchor(anchorId: string, offsetPercent?: number | null) {
-  const target = document.getElementById(anchorId);
-  if (!target) return;
-
-  const smoother = ScrollSmoother.get();
-  const offsetPx =
-    ((typeof offsetPercent === "number" ? offsetPercent : 0) / 100) *
-    window.innerHeight;
-
-  if (smoother) {
-    smoother.scrollTo(smoother.offset(target, "top") - offsetPx, true);
-  } else {
-    const rect = target.getBoundingClientRect();
-    window.scrollTo({
-      top: rect.top + window.scrollY - offsetPx,
-      behavior: "smooth",
-    });
-  }
+function dispatchAnchorNavigate(anchorId: string, offsetPercent?: number | null) {
+  try {
+    window.dispatchEvent(
+      new CustomEvent("app:anchor-navigate", {
+        detail: { anchorId, offsetPercent, href: `/#${anchorId}` },
+      })
+    );
+  } catch { }
 }
-
-/* -------------------------------------------------------------------------- */
-/* COMPONENT                                                                  */
-/* -------------------------------------------------------------------------- */
 
 export default function MobileNav({
   navigation,
@@ -118,10 +88,7 @@ export default function MobileNav({
 
   const isMemeBoothRoute = !!pathname?.startsWith("/meme-booth");
   const { overrides } = useHeaderNavOverrides();
-
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
-
-  /* ---------------- NAV DATA ---------------- */
 
   const navDoc: NavigationDoc | undefined = navigation?.[0];
 
@@ -149,32 +116,19 @@ export default function MobileNav({
   const closeMenu = useCallback(() => setOpen(false), []);
   const toggleMenu = useCallback(() => setOpen((p) => !p), []);
 
-  const handleAnchorClick = useCallback(
-    (e: MouseEvent<HTMLAnchorElement>, navItem: NavLinkLite) => {
+  const handleAnchorActivate = useCallback(
+    (e: React.MouseEvent, navItem: NavLinkLite) => {
       const anchor = getAnchorData(navItem);
       if (!anchor?.anchorId) return;
 
-      // This may be "#id" from Sanity, or "/#id" if you update GROQ later.
-      const rawHref =
-        (navItem as any)?.href ||
-        (anchor.anchorId ? `#${anchor.anchorId}` : "");
-
-      const targetHref = normalizeAnchorHref(rawHref); // ensures "/#id" at minimum
-
-      // If we're already on "/", do a smooth scroll in-place.
-      if (pathname === "/") {
-        e.preventDefault();
-        closeMenu();
-        scrollToAnchor(anchor.anchorId, anchor.anchorOffsetPercent);
-        return;
-      }
-
-      // Otherwise, navigate to the correct page+hash (don't try to scroll on this page)
       e.preventDefault();
+      e.stopPropagation();
       closeMenu();
-      router.push(targetHref);
+
+      // On home: fade/teleport
+      dispatchAnchorNavigate(anchor.anchorId, anchor.anchorOffsetPercent);
     },
-    [closeMenu, pathname, router]
+    [closeMenu]
   );
 
   /* ---------------- ICON SWAP (NO FOUC) ---------------- */
@@ -236,7 +190,7 @@ export default function MobileNav({
     );
   }, [icon]);
 
-  /* ---------------- OVERLAY + GSAP (RELIABLE) ---------------- */
+  /* ---------------- OVERLAY + GSAP ---------------- */
 
   const shellRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<HTMLDivElement | null>(null);
@@ -341,7 +295,7 @@ export default function MobileNav({
     };
   }, [open, mounted, readyToInitialize, resetToClosed]);
 
-  /* ---------------- LINK STYLING + RENDERING ---------------- */
+  /* ---------------- LINK RENDER ---------------- */
 
   const mobileTextBump = "text-xl md:text-sm";
 
@@ -395,10 +349,31 @@ export default function MobileNav({
       const anchor = getAnchorData(navItem);
       const anchorId = anchor?.anchorId ?? null;
 
-      const rawHref =
-        (navItem as any)?.href || (anchorId ? `#${anchorId}` : "");
+      // ✅ On home: button (no Next navigation)
+      if (pathname === "/" && anchorId) {
+        return (
+          <li
+            key={navItem._key}
+            data-mobile-nav-item
+            className={cn("flex justify-center", hasBg && "w-full")}
+          >
+            <button
+              type="button"
+              onClick={(e) => handleAnchorActivate(e, navItem)}
+              className={cn(
+                buttonVariants({ variant, size: "sm" }),
+                hasBg ? bgItemClass : pillItemClass
+              )}
+            >
+              {navItem.title}
+            </button>
+          </li>
+        );
+      }
 
-      const href = normalizeAnchorHref(rawHref); // always "/#id" minimum
+      // ✅ Not home: navigate to "/#id"
+      const rawHref = (navItem as any)?.href || (anchorId ? `#${anchorId}` : "");
+      const href = normalizeAnchorHref(rawHref || (anchorId ? `/#${anchorId}` : "/"));
 
       return (
         <li
@@ -409,7 +384,7 @@ export default function MobileNav({
           <Link
             href={href}
             scroll={false}
-            onClick={(e) => handleAnchorClick(e, navItem)}
+            onClick={() => closeMenu()}
             className={cn(
               buttonVariants({ variant, size: "sm" }),
               hasBg ? bgItemClass : pillItemClass
@@ -465,9 +440,7 @@ export default function MobileNav({
           <div className="pt-8 pb-4">
             <ul className="list-none text-center uppercase space-y-3">
               {topLinks.map(renderLinkItem)}
-
               {hasBottom && <>{defaultBottomLinks.map(renderLinkItem)}</>}
-
               <li data-mobile-nav-item className="pt-6">
                 <div className="justify-center hidden">
                   <ModeToggle />

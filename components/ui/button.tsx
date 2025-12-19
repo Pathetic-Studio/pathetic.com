@@ -1,8 +1,8 @@
-// components/ui/button.tsx
 "use client";
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Slot } from "@radix-ui/react-slot";
 
 import { cn } from "@/lib/utils";
@@ -44,12 +44,13 @@ type CMSLink = {
 
   backgroundImageAnimateEnabled?: boolean | null;
   backgroundImageHoverEffect?: "squeeze" | "bloat" | "spin" | null;
+
+  // optional (if present in your query)
+  anchorId?: string | null;
+  anchorOffsetPercent?: number | null;
 };
 
-function fireParticles(
-  root: HTMLElement,
-  images: ParticleImage[] | null | undefined
-) {
+function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undefined) {
   if (!images || images.length === 0) return;
   if (typeof window === "undefined") return;
 
@@ -127,17 +128,29 @@ type LinkableButtonProps = {
 export type ButtonProps = BaseButtonProps & LinkableButtonProps;
 
 function normalizeAnchorHref(raw: string) {
-  const trimmed = raw.trim();
+  const trimmed = (raw ?? "").trim();
   if (!trimmed) return trimmed;
 
-  // Already a full path with hash
+  // already absolute
   if (trimmed.startsWith("/")) return trimmed;
 
-  // Hash-only => assume homepage anchor
+  // "#id" => assume homepage
   if (trimmed.startsWith("#")) return `/${trimmed}`;
 
-  // Something else (fallback)
+  // "who-we-are" => treat as id
+  if (!trimmed.includes("#") && !trimmed.includes("/")) return `/#${trimmed}`;
+
   return trimmed;
+}
+
+function dispatchAnchorNavigate(anchorId: string, offsetPercent?: number | null, href?: string) {
+  try {
+    window.dispatchEvent(
+      new CustomEvent("app:anchor-navigate", {
+        detail: { anchorId, offsetPercent, href },
+      })
+    );
+  } catch { }
 }
 
 function Button({
@@ -151,6 +164,8 @@ function Button({
   children,
   ...props
 }: ButtonProps) {
+  const pathname = usePathname();
+
   const cmsLink = link;
 
   const isContactLink = cmsLink?.linkType === "contact";
@@ -183,7 +198,6 @@ function Button({
 
   let url = cmsLink?.href ?? href ?? undefined;
 
-  // ✅ Make anchor links work cross-page (/#section instead of #section)
   if (url && isAnchorLink) {
     url = normalizeAnchorHref(url);
   }
@@ -423,12 +437,51 @@ function Button({
     );
   }
 
+  // ✅ Anchor links: if same page, DO NOT use Next <Link> navigation at all.
+  if (url && isAnchorLink && typeof window !== "undefined") {
+    const u = new URL(url, window.location.origin);
+    const samePath = u.pathname === window.location.pathname;
+    const hash = u.hash || "";
+    const anchorId = hash.startsWith("#") ? decodeURIComponent(hash.slice(1)) : "";
+
+    if (samePath && anchorId) {
+      return (
+        <button
+          type="button"
+          className={buttonClassName}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dispatchAnchorNavigate(
+              anchorId,
+              (cmsLink as any)?.anchorOffsetPercent ?? null,
+              u.pathname + u.hash
+            );
+          }}
+        >
+          {renderInner()}
+        </button>
+      );
+    }
+
+    // Cross-page anchor: keep real navigation
+    return (
+      <Link
+        href={url}
+        scroll={false}
+        target={openInNewTab ? "_blank" : undefined}
+        rel={openInNewTab ? "noopener noreferrer" : undefined}
+        className={buttonClassName}
+      >
+        {renderInner()}
+      </Link>
+    );
+  }
+
   if (url) {
     return (
       <Link
         href={url}
-        // ✅ let SmoothScroller handle hash scroll consistently
-        scroll={isAnchorLink ? false : true}
         target={openInNewTab ? "_blank" : undefined}
         rel={openInNewTab ? "noopener noreferrer" : undefined}
         className={buttonClassName}

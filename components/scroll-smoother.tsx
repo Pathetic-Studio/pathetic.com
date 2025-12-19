@@ -1,4 +1,3 @@
-//components/scroll-smoother.tsx
 "use client";
 
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
@@ -15,7 +14,6 @@ if (typeof window !== "undefined") {
 export default function SmoothScroller({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // ✅ sets --app-height / --vh for mobile chrome changes
   useViewportVars();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -36,7 +34,6 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
       const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
 
-      // ✅ Desktop only
       setEnableSmooth(isDesktop && !isTouch);
     };
 
@@ -59,21 +56,15 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
     const smoother = ScrollSmoother.get();
 
-    // Run after layout/paint so DOM + measurements are ready
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (smoother) {
-          // ScrollSmoother path
-          try {
-            const y = smoother.offset(target, "top");
-            smoother.scrollTo(y, true);
-          } catch {
-            // fallback
-            const rect = target.getBoundingClientRect();
-            window.scrollTo({ top: rect.top + window.scrollY, behavior: "instant" as any });
-          }
+          const current = smoother.scrollTop();
+          const rectTop = target.getBoundingClientRect().top;
+          const y = current + rectTop;
+
+          smoother.scrollTo(y, true);
         } else {
-          // Native path
           try {
             target.scrollIntoView({ behavior: "smooth", block: "start" });
           } catch {
@@ -82,7 +73,6 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
           }
         }
 
-        // Keep ScrollTrigger aligned after the jump
         try {
           ScrollTrigger.refresh();
         } catch { }
@@ -287,7 +277,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
         wrapper,
         content,
         smooth: 1,
-        smoothTouch: 0, // irrelevant since smoother only enabled on desktop
+        smoothTouch: 0,
         effects: true,
         normalizeScroll: false,
       });
@@ -295,7 +285,6 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       setupPinning();
 
       requestAnimationFrame(() => {
-        // ✅ If there's a hash, go there. Otherwise, go top.
         if (window.location.hash) {
           scrollToHashIfPresent();
         } else {
@@ -310,7 +299,6 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       setupPinning();
       ScrollTrigger.refresh();
       gsap.set(content, { opacity: 1 });
-      // still try hash
       scrollToHashIfPresent();
     }
 
@@ -324,10 +312,8 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     };
   }, [pathname, enableSmooth, scrollToHashIfPresent]);
 
-  // ✅ Mobile/tablet: native scroll, no wrapper
   useEffect(() => {
     if (enableSmooth) return;
-    // On route change, if URL has a hash, scroll to it (native path)
     scrollToHashIfPresent();
   }, [pathname, enableSmooth, scrollToHashIfPresent]);
 

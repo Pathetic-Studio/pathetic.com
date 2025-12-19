@@ -282,7 +282,7 @@ export default function ImageExplode({
                     ? tabletSize
                     : desktopSize;
 
-            let gravityY = 1;
+            let gravityY = 3;
             if (isTablet) gravityY = 0.35;
             if (isMobile) gravityY = 0.75;
 

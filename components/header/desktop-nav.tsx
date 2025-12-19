@@ -1,4 +1,3 @@
-// components/header/desktop-nav.tsx
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { NAVIGATION_QUERYResult } from "@/sanity.types";
 import LogoAnimated from "@/components/logo-animated";
 import ContactFormTrigger from "@/components/contact/contact-form-trigger";
-import ScrollSmoother from "gsap/ScrollSmoother";
 import { InstagramIcon } from "../ui/instagram-icon";
 import DesktopNavRightAnim from "./desktop-nav-right-anim";
 import DesktopNavLeftAnim, { DesktopNavLeftAnimHandle } from "./desktop-nav-left-anim";
@@ -33,28 +31,18 @@ function getAnchorData(navItem: NavLinkLite): AnchorLinkExtra | null {
   };
 }
 
-function scrollToAnchor(anchorId: string, offsetPercent?: number | null) {
-  const target = document.getElementById(anchorId);
-  if (!target) return;
-
-  const smoother = ScrollSmoother.get();
-  const offsetPct = typeof offsetPercent === "number" ? offsetPercent : 0;
-  const offsetPx = (offsetPct / 100) * window.innerHeight;
-
-  if (smoother) {
-    const contentY = smoother.offset(target, "top");
-    const finalY = contentY - offsetPx;
-    smoother.scrollTo(finalY, true);
-  } else {
-    const rect = target.getBoundingClientRect();
-    const scrollY = window.scrollY || window.pageYOffset;
-    const finalY = rect.top + scrollY - offsetPx;
-    window.scrollTo({ top: finalY, behavior: "smooth" });
-  }
-}
-
 /** Persist last visible left slot across remounts */
 let LAST_LEFT_SLOT: "default" | "replace" | null = null;
+
+function dispatchAnchorNavigate(anchorId: string, offsetPercent?: number | null) {
+  try {
+    window.dispatchEvent(
+      new CustomEvent("app:anchor-navigate", {
+        detail: { anchorId, offsetPercent, href: `/#${anchorId}` },
+      })
+    );
+  } catch { }
+}
 
 export default function DesktopNav({
   navigation,
@@ -79,12 +67,9 @@ export default function DesktopNav({
 
   useEffect(() => {
     const incoming = overrides?.leftNavReplace ?? null;
-    if (incoming && incoming.length) {
-      setCachedReplaceLinks(incoming);
-    }
+    if (incoming && incoming.length) setCachedReplaceLinks(incoming);
   }, [overrides?.leftNavReplace]);
 
-  // Use overrides when present; fall back to cache for "animate out after leaving"
   const replaceLinks: NavLinkLite[] = useMemo(() => {
     const live = overrides?.leftNavReplace ?? null;
     if (live && live.length) return live;
@@ -97,25 +82,21 @@ export default function DesktopNav({
 
   const targetLeftSlot: "default" | "replace" = needsLeftReplace ? "replace" : "default";
 
-  // Right intended state
   const rightOpen =
     !isMemeBoothRoute ? true : (overrides?.showDesktopRightLinks ?? true);
 
-  // Gate initialization on meme-booth until overrides arrive (prevents wrong-state flash)
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
 
-  const handleAnchorClick = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>, navItem: NavLinkLite) => {
-      const anchorData = getAnchorData(navItem);
-      if (!anchorData?.anchorId) return;
+  const handleSamePageAnchor = useCallback(
+    (e: React.MouseEvent, navItem: NavLinkLite) => {
+      const anchor = getAnchorData(navItem);
+      if (!anchor?.anchorId) return;
 
+      // This handler is ONLY for same-page anchors (home).
       e.preventDefault();
-      scrollToAnchor(anchorData.anchorId, anchorData.anchorOffsetPercent);
+      e.stopPropagation();
 
-      const hash = `#${anchorData.anchorId}`;
-      if (typeof window !== "undefined" && window.location.hash !== hash) {
-        window.history.pushState(null, "", hash);
-      }
+      dispatchAnchorNavigate(anchor.anchorId, anchor.anchorOffsetPercent);
     },
     []
   );
@@ -142,14 +123,35 @@ export default function DesktopNav({
         }
 
         if (navItem.linkType === "anchor-link") {
-          const anchorData = getAnchorData(navItem);
-          const href = anchorData?.anchorId ? `#${anchorData.anchorId}` : "#";
+          const anchor = getAnchorData(navItem);
+          const anchorId = anchor?.anchorId ?? null;
+
+          // ✅ On home: do NOT use <Link href="#...">. Use a button.
+          if (pathname === "/" && anchorId) {
+            return (
+              <span key={key} data-left-nav-item className="inline-flex">
+                <button
+                  type="button"
+                  onClick={(e) => handleSamePageAnchor(e, navItem)}
+                  className={cn(
+                    buttonVariants({ variant: "menu", size: "sm" }),
+                    "transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0"
+                  )}
+                >
+                  {navItem.title}
+                </button>
+              </span>
+            );
+          }
+
+          // ✅ Not on home: navigate to home anchor normally
+          const href = anchorId ? `/#${anchorId}` : "/";
 
           return (
             <span key={key} data-left-nav-item className="inline-flex">
               <Link
                 href={href}
-                onClick={(e) => handleAnchorClick(e, navItem)}
+                scroll={false}
                 className={cn(
                   buttonVariants({ variant: "menu", size: "sm" }),
                   "transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0"
@@ -211,14 +213,35 @@ export default function DesktopNav({
         }
 
         if (navItem.linkType === "anchor-link") {
-          const anchorData = getAnchorData(navItem);
-          const href = anchorData?.anchorId ? `#${anchorData.anchorId}` : "#";
+          const anchor = getAnchorData(navItem);
+          const anchorId = anchor?.anchorId ?? null;
+
+          // ✅ On home: no <Link href="#...">. Use button.
+          if (pathname === "/" && anchorId) {
+            return (
+              <button
+                key={navItem._key}
+                type="button"
+                onClick={(e) => handleSamePageAnchor(e, navItem)}
+                data-right-nav-item
+                className={cn(
+                  buttonVariants({ variant, size: "sm" }),
+                  "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
+                )}
+              >
+                {navItem.title}
+              </button>
+            );
+          }
+
+          // ✅ Not on home: navigate to home anchor
+          const href = anchorId ? `/#${anchorId}` : "/";
 
           return (
             <Link
               key={navItem._key}
               href={href}
-              onClick={(e) => handleAnchorClick(e, navItem)}
+              scroll={false}
               data-right-nav-item
               className={cn(
                 buttonVariants({ variant, size: "sm" }),
@@ -251,14 +274,12 @@ export default function DesktopNav({
   useEffect(() => {
     if (!leftDefaultRef.current || !leftReplaceRef.current) return;
 
-    // Not ready (cold meme-booth before overrides): keep both hidden
     if (!readyToInitialize) {
       leftDefaultRef.current.setOpenImmediate(false);
       leftReplaceRef.current.setOpenImmediate(false);
       return;
     }
 
-    // If we need replacement but links haven't arrived yet, wait.
     if (targetLeftSlot === "replace" && replaceLinks.length === 0) {
       leftDefaultRef.current.setOpenImmediate(false);
       leftReplaceRef.current.setOpenImmediate(false);
@@ -275,7 +296,6 @@ export default function DesktopNav({
       const prev = LAST_LEFT_SLOT;
       const next = targetLeftSlot;
 
-      // Cold load: open correct slot only (no swap)
       if (prev === null) {
         if (next === "replace") await leftReplaceRef.current!.open();
         else await leftDefaultRef.current!.open();
@@ -283,7 +303,6 @@ export default function DesktopNav({
         return;
       }
 
-      // Swap: animate prev out then next in
       if (prev !== next) {
         if (prev === "replace") leftReplaceRef.current!.setOpenImmediate(true);
         else leftDefaultRef.current!.setOpenImmediate(true);
@@ -291,7 +310,6 @@ export default function DesktopNav({
         if (prev === "replace") await leftReplaceRef.current!.close();
         else await leftDefaultRef.current!.close();
 
-        // After replace closes, clear cache so it doesn't linger
         if (prev === "replace") setCachedReplaceLinks([]);
 
         if (!stillCurrent()) return;
@@ -303,7 +321,6 @@ export default function DesktopNav({
         return;
       }
 
-      // Same slot: ensure open
       if (next === "replace") await leftReplaceRef.current!.open();
       else await leftDefaultRef.current!.open();
 
