@@ -3,6 +3,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+type FacingMode = "user" | "environment";
+
 type UseUserMediaOptions = {
     active: boolean;
 };
@@ -12,6 +14,9 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
     const streamRef = useRef<MediaStream | null>(null);
 
     const [error, setError] = useState<string | null>(null);
+    const [facingMode, setFacingMode] = useState<FacingMode>("user");
+    const [canFlip, setCanFlip] = useState(false);
+
     const startingRef = useRef(false);
 
     const stop = useCallback(() => {
@@ -19,11 +24,18 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
             streamRef.current.getTracks().forEach((t) => t.stop());
             streamRef.current = null;
         }
-        const v = videoRef.current;
-        if (v) {
-
-            v.srcObject = null;
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
         }
+    }, []);
+
+    const detectFlipSupport = useCallback(async () => {
+        if (!navigator.mediaDevices?.enumerateDevices) return;
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter((d) => d.kind === "videoinput");
+
+        setCanFlip(videoInputs.length > 1);
     }, []);
 
     const attachToVideo = useCallback(async () => {
@@ -31,113 +43,82 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
         const s = streamRef.current;
         if (!v || !s) return;
 
-
         if (v.srcObject !== s) v.srcObject = s;
-
         v.playsInline = true;
         v.muted = true;
 
         try {
             await v.play();
         } catch {
-            // ignore autoplay quirks; user gesture will usually resolve
+            // autoplay quirks ignored
         }
     }, []);
 
-    const start = useCallback(async () => {
-        if (startingRef.current) return;
-        if (
-            typeof navigator === "undefined" ||
-            !navigator.mediaDevices?.getUserMedia
-        ) {
-            setError("Camera not supported in this browser.");
-            return;
-        }
+    const start = useCallback(
+        async (mode: FacingMode = facingMode) => {
+            if (startingRef.current) return;
+            if (!navigator.mediaDevices?.getUserMedia) {
+                setError("Camera not supported.");
+                return;
+            }
 
-        // if we already have a live stream, just re-attach (covers remounts)
-        const existing = streamRef.current;
-        if (existing && existing.getTracks().some((t) => t.readyState === "live")) {
-            await attachToVideo();
-            setError(null);
-            return;
-        }
+            startingRef.current = true;
+            stop();
 
-        startingRef.current = true;
-
-        try {
-            const constraints: MediaStreamConstraints = {
-                video: {
-                    facingMode: { ideal: "user" },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                },
-                audio: false,
-            };
-
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            streamRef.current = stream;
-
-            await attachToVideo();
-            setError(null);
-        } catch (err: any) {
-            // fallback
             try {
-                const fallback = await navigator.mediaDevices.getUserMedia({
-                    video: true,
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { exact: mode },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                    },
                     audio: false,
                 });
-                streamRef.current = fallback;
 
+                streamRef.current = stream;
+                setFacingMode(mode);
                 await attachToVideo();
                 setError(null);
-            } catch (err2: any) {
-                console.error("[useUserMedia] getUserMedia failed", err2);
-                setError(err2?.message || "Camera access failed.");
+            } catch {
+                try {
+                    const fallback = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: false,
+                    });
+                    streamRef.current = fallback;
+                    await attachToVideo();
+                } catch (err: any) {
+                    setError(err?.message || "Camera access failed.");
+                }
+            } finally {
+                startingRef.current = false;
             }
-        } finally {
-            startingRef.current = false;
-        }
-    }, [attachToVideo]);
+        },
+        [attachToVideo, facingMode, stop]
+    );
 
-    // Start/stop based on active flag
+    const flipCamera = useCallback(() => {
+        const next: FacingMode =
+            facingMode === "user" ? "environment" : "user";
+        start(next);
+    }, [facingMode, start]);
+
     useEffect(() => {
         if (!active) {
             stop();
             return;
         }
 
-        let cancelled = false;
+        detectFlipSupport();
+        start();
+    }, [active, detectFlipSupport, start, stop]);
 
-        (async () => {
-            await start();
-            if (cancelled) return;
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [active, start, stop]);
-
-    // If the <video> element gets recreated (because the renderer unmounted),
-    // re-attach the stream once it exists again.
-    useEffect(() => {
-        if (!active) return;
-        if (!streamRef.current) return;
-
-        const id = window.setInterval(() => {
-            if (!active) return;
-            if (!streamRef.current) return;
-
-            const v = videoRef.current;
-            if (!v) return;
-
-
-            const bound = v.srcObject === streamRef.current;
-            if (!bound) attachToVideo();
-        }, 250);
-
-        return () => window.clearInterval(id);
-    }, [active, attachToVideo]);
-
-    return { videoRef, streamRef, error, setError, start, stop };
+    return {
+        videoRef,
+        error,
+        setError,
+        facingMode,
+        canFlip,
+        flipCamera,
+    };
 }

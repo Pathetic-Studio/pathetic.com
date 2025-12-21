@@ -74,8 +74,6 @@ export default function CameraCaptureView({
 
             {!hasBlob && (
                 <div className="mt-3 flex justify-center gap-3 text-base font-semibold uppercase italic">
-
-                    {/* Generate – purple blurred pill */}
                     <button
                         onClick={onCapture}
                         className="relative inline-flex items-center px-4 py-1 text-base font-semibold uppercase italic disabled:opacity-60"

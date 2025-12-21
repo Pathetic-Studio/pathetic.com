@@ -1,4 +1,3 @@
-//components/meme-booth/panel/camera-panel-core.tsx
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
@@ -27,19 +26,30 @@ function refreshScroll() {
     } catch { }
 }
 
+/* =========================
+   SHARED RENDERER CONTRACT
+   ========================= */
+
+export type CameraRendererProps = {
+    enabled: boolean;
+    hasBlob: boolean;
+    videoRef: React.RefObject<HTMLVideoElement | null>;
+    outCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+    srcCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+    onCapture: () => void;
+
+    canFlip: boolean;
+    facingMode: "user" | "environment";
+    onFlipCamera: () => void;
+};
+
 type Props = {
-    CameraRenderer: React.ComponentType<{
-        enabled: boolean;
-        hasBlob: boolean;
-        videoRef: React.RefObject<HTMLVideoElement | null>;
-        outCanvasRef: React.RefObject<HTMLCanvasElement | null>;
-        srcCanvasRef: React.RefObject<HTMLCanvasElement | null>;
-        onCapture: () => void;
-    }>;
+    CameraRenderer: React.ComponentType<CameraRendererProps>;
 };
 
 export default function CameraPanelCore({ CameraRenderer }: Props) {
-    const { loading, error: apiError, setError: setApiError, generate } = useStarterPack();
+    const { loading, error: apiError, setError: setApiError, generate } =
+        useStarterPack();
 
     const srcCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const outCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -52,14 +62,15 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [sprites, setSprites] = useState<string[] | null>(null);
 
-    // Camera should be active only when we’re actually on camera mode and not showing a result
-    // (this prevents “stale stream / unmounted video” issues and ensures clean restart)
     const cameraActive = mode === "camera" && !generatedImage && !blob;
 
     const {
         videoRef,
         error: cameraError,
         setError: setCameraError,
+        facingMode,
+        canFlip,
+        flipCamera,
     } = useUserMedia({ active: cameraActive });
 
     const error = apiError || cameraError;
@@ -135,7 +146,6 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
     const generateFromBlob = async (b: Blob) => {
         const res = await generate(b);
         if (!res.ok || !res.image) return;
-
         animateHeightChange(() => setGeneratedImage(res.image));
     };
 
@@ -149,7 +159,6 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
         const b = await captureCanvasToPngBlob(out, snap);
         if (!b) return;
 
-        // moving away from “live camera” state
         setBlob(b);
         setSprites(null);
         setGeneratedImage(null);
@@ -158,8 +167,7 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
     };
 
     const handleGenerateUpload = async () => {
-        if (loading) return;
-        if (!blob) return;
+        if (loading || !blob) return;
         await generateFromBlob(blob);
     };
 
@@ -200,14 +208,23 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
                             outCanvasRef={outCanvasRef}
                             srcCanvasRef={srcCanvasRef}
                             onCapture={handleCaptureAndGenerate}
+                            canFlip={canFlip}
+                            facingMode={facingMode}
+                            onFlipCamera={flipCamera}
                         />
                     ) : blob ? (
                         <UploadedImagePreview blob={blob} />
                     ) : (
-                        <ImageUploadPanel disabled={loading} onImageLoaded={handleUploadedImage} />
+                        <ImageUploadPanel
+                            disabled={loading}
+                            onImageLoaded={handleUploadedImage}
+                        />
                     )}
 
-                    <LoaderOverlay active={loading} messages={loadingMessages} />
+                    <LoaderOverlay
+                        active={loading}
+                        messages={loadingMessages}
+                    />
                 </div>
 
                 <BottomActions
