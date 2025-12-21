@@ -1,11 +1,11 @@
-// components/ui/loading-bar.tsx
+// components/meme-booth/panel/ui/loading-bar.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
 export type LoadingMessage = {
-    at: number; // 0–1 of the fake progress range
+    at: number; // 0–0.9 in practice (because we map fake progress to 0..0.9)
     text: string;
 };
 
@@ -19,17 +19,11 @@ type LoadingBarProps = {
 
 const DEFAULT_MESSAGES: LoadingMessage[] = [
     { at: 0.05, text: "Analyzing fit" },
-    { at: 5, text: "Dissecting personality" },
-    { at: 10, text: "Removing individuality" },
-    { at: 20, text: "Clowning your whole life" },
-    { at: 30, text: "Adding finishing touches" },
+    { at: 0.3, text: "Dissecting personality" },
+    { at: 0.6, text: "Removing individuality" },
+    { at: 0.85, text: "Clowning your whole life" },
+    { at: 0.9, text: "Adding finishing touches" },
 ];
-
-
-
-
-
-
 
 export default function LoadingBar({
     active,
@@ -40,7 +34,10 @@ export default function LoadingBar({
 }: LoadingBarProps) {
     const barRef = useRef<HTMLDivElement | null>(null);
     const labelRef = useRef<HTMLDivElement | null>(null);
+
+    // NOTE: keep this explicit so TS never loses the type
     const tlRef = useRef<gsap.core.Timeline | null>(null);
+
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
@@ -48,16 +45,16 @@ export default function LoadingBar({
         const labelEl = labelRef.current;
         if (!bar || !labelEl) return;
 
-        // kill old timeline
-        if (tlRef.current) {
-            tlRef.current.kill();
+        // kill old timeline (use local var to avoid TS "never" narrowing weirdness)
+        const oldTl = tlRef.current;
+        if (oldTl) {
+            oldTl.kill();
             tlRef.current = null;
         }
 
-        const stagedMessages = (messages && messages.length > 0
-            ? messages
-            : DEFAULT_MESSAGES
-        ).slice().sort((a, b) => a.at - b.at);
+        const stagedMessages = (messages && messages.length > 0 ? messages : DEFAULT_MESSAGES)
+            .slice()
+            .sort((a, b) => a.at - b.at);
 
         let currentMsgIndex = -1;
 
@@ -80,15 +77,20 @@ export default function LoadingBar({
 
         if (active) {
             setVisible(true);
+
+            // reset visuals
             gsap.set(bar, { width: "0%" });
+            gsap.set(bar.parentElement, { opacity: 1 });
 
             const tl = gsap.timeline({
                 onUpdate: () => {
                     // tl.progress() is 0–1 over the fake load
                     const p = tl.progress() * 0.9; // map to 0–0.9 for 0–90%
+
                     const nextIndex = stagedMessages.findIndex(
                         (m, i) => i > currentMsgIndex && p >= m.at
                     );
+
                     if (nextIndex !== -1) {
                         currentMsgIndex = nextIndex;
                         showMessage(stagedMessages[currentMsgIndex].text);
@@ -96,6 +98,7 @@ export default function LoadingBar({
                 },
             });
 
+            // YOUR original timing + easing + steps (unchanged)
             tl.to(bar, {
                 width: "20%",
                 duration: 8,
@@ -122,7 +125,14 @@ export default function LoadingBar({
 
             tlRef.current = tl;
         } else if (visible) {
-            // Finish: current width → 100%, then hide and callback
+            // If the async job finishes early, stop the timeline at the current position
+            const runningTl = tlRef.current;
+            if (runningTl) {
+                runningTl.kill();
+                tlRef.current = null;
+            }
+
+            // Finish: current width → 100%, then hide and callback (your original)
             gsap.to(bar, {
                 width: "100%",
                 duration: 0.5,
@@ -144,8 +154,9 @@ export default function LoadingBar({
         }
 
         return () => {
-            if (tlRef.current) {
-                tlRef.current.kill();
+            const t = tlRef.current;
+            if (t) {
+                t.kill();
                 tlRef.current = null;
             }
         };
@@ -163,18 +174,9 @@ export default function LoadingBar({
             </div>
 
             {/* Outer border with padding, inner bar inset */}
-            <div
-                className="w-full border border-border bg-muted "
-                style={{ padding: 2 }}
-            >
-                <div
-                    className="w-full  overflow-hidden bg-background"
-                    style={{ height }}
-                >
-                    <div
-                        ref={barRef}
-                        className="h-full w-0 bg-foreground "
-                    />
+            <div className="w-full border border-border bg-muted " style={{ padding: 2 }}>
+                <div className="w-full  overflow-hidden bg-background" style={{ height }}>
+                    <div ref={barRef} className="h-full w-0 bg-foreground " />
                 </div>
             </div>
         </div>

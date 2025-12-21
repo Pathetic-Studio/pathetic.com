@@ -1,28 +1,59 @@
 //components/meme-booth/panel/ui/loader-overlay.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
-import LoadingBar from "@/components/meme-booth/panel/ui/loading-bar";
+import LoadingBar from "./loading-bar";
 
 type Props = {
     active: boolean;
     messages: { at: number; text: string }[];
+    onHidden?: () => void; // called after loader finishes and overlay fades out
 };
 
-export default function LoaderOverlay({ active, messages }: Props) {
+export default function LoaderOverlay({ active, messages, onHidden }: Props) {
     const wrapRef = useRef<HTMLDivElement | null>(null);
+    const [showOverlay, setShowOverlay] = useState(false);
 
+    // When a run starts, show overlay. When the run ends, we wait for LoadingBar's onComplete.
     useEffect(() => {
         const el = wrapRef.current;
         if (!el) return;
 
+        if (active) {
+            setShowOverlay(true);
+            gsap.killTweensOf(el);
+            gsap.to(el, {
+                autoAlpha: 1,
+                duration: 0.25,
+                ease: "power2.out",
+            });
+        }
+    }, [active]);
+
+    const handleBarComplete = () => {
+        const el = wrapRef.current;
+        if (!el) {
+            setShowOverlay(false);
+            onHidden?.();
+            return;
+        }
+
+        // Now fade the overlay itself, THEN reveal the image via onHidden
+        gsap.killTweensOf(el);
         gsap.to(el, {
-            autoAlpha: active ? 1 : 0,
+            autoAlpha: 0,
             duration: 0.25,
             ease: "power2.out",
+            onComplete: () => {
+                setShowOverlay(false);
+                onHidden?.();
+            },
         });
-    }, [active]);
+    };
+
+    // If not active and we aren't currently showing the overlay, render nothing
+    if (!showOverlay && !active) return null;
 
     return (
         <div
@@ -36,7 +67,12 @@ export default function LoaderOverlay({ active, messages }: Props) {
             {/* loader */}
             <div className="relative flex h-full w-full items-center justify-center">
                 <div className="w-full px-10">
-                    <LoadingBar active={active} label="Cooking your meme…" messages={messages} />
+                    <LoadingBar
+                        active={active}
+                        label="Cooking your meme…"
+                        messages={messages}
+                        onComplete={handleBarComplete}
+                    />
                 </div>
             </div>
         </div>

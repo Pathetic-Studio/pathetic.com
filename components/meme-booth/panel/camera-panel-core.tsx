@@ -27,10 +27,6 @@ function refreshScroll() {
     } catch { }
 }
 
-/* =========================
-   SHARED RENDERER CONTRACT
-   ========================= */
-
 export type CameraRendererProps = {
     enabled: boolean;
     hasBlob: boolean;
@@ -59,10 +55,13 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
 
     const [mode, setMode] = useState<InputMode>("camera");
     const [blob, setBlob] = useState<Blob | null>(null);
+
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+    const [pendingImage, setPendingImage] = useState<string | null>(null);
+
     const [sprites, setSprites] = useState<string[] | null>(null);
 
-    const cameraActive = mode === "camera" && !generatedImage && !blob;
+    const cameraActive = mode === "camera" && !generatedImage && !blob && !pendingImage;
 
     const {
         videoRef,
@@ -89,6 +88,7 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
     const resetState = () => {
         setBlob(null);
         setGeneratedImage(null);
+        setPendingImage(null);
         setSprites(null);
         setApiError(null);
         setCameraError(null);
@@ -136,13 +136,15 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
         });
     };
 
+    // IMPORTANT: do NOT setGeneratedImage here.
+    // Set pendingImage, let LoaderOverlay finish+fade, then reveal.
     const generateFromBlob = async (b: Blob) => {
         const res = await generate(b);
         if (!res.ok || !res.image) return;
-        animateHeightChange(() => setGeneratedImage(res.image));
+
+        setPendingImage(res.image as string);
     };
 
-    // CAMERA: capture -> set blob -> generate immediately
     const handleCaptureAndGenerate = async () => {
         if (loading) return;
 
@@ -156,29 +158,29 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
         setBlob(b);
         setSprites(null);
         setGeneratedImage(null);
+        setPendingImage(null);
 
         await generateFromBlob(b);
     };
 
-    // UPLOAD: select/drop -> set blob -> generate immediately (no "Generate" button)
     const handleUploadedImage = async (file: File) => {
         if (loading) return;
 
         setSprites(null);
         setGeneratedImage(null);
+        setPendingImage(null);
         setBlob(file);
         refreshScroll();
 
         await generateFromBlob(file);
     };
 
-    // "Do it again" should keep the current mode (no forced camera mode)
     const handleChangeImage = () => {
         resetState();
-        // keep mode as-is
+        // keep mode
     };
 
-    const cameraEnabled = mode === "camera" && !blob && !generatedImage;
+    const cameraEnabled = mode === "camera" && !blob && !generatedImage && !pendingImage;
 
     return (
         <section className="mx-auto max-w-xl py-1">
@@ -224,7 +226,15 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
                         <ImageUploadPanel disabled={loading} onImageLoaded={handleUploadedImage} />
                     )}
 
-                    <LoaderOverlay active={loading} messages={loadingMessages} />
+                    <LoaderOverlay
+                        active={loading}
+                        messages={loadingMessages}
+                        onHidden={() => {
+                            if (!pendingImage) return;
+                            animateHeightChange(() => setGeneratedImage(pendingImage));
+                            setPendingImage(null);
+                        }}
+                    />
                 </div>
 
                 <BottomActions
@@ -234,7 +244,7 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
                     loading={loading}
                     onChangeImage={handleChangeImage}
                     onGenerateUpload={() => {
-                        /* no-op: upload auto-generates now */
+                        /* no-op */
                     }}
                 />
 
