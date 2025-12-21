@@ -1,3 +1,4 @@
+//components/meme-booth/camera-capture-view.tsx
 "use client";
 
 import React from "react";

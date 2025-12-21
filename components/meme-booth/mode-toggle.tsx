@@ -33,11 +33,11 @@ export default function ModeToggle({ mode, onChange }: ModeToggleProps) {
 
     return (
         <div className="mb-4 flex justify-center">
-            <div className="relative inline-flex items-center border border-border rounded-full bg-background px-1 py-1 text-sm uppercase italic">
+            <div className="relative inline-flex items-center border border-border rounded-full bg-background px-1 py-1 text-sm uppercase ">
 
                 {/* Dynamic pill */}
                 <motion.div
-                    className="absolute inset-y-1 my-auto rounded-full blur-[1px] bg-[#363636]"
+                    className="absolute inset-y-1 my-auto rounded-full  bg-[#363636]"
                     animate={{ width: pill.width, left: pill.left }}
                     transition={{ type: "spring", stiffness: 260, damping: 25 }}
                 />
@@ -52,7 +52,7 @@ export default function ModeToggle({ mode, onChange }: ModeToggleProps) {
                         : "text-muted-foreground"
                         }`}
                 >
-                    <Camera className="mr-1 h-3 w-3 shrink-0 [transform:scaleX(0.8)]" />
+                    <Camera className="mr-1 h-4 w-4 shrink-0 [transform:scaleX(0.6)]" />
                     Camera
                 </button>
 
@@ -66,7 +66,7 @@ export default function ModeToggle({ mode, onChange }: ModeToggleProps) {
                         : "text-muted-foreground"
                         }`}
                 >
-                    <ImageIcon className="mr-1 h-3 w-3 shrink-0" />
+                    <ImageIcon className="mr-1 h-4 w-4 shrink-0 [transform:scaleX(0.6)]" />
                     Image
                 </button>
             </div>

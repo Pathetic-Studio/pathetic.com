@@ -10,7 +10,7 @@ import { gsap } from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
 
 import StarterPackParticles from "@/components/effects/starter-pack-particles";
-import LoadingBar from "@/components/ui/loading-bar";
+import LoadingBar from "@/components/meme-booth/panel/ui/loading-bar";
 import ImageUploadPanel from "@/components/meme-booth/image-upload-panel";
 
 import ModeToggle, { type InputMode } from "@/components/meme-booth/mode-toggle";

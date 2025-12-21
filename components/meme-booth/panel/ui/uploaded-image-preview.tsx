@@ -1,3 +1,4 @@
+//components/meme-booth/panel/ui/uploaded-image-preview.tsx
 "use client";
 
 import { useEffect, useState } from "react";

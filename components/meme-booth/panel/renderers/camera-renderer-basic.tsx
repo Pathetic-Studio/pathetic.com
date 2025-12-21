@@ -1,7 +1,8 @@
+//components/meme-booth/panel/renderers/camera-renderer-basic.tsx
 "use client";
 
 import React from "react";
-import { Camera, Repeat } from "lucide-react";
+import { Camera, SwitchCamera } from "lucide-react";
 import { useMirroredVideoCanvas } from "../hooks/use-mirrored-video-canvas";
 import type { CameraRendererProps } from "../camera-panel-core";
 
@@ -43,26 +44,29 @@ export default function CameraRendererBasic({
             />
 
             {!hasBlob && (
-                <div className="mt-3 flex justify-center gap-4">
-                    {showFlip && (
-                        <button
-                            type="button"
-                            onClick={onFlipCamera}
-                            className="relative inline-flex items-center px-4 py-1 disabled:opacity-60"
-                            aria-label="Flip camera"
-                        >
-                            <Repeat className="h-12 w-12 shrink-0 [transform:scaleX(0.6)] text-primary hover:scale-110 transition" />
-                        </button>
-                    )}
+                <div className="mt-3 flex justify-center gap-2">
+
 
                     <button
                         type="button"
                         onClick={onCapture}
-                        className="relative inline-flex items-center px-4 py-1 disabled:opacity-60"
+                        className="relative inline-flex items-center px-0 py-1 disabled:opacity-60"
                         aria-label="Capture"
                     >
                         <Camera className="h-12 w-12 shrink-0 [transform:scaleX(0.6)] text-primary hover:scale-110 transition" />
                     </button>
+
+                    {showFlip && (
+                        <button
+                            type="button"
+                            onClick={onFlipCamera}
+                            className="relative inline-flex items-center px-0 py-1 disabled:opacity-60"
+                            aria-label="Flip camera"
+                        >
+                            <SwitchCamera className="h-12 w-12 shrink-0 [transform:scaleX(0.6)] text-primary hover:scale-110 transition" />
+                        </button>
+                    )}
+
                 </div>
             )}
         </div>

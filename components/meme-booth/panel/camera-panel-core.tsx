@@ -1,3 +1,4 @@
+//components/meme-booth/panel/camera-panel-core.tsx
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
@@ -48,8 +49,7 @@ type Props = {
 };
 
 export default function CameraPanelCore({ CameraRenderer }: Props) {
-    const { loading, error: apiError, setError: setApiError, generate } =
-        useStarterPack();
+    const { loading, error: apiError, setError: setApiError, generate } = useStarterPack();
 
     const srcCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const outCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -101,13 +101,6 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
         setMode(next);
     };
 
-    const handleUploadedImage = (file: File) => {
-        setSprites(null);
-        setGeneratedImage(null);
-        setBlob(file);
-        refreshScroll();
-    };
-
     const animateHeightChange = (fn: () => void) => {
         const container = activeSpaceRef.current;
         if (!container) {
@@ -149,6 +142,7 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
         animateHeightChange(() => setGeneratedImage(res.image));
     };
 
+    // CAMERA: capture -> set blob -> generate immediately
     const handleCaptureAndGenerate = async () => {
         if (loading) return;
 
@@ -166,14 +160,22 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
         await generateFromBlob(b);
     };
 
-    const handleGenerateUpload = async () => {
-        if (loading || !blob) return;
-        await generateFromBlob(blob);
+    // UPLOAD: select/drop -> set blob -> generate immediately (no "Generate" button)
+    const handleUploadedImage = async (file: File) => {
+        if (loading) return;
+
+        setSprites(null);
+        setGeneratedImage(null);
+        setBlob(file);
+        refreshScroll();
+
+        await generateFromBlob(file);
     };
 
+    // "Do it again" should keep the current mode (no forced camera mode)
     const handleChangeImage = () => {
         resetState();
-        setMode("camera");
+        // keep mode as-is
     };
 
     const cameraEnabled = mode === "camera" && !blob && !generatedImage;
@@ -181,7 +183,11 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
     return (
         <section className="mx-auto max-w-xl py-1">
             <div className="relative border border-border bg-background px-4 py-5">
-                {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
+                {error && (
+                    <div className="bg-red-500 flex items-center justify-center mb-4">
+                        <p className="text-xs py-1 uppercase text-white">{error}</p>
+                    </div>
+                )}
 
                 {USE_SPRITE_MODE && sprites && (
                     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -215,16 +221,10 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
                     ) : blob ? (
                         <UploadedImagePreview blob={blob} />
                     ) : (
-                        <ImageUploadPanel
-                            disabled={loading}
-                            onImageLoaded={handleUploadedImage}
-                        />
+                        <ImageUploadPanel disabled={loading} onImageLoaded={handleUploadedImage} />
                     )}
 
-                    <LoaderOverlay
-                        active={loading}
-                        messages={loadingMessages}
-                    />
+                    <LoaderOverlay active={loading} messages={loadingMessages} />
                 </div>
 
                 <BottomActions
@@ -233,7 +233,9 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
                     hasGenerated={!!generatedImage}
                     loading={loading}
                     onChangeImage={handleChangeImage}
-                    onGenerateUpload={handleGenerateUpload}
+                    onGenerateUpload={() => {
+                        /* no-op: upload auto-generates now */
+                    }}
                 />
 
                 <canvas ref={srcCanvasRef} className="hidden" />

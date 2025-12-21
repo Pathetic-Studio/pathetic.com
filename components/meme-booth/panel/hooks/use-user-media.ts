@@ -1,3 +1,4 @@
+//components/meme-booth/panel/hooks/use-user-media.ts
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";

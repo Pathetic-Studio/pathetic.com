@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
-import LoadingBar from "@/components/ui/loading-bar";
+import LoadingBar from "@/components/meme-booth/panel/ui/loading-bar";
 
 type Props = {
     active: boolean;
