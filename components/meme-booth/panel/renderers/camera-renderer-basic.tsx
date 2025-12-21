@@ -16,15 +16,15 @@ export default function CameraRendererBasic({
     facingMode,
     onFlipCamera,
 }: CameraRendererProps) {
-    // Only mirror the selfie camera.
+    // Always render frames to canvas; only mirror on selfie camera.
     useMirroredVideoCanvas({
-        enabled: enabled && facingMode === "user",
+        enabled,
+        mirror: facingMode === "user",
         videoRef,
         outCanvasRef,
         srcCanvasRef,
     });
 
-    // Show flip whenever device supports it.
     const showFlip = canFlip && !hasBlob;
 
     return (

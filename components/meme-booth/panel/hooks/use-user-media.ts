@@ -8,15 +8,6 @@ type UseUserMediaOptions = {
     active: boolean;
 };
 
-function isMobileOrTablet() {
-    if (typeof navigator === "undefined") return false;
-    // iPadOS can report as Mac; touch points catches it.
-    const ua = navigator.userAgent || "";
-    const mobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
-    const iPadAsMac = /Macintosh/i.test(ua) && (navigator.maxTouchPoints ?? 0) > 1;
-    return mobileUA || iPadAsMac;
-}
-
 export function useUserMedia({ active }: UseUserMediaOptions) {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
@@ -45,7 +36,6 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
             const videoInputs = devices.filter((d) => d.kind === "videoinput");
             setCanFlip(videoInputs.length > 1);
         } catch {
-            // If enumerateDevices fails, keep flip disabled.
             setCanFlip(false);
         }
     }, []);
@@ -86,16 +76,12 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
             startingRef.current = true;
             stop();
 
-            const modeToTry: FacingMode =
-                requestedMode ??
-                // On phones/tablets, default to the back camera first.
-                (isMobileOrTablet() ? "environment" : "user");
+            const modeToTry: FacingMode = requestedMode ?? "user"; // DEFAULT SELFIE
 
             try {
-                // Try to force a specific facing mode
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: { ideal: modeToTry }, // ideal is more compatible than exact
+                        facingMode: { ideal: modeToTry },
                         width: { ideal: 1280 },
                         height: { ideal: 720 },
                     },
@@ -107,10 +93,9 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
                 await attachToVideo();
                 setError(null);
 
-                // IMPORTANT: run this after permission is granted
+                // iOS/Safari often needs permission before this is accurate
                 await detectFlipSupport();
             } catch {
-                // Fallback: any camera
                 try {
                     const fallback = await navigator.mediaDevices.getUserMedia({
                         video: true,
@@ -122,7 +107,6 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
                     await attachToVideo();
                     setError(null);
 
-                    // Again: after permission
                     await detectFlipSupport();
                 } catch (err2: any) {
                     console.error("[useUserMedia] getUserMedia failed", err2);
@@ -147,7 +131,6 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
             return;
         }
 
-        // Start the camera. We detect flip support after permission.
         start();
     }, [active, start, stop]);
 
