@@ -1,4 +1,3 @@
-//components/meme-booth/panel/hooks/use-user-media.ts
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -8,6 +7,15 @@ type FacingMode = "user" | "environment";
 type UseUserMediaOptions = {
     active: boolean;
 };
+
+function isMobileOrTablet() {
+    if (typeof navigator === "undefined") return false;
+    // iPadOS can report as Mac; touch points catches it.
+    const ua = navigator.userAgent || "";
+    const mobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+    const iPadAsMac = /Macintosh/i.test(ua) && (navigator.maxTouchPoints ?? 0) > 1;
+    return mobileUA || iPadAsMac;
+}
 
 export function useUserMedia({ active }: UseUserMediaOptions) {
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -32,10 +40,14 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
     const detectFlipSupport = useCallback(async () => {
         if (!navigator.mediaDevices?.enumerateDevices) return;
 
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter((d) => d.kind === "videoinput");
-
-        setCanFlip(videoInputs.length > 1);
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoInputs = devices.filter((d) => d.kind === "videoinput");
+            setCanFlip(videoInputs.length > 1);
+        } catch {
+            // If enumerateDevices fails, keep flip disabled.
+            setCanFlip(false);
+        }
     }, []);
 
     const attachToVideo = useCallback(async () => {
@@ -44,31 +56,46 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
         if (!v || !s) return;
 
         if (v.srcObject !== s) v.srcObject = s;
+
         v.playsInline = true;
         v.muted = true;
 
         try {
             await v.play();
         } catch {
-            // autoplay quirks ignored
+            // ignore autoplay quirks
         }
     }, []);
 
+    const inferFacingModeFromStream = useCallback((stream: MediaStream): FacingMode => {
+        const track = stream.getVideoTracks()?.[0];
+        const settings = track?.getSettings?.();
+        const fm = settings?.facingMode;
+        return fm === "environment" ? "environment" : "user";
+    }, []);
+
     const start = useCallback(
-        async (mode: FacingMode = facingMode) => {
+        async (requestedMode?: FacingMode) => {
             if (startingRef.current) return;
-            if (!navigator.mediaDevices?.getUserMedia) {
-                setError("Camera not supported.");
+
+            if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+                setError("Camera not supported in this browser.");
                 return;
             }
 
             startingRef.current = true;
             stop();
 
+            const modeToTry: FacingMode =
+                requestedMode ??
+                // On phones/tablets, default to the back camera first.
+                (isMobileOrTablet() ? "environment" : "user");
+
             try {
+                // Try to force a specific facing mode
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: { exact: mode },
+                        facingMode: { ideal: modeToTry }, // ideal is more compatible than exact
                         width: { ideal: 1280 },
                         height: { ideal: 720 },
                     },
@@ -76,30 +103,41 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
                 });
 
                 streamRef.current = stream;
-                setFacingMode(mode);
+                setFacingMode(inferFacingModeFromStream(stream));
                 await attachToVideo();
                 setError(null);
+
+                // IMPORTANT: run this after permission is granted
+                await detectFlipSupport();
             } catch {
+                // Fallback: any camera
                 try {
                     const fallback = await navigator.mediaDevices.getUserMedia({
                         video: true,
                         audio: false,
                     });
+
                     streamRef.current = fallback;
+                    setFacingMode(inferFacingModeFromStream(fallback));
                     await attachToVideo();
-                } catch (err: any) {
-                    setError(err?.message || "Camera access failed.");
+                    setError(null);
+
+                    // Again: after permission
+                    await detectFlipSupport();
+                } catch (err2: any) {
+                    console.error("[useUserMedia] getUserMedia failed", err2);
+                    setError(err2?.message || "Camera access failed.");
+                    setCanFlip(false);
                 }
             } finally {
                 startingRef.current = false;
             }
         },
-        [attachToVideo, facingMode, stop]
+        [attachToVideo, detectFlipSupport, inferFacingModeFromStream, stop]
     );
 
     const flipCamera = useCallback(() => {
-        const next: FacingMode =
-            facingMode === "user" ? "environment" : "user";
+        const next: FacingMode = facingMode === "user" ? "environment" : "user";
         start(next);
     }, [facingMode, start]);
 
@@ -109,16 +147,19 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
             return;
         }
 
-        detectFlipSupport();
+        // Start the camera. We detect flip support after permission.
         start();
-    }, [active, detectFlipSupport, start, stop]);
+    }, [active, start, stop]);
 
     return {
         videoRef,
+        streamRef,
         error,
         setError,
         facingMode,
         canFlip,
         flipCamera,
+        start,
+        stop,
     };
 }

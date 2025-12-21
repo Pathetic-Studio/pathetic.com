@@ -16,6 +16,7 @@ export default function CameraRendererBasic({
     facingMode,
     onFlipCamera,
 }: CameraRendererProps) {
+    // Only mirror the selfie camera.
     useMirroredVideoCanvas({
         enabled: enabled && facingMode === "user",
         videoRef,
@@ -23,7 +24,8 @@ export default function CameraRendererBasic({
         srcCanvasRef,
     });
 
-    const showFlip = canFlip && facingMode === "environment";
+    // Show flip whenever device supports it.
+    const showFlip = canFlip && !hasBlob;
 
     return (
         <div className="flex flex-col">
@@ -44,16 +46,20 @@ export default function CameraRendererBasic({
                 <div className="mt-3 flex justify-center gap-4">
                     {showFlip && (
                         <button
+                            type="button"
                             onClick={onFlipCamera}
-                            className="relative inline-flex items-center px-4 py-1"
+                            className="relative inline-flex items-center px-4 py-1 disabled:opacity-60"
+                            aria-label="Flip camera"
                         >
                             <Repeat className="h-12 w-12 shrink-0 [transform:scaleX(0.6)] text-primary hover:scale-110 transition" />
                         </button>
                     )}
 
                     <button
+                        type="button"
                         onClick={onCapture}
-                        className="relative inline-flex items-center px-4 py-1"
+                        className="relative inline-flex items-center px-4 py-1 disabled:opacity-60"
+                        aria-label="Capture"
                     >
                         <Camera className="h-12 w-12 shrink-0 [transform:scaleX(0.6)] text-primary hover:scale-110 transition" />
                     </button>
