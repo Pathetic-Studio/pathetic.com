@@ -1,6 +1,15 @@
+// components/header/desktop-nav.tsx
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -9,9 +18,15 @@ import { NAVIGATION_QUERYResult } from "@/sanity.types";
 import LogoAnimated from "@/components/logo-animated";
 import ContactFormTrigger from "@/components/contact/contact-form-trigger";
 import { InstagramIcon } from "../ui/instagram-icon";
-import DesktopNavRightAnim from "./desktop-nav-right-anim";
+import DesktopNavRightAnim, { DesktopNavRightAnimHandle } from "./desktop-nav-right-anim";
 import DesktopNavLeftAnim, { DesktopNavLeftAnimHandle } from "./desktop-nav-left-anim";
+import DesktopNavSocialAnim, { DesktopNavSocialAnimHandle } from "./desktop-nav-social-anim";
 import { useHeaderNavOverrides, type NavLinkLite } from "./nav-overrides";
+import {
+  registerLeftNavController,
+  registerRightNavController,
+  registerSocialNavController,
+} from "./nav-anim-registry";
 
 type NavigationDoc = NAVIGATION_QUERYResult[0];
 type NavLink = NonNullable<NonNullable<NavigationDoc["leftLinks"]>[number]>;
@@ -44,6 +59,26 @@ function dispatchAnchorNavigate(anchorId: string, offsetPercent?: number | null)
   } catch { }
 }
 
+/**
+ * Critical fix:
+ * - old hook used useEffect => initial client render saw loaderPlaying=false
+ * - right nav mounted as open, then loader flag flipped => it closed => looked like a flash
+ * This reads the html attribute synchronously (useSyncExternalStore).
+ */
+function useLoaderPlaying(): boolean {
+  const getSnapshot = () =>
+    typeof document !== "undefined" &&
+    document.documentElement.hasAttribute("data-loader-playing");
+
+  const subscribe = (onStoreChange: () => void) => {
+    const handler = () => onStoreChange();
+    window.addEventListener("loader-playing-change", handler as any);
+    return () => window.removeEventListener("loader-playing-change", handler as any);
+  };
+
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
+
 export default function DesktopNav({
   navigation,
   settings,
@@ -62,9 +97,13 @@ export default function DesktopNav({
 
   const { overrides } = useHeaderNavOverrides();
 
-  // Cache replacement links so we can animate them OUT after overrides reset to null
-  const [cachedReplaceLinks, setCachedReplaceLinks] = useState<NavLinkLite[]>([]);
+  const loaderPlaying = useLoaderPlaying();
 
+  // hydration gate to prevent any “pre-effect” mismatches
+  const [hydrated, setHydrated] = useState(false);
+  useLayoutEffect(() => setHydrated(true), []);
+
+  const [cachedReplaceLinks, setCachedReplaceLinks] = useState<NavLinkLite[]>([]);
   useEffect(() => {
     const incoming = overrides?.leftNavReplace ?? null;
     if (incoming && incoming.length) setCachedReplaceLinks(incoming);
@@ -82,28 +121,61 @@ export default function DesktopNav({
 
   const targetLeftSlot: "default" | "replace" = needsLeftReplace ? "replace" : "default";
 
-  const rightOpen =
-    !isMemeBoothRoute ? true : (overrides?.showDesktopRightLinks ?? true);
+  const rightOpen = !isMemeBoothRoute ? true : (overrides?.showDesktopRightLinks ?? true);
+
+  // ✅ hard gate: until hydrated + loader not playing, keep closed (kills the “open then close” flash)
+  const rightOpenEffective = hydrated && !loaderPlaying ? rightOpen : false;
 
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
 
-  const handleSamePageAnchor = useCallback(
-    (e: React.MouseEvent, navItem: NavLinkLite) => {
-      const anchor = getAnchorData(navItem);
-      if (!anchor?.anchorId) return;
+  const handleSamePageAnchor = useCallback((e: React.MouseEvent, navItem: NavLinkLite) => {
+    const anchor = getAnchorData(navItem);
+    if (!anchor?.anchorId) return;
 
-      // This handler is ONLY for same-page anchors (home).
-      e.preventDefault();
-      e.stopPropagation();
-
-      dispatchAnchorNavigate(anchor.anchorId, anchor.anchorOffsetPercent);
-    },
-    []
-  );
+    e.preventDefault();
+    e.stopPropagation();
+    dispatchAnchorNavigate(anchor.anchorId, anchor.anchorOffsetPercent);
+  }, []);
 
   const leftDefaultRef = useRef<DesktopNavLeftAnimHandle | null>(null);
   const leftReplaceRef = useRef<DesktopNavLeftAnimHandle | null>(null);
-  const seqIdRef = useRef(0);
+
+  const rightRef = useRef<DesktopNavRightAnimHandle | null>(null);
+  const socialRef = useRef<DesktopNavSocialAnimHandle | null>(null);
+
+  useEffect(() => {
+    const proxy = {
+      open: async () => {
+        const active = targetLeftSlot === "replace" ? leftReplaceRef.current : leftDefaultRef.current;
+        await active?.open();
+      },
+      close: async () => {
+        const active = targetLeftSlot === "replace" ? leftReplaceRef.current : leftDefaultRef.current;
+        await active?.close();
+      },
+      setOpenImmediate: (open: boolean) => {
+        const active = targetLeftSlot === "replace" ? leftReplaceRef.current : leftDefaultRef.current;
+        active?.setOpenImmediate(open);
+      },
+    };
+
+    registerLeftNavController(proxy);
+    return () => registerLeftNavController(null);
+  }, [targetLeftSlot]);
+
+  useEffect(() => {
+    if (!rightRef.current) return;
+    registerRightNavController(rightRef.current);
+    return () => registerRightNavController(null);
+  }, []);
+
+  useEffect(() => {
+    if (!socialRef.current) return;
+    // mirror the right side behavior
+    socialRef.current.setOpenImmediate(hydrated && !loaderPlaying);
+    registerSocialNavController(socialRef.current);
+    return () => registerSocialNavController(null);
+  }, [loaderPlaying, hydrated]);
 
   const renderLeftLinks = (links: NavLinkLite[]) => (
     <>
@@ -113,9 +185,7 @@ export default function DesktopNav({
         if (navItem.linkType === "contact") {
           return (
             <span key={key} data-left-nav-item className="inline-flex">
-              <ContactFormTrigger
-                className={cn(buttonVariants({ variant: "menu", size: "sm" }))}
-              >
+              <ContactFormTrigger className={cn(buttonVariants({ variant: "menu", size: "sm" }))}>
                 {navItem.title}
               </ContactFormTrigger>
             </span>
@@ -126,7 +196,6 @@ export default function DesktopNav({
           const anchor = getAnchorData(navItem);
           const anchorId = anchor?.anchorId ?? null;
 
-          // ✅ On home: do NOT use <Link href="#...">. Use a button.
           if (pathname === "/" && anchorId) {
             return (
               <span key={key} data-left-nav-item className="inline-flex">
@@ -144,7 +213,6 @@ export default function DesktopNav({
             );
           }
 
-          // ✅ Not on home: navigate to home anchor normally
           const href = anchorId ? `/#${anchorId}` : "/";
 
           return (
@@ -169,9 +237,7 @@ export default function DesktopNav({
               link={navItem as any}
               variant="menu"
               size="sm"
-              className={cn(
-                "transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0"
-              )}
+              className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0")}
             >
               {navItem.title}
             </Button>
@@ -216,7 +282,6 @@ export default function DesktopNav({
           const anchor = getAnchorData(navItem);
           const anchorId = anchor?.anchorId ?? null;
 
-          // ✅ On home: no <Link href="#...">. Use button.
           if (pathname === "/" && anchorId) {
             return (
               <button
@@ -234,7 +299,6 @@ export default function DesktopNav({
             );
           }
 
-          // ✅ Not on home: navigate to home anchor
           const href = anchorId ? `/#${anchorId}` : "/";
 
           return (
@@ -260,9 +324,7 @@ export default function DesktopNav({
             variant={variant}
             size="sm"
             data-right-nav-item
-            className={cn(
-              "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
-            )}
+            className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full")}
           >
             {navItem.title}
           </Button>
@@ -273,6 +335,12 @@ export default function DesktopNav({
 
   useEffect(() => {
     if (!leftDefaultRef.current || !leftReplaceRef.current) return;
+
+    if (loaderPlaying || !hydrated) {
+      leftDefaultRef.current.setOpenImmediate(false);
+      leftReplaceRef.current.setOpenImmediate(false);
+      return;
+    }
 
     if (!readyToInitialize) {
       leftDefaultRef.current.setOpenImmediate(false);
@@ -285,9 +353,6 @@ export default function DesktopNav({
       leftReplaceRef.current.setOpenImmediate(false);
       return;
     }
-
-    const seq = ++seqIdRef.current;
-    const stillCurrent = () => seqIdRef.current === seq;
 
     const run = async () => {
       leftDefaultRef.current!.setOpenImmediate(false);
@@ -312,8 +377,6 @@ export default function DesktopNav({
 
         if (prev === "replace") setCachedReplaceLinks([]);
 
-        if (!stillCurrent()) return;
-
         if (next === "replace") await leftReplaceRef.current!.open();
         else await leftDefaultRef.current!.open();
 
@@ -328,51 +391,57 @@ export default function DesktopNav({
     };
 
     void run();
-  }, [readyToInitialize, targetLeftSlot, replaceLinks.length]);
+  }, [loaderPlaying, hydrated, readyToInitialize, targetLeftSlot, replaceLinks.length]);
+
+  const headerLogoStyle =
+    !hydrated ? { opacity: 0, visibility: "hidden" as const } : undefined;
 
   return (
     <div className="hidden xl:flex w-full items-center justify-between text-primary">
-      {/* Left links */}
       <div className="flex flex-1 items-center justify-start">
         <div className="grid">
-          <DesktopNavLeftAnim
-            ref={leftDefaultRef}
-            className="flex items-center gap-4 [grid-area:1/1]"
-          >
+          <DesktopNavLeftAnim ref={leftDefaultRef} className="flex items-center gap-4 [grid-area:1/1]">
             {renderLeftLinks(defaultLeftLinks as unknown as NavLinkLite[])}
           </DesktopNavLeftAnim>
 
-          <DesktopNavLeftAnim
-            ref={leftReplaceRef}
-            className="flex items-center gap-4 [grid-area:1/1]"
-          >
+          <DesktopNavLeftAnim ref={leftReplaceRef} className="flex items-center gap-4 [grid-area:1/1]">
             {renderLeftLinks(replaceLinks)}
           </DesktopNavLeftAnim>
         </div>
       </div>
 
-      {/* Center logo */}
       <div className="flex justify-center">
         <Link
           href="/"
           aria-label="Home page"
           id="header-logo-main-desktop"
           data-header-logo-main="true"
-          className="flex items-center justify-center"
+          className="relative flex items-center justify-center"
+          style={headerLogoStyle}
         >
-          <LogoAnimated className="h-8 w-auto" />
+          <span data-header-logo-native="true" className="flex items-center justify-center">
+            <LogoAnimated className="h-8 w-auto" />
+          </span>
         </Link>
       </div>
 
-      {/* Right links + instagram */}
       <div className="flex flex-1 justify-end gap-2 items-stretch">
-        <DesktopNavRightAnim ready={readyToInitialize} isOpen={rightOpen}>
+        <DesktopNavRightAnim ref={rightRef} ready={readyToInitialize} isOpen={rightOpenEffective}>
           {renderRightLinks(rightLinks as unknown as NavLinkLite[])}
         </DesktopNavRightAnim>
 
-        <div className="h-full flex items-center">
-          <InstagramIcon instagramUrl={instagramUrl} />
-        </div>
+        <DesktopNavSocialAnim ref={socialRef} className="h-full">
+          <span
+            data-social-nav-item
+            className={cn(
+              "inline-flex items-center h-8",
+              "border-0 outline-none ring-0 shadow-none",
+              "[&_*]:border-0 [&_*]:outline-none [&_*]:ring-0 [&_*]:shadow-none"
+            )}
+          >
+            <InstagramIcon instagramUrl={instagramUrl} />
+          </span>
+        </DesktopNavSocialAnim>
       </div>
     </div>
   );

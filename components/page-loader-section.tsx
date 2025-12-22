@@ -1,24 +1,27 @@
 // components/page-loader-section.tsx
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  memo,
-} from "react";
-import Link from "next/link";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { stegaClean } from "next-sanity";
-import { gsap } from "gsap";
+import gsap from "gsap";
+import ScrollSmoother from "gsap/ScrollSmoother";
+import Flip from "gsap/Flip";
 
 import PortableTextRenderer from "@/components/portable-text-renderer";
 import { Button } from "@/components/ui/button";
 import TitleText from "@/components/ui/title-text";
-import ImageExplode from "@/components/effects/image-explode";
 import LogoAnimated from "@/components/logo-animated";
 import { cn } from "@/lib/utils";
+
+import ImageExplodeLoader from "@/components/effects/image-explode-loader";
+import {
+  getLeftNavController,
+  getRightNavController,
+  getSocialNavController,
+} from "@/components/header/nav-anim-registry";
+
+gsap.registerPlugin(ScrollSmoother, Flip);
 
 type SpriteImage = {
   _key?: string;
@@ -42,10 +45,6 @@ type PageLoaderSectionProps = {
       linkType?: "internal" | "external" | "contact" | "anchor-link" | null;
     }[]
     | null;
-    sectionHeightMobile?: "auto" | "50vw" | "full" | "custom" | null;
-    sectionHeightDesktop?: "auto" | "50vw" | "full" | "custom" | null;
-    customHeightMobile?: string | null;
-    customHeightDesktop?: string | null;
     feature?:
     | {
       type?: string | null;
@@ -56,273 +55,392 @@ type PageLoaderSectionProps = {
 };
 
 const SECTION_ID = "page-loader-section";
+const EXPLODE_STAGE_ID = "page-explode-stage";
 const SESSION_KEY = "pageLoaderPlayed";
 
-function getVisibleHeaderLogo(): HTMLElement | null {
-  const candidates = Array.from(
-    document.querySelectorAll<HTMLElement>('[data-header-logo-main="true"]'),
-  );
+const LOADER_FLAG_ATTR = "data-loader-playing";
+const LOADER_EVENT = "loader-playing-change";
 
-  if (!candidates.length) return null;
+const LOGO_FLIP_DONE_ATTR = "data-logo-flip-done";
+const LOGO_FLIP_EVENT = "logo-flip-done-change";
 
-  for (const el of candidates) {
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      return el;
-    }
+const HEADER_LOGO_NATIVE_SELECTOR = '[data-header-logo-native="true"]';
+
+function setLoaderPlayingFlag(on: boolean) {
+  if (typeof document === "undefined") return;
+
+  if (on) document.documentElement.setAttribute(LOADER_FLAG_ATTR, "true");
+  else document.documentElement.removeAttribute(LOADER_FLAG_ATTR);
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(LOADER_EVENT, { detail: { on } }));
   }
-
-  return candidates[0] ?? null;
 }
 
-// Memo wrapper so ImageExplode does not re-init when other state (like titleActive)
-// updates later in the timeline.
-const ExplodeBackground = memo(function ExplodeBackground({
-  sprites,
-}: {
-  sprites: SpriteImage[];
-}) {
-  if (!sprites.length) return null;
-  return <ImageExplode containerId={SECTION_ID} images={sprites as any} />;
-});
+function setLogoFlipDoneFlag(on: boolean) {
+  if (typeof document === "undefined") return;
+
+  if (on) document.documentElement.setAttribute(LOGO_FLIP_DONE_ATTR, "true");
+  else document.documentElement.removeAttribute(LOGO_FLIP_DONE_ATTR);
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(LOGO_FLIP_EVENT, { detail: { on } }));
+  }
+}
+
+declare global {
+  interface Window {
+    __APP_CAME_VIA_CLIENT_NAV__?: boolean;
+  }
+}
+
+function getNavType(): PerformanceNavigationTiming["type"] | null {
+  try {
+    const nav = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    return (nav?.type ?? null) as any;
+  } catch {
+    return null;
+  }
+}
+
+function shouldPlayLoader(enabled: boolean, oncePerSession: boolean): boolean {
+  if (typeof window === "undefined") return false;
+  if (!enabled) return false;
+
+  if (window.location.hash) return false;
+  if (window.__APP_CAME_VIA_CLIENT_NAV__) return false;
+
+  if (oncePerSession) {
+    try {
+      if (window.sessionStorage.getItem(SESSION_KEY)) return false;
+    } catch { }
+    return true;
+  }
+
+  const navType = getNavType();
+  if (navType === "back_forward") return false;
+  if (navType === "navigate" || navType === "reload" || navType === "prerender") return true;
+
+  return true;
+}
+
+function lockScroll(lock: boolean) {
+  const body = document.body;
+  const html = document.documentElement;
+
+  if (lock) {
+    body.dataset.loaderScrollLock = "true";
+    body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
+    html.style.height = "100%";
+    body.style.height = "100%";
+  } else {
+    if (body.dataset.loaderScrollLock) delete body.dataset.loaderScrollLock;
+    body.style.overflow = "";
+    body.style.height = "";
+    html.style.overflow = "";
+    html.style.height = "";
+  }
+}
+
+/**
+ * DesktopNav is hidden below xl, so its logo may not exist at all.
+ * This finds *any* header logo (desktop or mobile) that is actually visible (non-zero bounds).
+ *
+ * You MUST ensure your mobile header logo uses data-header-logo-main="true" too.
+ */
+function getVisibleHeaderLogoTarget(): HTMLElement | null {
+  const els = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-header-logo-main="true"]')
+  );
+
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) return el;
+  }
+
+  return els[0] ?? null;
+}
+
+// Rough estimate for how long TitleText's type-on takes so we can sync nav+buttons after it.
+// Keep conservative so nav/buttons don’t jump early.
+function estimateTitleTypeDuration(text?: string | null) {
+  const t = (text ?? "").trim();
+  if (!t) return 0.6;
+  // base + per-char, clamped
+  return Math.max(0.8, Math.min(2.0, 0.8 + t.length * 0.045));
+}
 
 export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const pathname = usePathname();
+
   const enabled = !!data.enabled;
-  const { oncePerSession, tagLine, title, body, links, feature } = data;
+  const oncePerSession = !!data.oncePerSession;
+  const { tagLine, title, body, links, feature } = data;
 
-  // Home page only and only when enabled
-  if (pathname !== "/") return null;
-  if (!enabled) return null;
+  // IMPORTANT: keep hooks unconditional; never early-return above this point
+  const shouldRender = pathname === "/" && enabled;
 
-  const sprites = (feature?.images || []).filter((i) => i?.url) as SpriteImage[];
+  const sprites = useMemo(
+    () => ((feature?.images || []).filter((i) => i?.url) as SpriteImage[]),
+    [feature?.images]
+  );
 
-  type LoaderState = "unknown" | "playing" | "skipped";
+  type LoaderState = "playing" | "skipped";
 
-  const [loaderState, setLoaderState] = useState<LoaderState>("unknown");
-  const [showExplode, setShowExplode] = useState(false);
+  // useLayoutEffect hydration gate = avoids 1-frame “wrong initial state” paint
+  const [hydrated, setHydrated] = useState(false);
+  useLayoutEffect(() => setHydrated(true), []);
+
+  const [loaderState, setLoaderState] = useState<LoaderState>("skipped");
   const [titleActive, setTitleActive] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!shouldRender) return;
+
+    const play = shouldPlayLoader(enabled, oncePerSession);
+    setLoaderState(play ? "playing" : "skipped");
+    setTitleActive(!play);
+
+    if (play) setLogoFlipDoneFlag(false);
+  }, [hydrated, shouldRender, enabled, oncePerSession]);
 
   const sectionRef = useRef<HTMLElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const logoWrapperRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
-  // Decide if loader should play
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!enabled) {
-      setLoaderState("skipped");
-      return;
-    }
+  const isPlaying = hydrated && shouldRender && loaderState === "playing";
 
-    if (oncePerSession) {
-      const hasPlayed = window.sessionStorage.getItem(SESSION_KEY);
-      if (hasPlayed) {
-        // Loader already played this session: show explode and skip animation
-        setShowExplode(true);
-        setLoaderState("skipped");
-        setTitleActive(true); // title can type immediately when skipping loader
-        return;
-      }
-    }
-
-    // First time this session: play loader
-    setLoaderState("playing");
-  }, [enabled, oncePerSession]);
-
-  // Animation: ImageExplode first, then PATHEꓕIC typing, pause, move to header, reveal content + type-on title
+  // IMPORTANT: useLayoutEffect so the html attr is correct before paint on state changes.
   useLayoutEffect(() => {
-    if (loaderState !== "playing") return;
+    if (!hydrated) return;
+    setLoaderPlayingFlag(isPlaying);
+    return () => setLoaderPlayingFlag(false);
+  }, [hydrated, isPlaying]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    lockScroll(true);
+
+    const smoother = ScrollSmoother.get();
+    const wasPaused = smoother ? (smoother as any).paused?.() : false;
+
+    try {
+      if (smoother && (smoother as any).paused) (smoother as any).paused(true);
+    } catch { }
+
+    return () => {
+      try {
+        if (smoother && (smoother as any).paused) (smoother as any).paused(!!wasPaused);
+      } catch { }
+      lockScroll(false);
+      setLogoFlipDoneFlag(false);
+    };
+  }, [isPlaying]);
+
+  useLayoutEffect(() => {
+    if (!isPlaying) return;
 
     const overlayEl = overlayRef.current;
     const logoWrapperEl = logoWrapperRef.current;
-
     if (!overlayEl || !logoWrapperEl) return;
 
     const ctx = gsap.context(() => {
-      const headerLogo = getVisibleHeaderLogo();
       const siteHeader = document.getElementById("site-header-root");
 
-      // 1) Hide nav + generic content under the loader
-      if (siteHeader) {
-        gsap.set(siteHeader, { autoAlpha: 0 });
-      }
-      if (headerLogo) {
-        gsap.set(headerLogo, { opacity: 0 });
-      }
+      const left = getLeftNavController();
+      const right = getRightNavController();
+      const socials = getSocialNavController();
 
-      if (contentRef.current) {
-        gsap.set(contentRef.current, { autoAlpha: 0, y: 32 });
-      }
+      // Force nav closed before anything paints.
+      left?.setOpenImmediate(false);
+      right?.setOpenImmediate(false);
+      socials?.setOpenImmediate(false);
 
-      // 2) Overlay visible as logo layer
-      gsap.set(overlayEl, {
-        autoAlpha: 1,
-      });
+      // Header must be laid out so logo bounds exist.
+      // Keep it visible, but non-interactive during loader.
+      if (siteHeader) gsap.set(siteHeader, { autoAlpha: 1, pointerEvents: "none" });
 
-      // 3) Logo wrapper: centered in the section
+      // Hide native header logo until our overlay logo "arrives"
+      const headerNative = document.querySelector<HTMLElement>(HEADER_LOGO_NATIVE_SELECTOR);
+      if (headerNative) gsap.set(headerNative, { autoAlpha: 0 });
+
+      if (contentRef.current) gsap.set(contentRef.current, { autoAlpha: 0, y: 32 });
+
+      // overlay starts hidden, then fades in
+      gsap.set(overlayEl, { autoAlpha: 0 });
+
+      // Reset overlay logo transform baseline
       gsap.set(logoWrapperEl, {
         x: 0,
         y: 0,
         scale: 1,
+        rotation: 0,
         transformOrigin: "50% 50%",
+        clearProps: "transform",
       });
 
-      // 4) PATHEꓕIC letters = <path> inside the SVG
-      const svgEl = logoWrapperEl.querySelector("svg");
-      const letterNodes =
-        (svgEl?.querySelectorAll("path") as NodeListOf<SVGPathElement>) ?? [];
+      const btns = gsap.utils.toArray<HTMLElement>(
+        contentRef.current?.querySelectorAll("[data-loader-btn]") ?? []
+      );
+      if (btns.length) gsap.set(btns, { scale: 0, transformOrigin: "center center" });
 
-      // Hide letters initially
-      gsap.set(letterNodes, { autoAlpha: 0 });
+      // "type on": reveal svg paths
+      const svgEl = logoWrapperEl.querySelector("svg");
+      const paths = gsap.utils.toArray<SVGPathElement>(svgEl?.querySelectorAll("path") ?? []);
+      if (paths.length) gsap.set(paths, { autoAlpha: 0 });
+
+      const titleTypeDur = estimateTitleTypeDuration(title);
 
       const tl = gsap.timeline({
         defaults: { ease: "power2.out" },
         onComplete: () => {
-          if (typeof window !== "undefined" && oncePerSession) {
-            window.sessionStorage.setItem(SESSION_KEY, "true");
+          if (oncePerSession) {
+            try {
+              window.sessionStorage.setItem(SESSION_KEY, "true");
+            } catch { }
           }
         },
       });
 
-      // 4.1) Trigger ImageExplode first (only once; memo wrapper prevents re-init on later state updates)
-      tl.call(() => {
-        setShowExplode(true);
-      });
+      // overlay in
+      tl.to(overlayEl, { autoAlpha: 1, duration: 0.2, ease: "power2.out" });
 
-      // 4.2) Small delay so the explode visibly kicks in before logo typing
-      tl.to({}, { duration: 0.3 });
-
-      // 4.3) PATHEꓕIC typing-on (instant per letter, staggered)
-      tl.to(letterNodes, {
-        autoAlpha: 1,
-        duration: 0,
-        stagger: 0.05,
-        ease: "none",
-      });
-
-      // 4.4) Hold big logo in the middle
-      tl.to({}, { duration: 0.9 });
-
-      // 5) Move logo into header logo position
-      tl.to(logoWrapperEl, {
-        duration: 0.8,
-        ease: "power3.inOut",
-        x: () => {
-          const headerLogoEl = getVisibleHeaderLogo();
-          const src = logoWrapperRef.current;
-          if (!headerLogoEl || !src) return 0;
-
-          const srcRect = src.getBoundingClientRect();
-          const destRect = headerLogoEl.getBoundingClientRect();
-
-          const srcCx = srcRect.left + srcRect.width / 2;
-          const destCx = destRect.left + destRect.width / 2;
-
-          return destCx - srcCx;
-        },
-        y: () => {
-          const headerLogoEl = getVisibleHeaderLogo();
-          const src = logoWrapperRef.current;
-          if (!headerLogoEl || !src) return 0;
-
-          const srcRect = src.getBoundingClientRect();
-          const destRect = headerLogoEl.getBoundingClientRect();
-
-          const srcCy = srcRect.top + srcRect.height / 2;
-          const destCy = destRect.top + destRect.height / 2;
-
-          return destCy - srcCy;
-        },
-        scale: () => {
-          const headerLogoEl = getVisibleHeaderLogo();
-          const src = logoWrapperRef.current;
-          if (!headerLogoEl || !src) return 0.35;
-
-          const srcRect = src.getBoundingClientRect();
-          const destRect = headerLogoEl.getBoundingClientRect();
-
-          if (!srcRect.width) return 0.35;
-          return destRect.width / srcRect.width;
-        },
-      });
-
-      // 6) Fade out overlay + fade in actual header
-      tl.to(
-        overlayEl,
-        {
-          autoAlpha: 0,
-          duration: 0.4,
-          ease: "power2.out",
-        },
-        "-=0.5",
-      );
-
-      if (headerLogo) {
-        tl.to(
-          headerLogo,
-          { opacity: 1, duration: 0.4, ease: "power2.out" },
-          "-=0.35",
-        );
+      // type on (logo)
+      if (paths.length) {
+        tl.to(paths, {
+          autoAlpha: 1,
+          duration: 0.01,
+          stagger: 0.04,
+          ease: "none",
+        });
       }
 
-      if (siteHeader) {
-        tl.to(
-          siteHeader,
-          { autoAlpha: 1, duration: 0.5, ease: "power2.out" },
-          "-=0.35",
-        );
-      }
+      // PAUSE after logo animates on (your request)
+      tl.to({}, { duration: 0.7 });
 
-      // 7) Fade in content, and trigger title type-on via state in the same phase
+      // ===== MOVE LOGO TO HEADER =====
       tl.add(() => {
-        setTitleActive(true);
-      }, "-=0.35");
+        const target = getVisibleHeaderLogoTarget();
+        if (!target) return;
+
+        const tr = target.getBoundingClientRect();
+        if (tr.width <= 0 || tr.height <= 0) return;
+
+        const state = Flip.getState(logoWrapperEl);
+
+        Flip.fit(logoWrapperEl, target, { absolute: true, scale: true });
+
+        const tween = Flip.from(state, {
+          duration: 0.8,
+          ease: "power3.inOut",
+          absolute: true,
+          scale: true,
+        });
+
+        // Fallback if Flip returns null (rare)
+        if (!tween) {
+          const sr = logoWrapperEl.getBoundingClientRect();
+          const dx = tr.left + tr.width / 2 - (sr.left + sr.width / 2);
+          const dy = tr.top + tr.height / 2 - (sr.top + sr.height / 2);
+          const sc = sr.width ? tr.width / sr.width : 0.35;
+
+          gsap.to(logoWrapperEl, {
+            duration: 0.8,
+            ease: "power3.inOut",
+            x: `+=${dx}`,
+            y: `+=${dy}`,
+            scale: sc,
+          });
+        }
+      });
+
+      // keep timeline time aligned with move duration
+      tl.to({}, { duration: 0.8 });
+
+      // Arrived: reveal native header logo (and mark flip done)
+      tl.add(() => {
+        setLogoFlipDoneFlag(true);
+        if (headerNative) gsap.set(headerNative, { autoAlpha: 1 });
+      });
+
+      // Re-enable header interactions immediately after arrival
+      if (siteHeader) tl.to(siteHeader, { pointerEvents: "auto", duration: 0 }, "<");
+
+      // Start title typing + content in FIRST
+      tl.add(() => setTitleActive(true), "<");
 
       if (contentRef.current) {
+        tl.to(contentRef.current, { autoAlpha: 1, y: 0, duration: 0.6 }, "<");
+      }
+
+      // Wait for the title to finish typing, then bring nav + buttons together (your request)
+      tl.to({}, { duration: titleTypeDur });
+
+      tl.add(() => {
+        void left?.open();
+        void right?.open();
+        void socials?.open();
+      }, "<");
+
+      if (btns.length) {
         tl.to(
-          contentRef.current,
+          btns,
           {
-            autoAlpha: 1,
-            y: 0,
-            duration: 0.6,
-            ease: "power2.out",
+            scale: 1,
+            duration: 0.8,
+            ease: "elastic.out(1, 1)",
+            stagger: { each: 0.06, from: "start" },
+            clearProps: "transform",
           },
-          "-=0.3",
+          "<"
         );
       }
+
+      tl.add(() => setLoaderState("skipped"), "<");
     }, sectionRef);
 
     return () => ctx.revert();
-  }, [loaderState, oncePerSession]);
+  }, [isPlaying, oncePerSession, title]);
+
+  // The only return guard is here, after hooks.
+  if (!shouldRender) return null;
 
   return (
     <section
       ref={sectionRef}
       id={SECTION_ID}
-      className="relative min-h-[100svh] overflow-hidden md:overflow-visible bg-background"
+      className={cn(
+        "relative min-h-[100svh] overflow-hidden md:overflow-visible bg-background",
+        isPlaying && "fixed inset-0 z-[9998]"
+      )}
+      style={!hydrated ? { visibility: "hidden" } : undefined}
     >
-      {/* Background ImageExplode: mounted once via memoized wrapper so title type-on doesn't re-init it */}
-      {showExplode && <ExplodeBackground sprites={sprites} />}
+      {/* Exploder always-on, scoped to this section */}
+      <div id={EXPLODE_STAGE_ID} className="absolute inset-0 z-0 pointer-events-none" />
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <ImageExplodeLoader containerId={EXPLODE_STAGE_ID} images={sprites as any} />
+      </div>
 
-      {/* Foreground hero content (hidden by default while loader runs/decides) */}
       <div className="container relative z-10 min-h-[100svh]">
         <div
           ref={contentRef}
           className={cn(
-            "min-h-[100svh] flex flex-col justify-center py-20 lg:pt-40 text-center",
-            loaderState !== "skipped" && "opacity-0 translate-y-8",
+            "min-h-[100svh] flex flex-col justify-center py-20 text-center",
+            isPlaying && "opacity-0 translate-y-8",
+            !hydrated && "opacity-0"
           )}
         >
           {tagLine && (
             <h1 className="leading-[0] uppercase italic font-sans">
-              <span className="text-base font-semibold opacity-50">
-                {tagLine}
-              </span>
+              <span className="text-base font-semibold opacity-50">{tagLine}</span>
             </h1>
           )}
-
 
           {title && (
             <TitleText
@@ -349,29 +467,32 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
             <div className="z-10 mt-10 flex flex-wrap gap-4 justify-center">
               {links.map((link) => (
                 <Button
-                  key={link._key ?? link.title}
+                  key={link._key ?? link.title ?? ""}
+                  data-loader-btn
                   link={link}
                   variant={stegaClean((link.buttonVariant as any) ?? "default") as any}
                   size="lg"
+                  style={isPlaying ? { transform: "scale(0)" } : undefined}
                 >
                   {link.title}
                 </Button>
               ))}
             </div>
           )}
-
         </div>
       </div>
 
-      {/* Transparent overlay with big typing logo centered in the section */}
-      {loaderState === "playing" && (
+      {isPlaying && (
         <div
           ref={overlayRef}
           className="pointer-events-none absolute inset-0 z-[9999] flex items-center justify-center"
+          style={{ opacity: 0, visibility: "visible" }}
+          aria-hidden="true"
         >
           <div
             ref={logoWrapperRef}
             className="flex items-center justify-center will-change-transform"
+            style={{ opacity: 1, visibility: "visible" }}
           >
             <LogoAnimated className="w-[min(80vw,720px)] text-black dark:text-foreground" />
           </div>

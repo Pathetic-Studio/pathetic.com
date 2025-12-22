@@ -1,3 +1,4 @@
+// components/layout/transition-shell.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -12,13 +13,32 @@ type AnchorNavigateDetail = {
     href?: string;
 };
 
+declare global {
+    interface Window {
+        __APP_CAME_VIA_CLIENT_NAV__?: boolean;
+    }
+}
+
+const LOADER_FLAG_ATTR = "data-loader-playing";
+const LOADER_EVENT = "loader-playing-change";
+
+function markClientNav() {
+    try {
+        window.__APP_CAME_VIA_CLIENT_NAV__ = true;
+    } catch { }
+}
+
+function isLoaderPlayingNow() {
+    if (typeof document === "undefined") return false;
+    return document.documentElement.hasAttribute(LOADER_FLAG_ATTR);
+}
+
 function teleportToAnchor(anchorId: string, offsetPercent?: number | null) {
     const target = document.getElementById(anchorId);
     if (!target) return;
 
     const offsetPx =
-        ((typeof offsetPercent === "number" ? offsetPercent : 0) / 100) *
-        window.innerHeight;
+        ((typeof offsetPercent === "number" ? offsetPercent : 0) / 100) * window.innerHeight;
 
     const smoother = ScrollSmoother.get();
 
@@ -26,7 +46,7 @@ function teleportToAnchor(anchorId: string, offsetPercent?: number | null) {
         const current = smoother.scrollTop();
         const rectTop = target.getBoundingClientRect().top;
         const y = current + rectTop - offsetPx;
-        smoother.scrollTo(y, false); // instant jump
+        smoother.scrollTo(y, false);
     } else {
         const rect = target.getBoundingClientRect();
         const y = rect.top + window.scrollY - offsetPx;
@@ -38,18 +58,37 @@ function teleportToAnchor(anchorId: string, offsetPercent?: number | null) {
     } catch { }
 }
 
-export default function TransitionShell({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function TransitionShell({ children }: { children: React.ReactNode }) {
     const pageRef = useRef<HTMLDivElement | null>(null);
 
-    // one-shot flag to prevent any "scroll to top" in enter()
     const skipNextEnterScrollResetRef = useRef(false);
-
-    // keep a handle so we can kill the anchor timeline cleanly
     const anchorTlRef = useRef<gsap.core.Timeline | null>(null);
+
+    // IMPORTANT:
+    // Prevent "initial mount" enter animation. This is the #1 cause of flashes
+    // when combined with a home loader.
+    const isFirstEnterRef = useRef(true);
+
+    // If loader starts while a transition tween is running, force wrapper visible.
+    useEffect(() => {
+        const el = pageRef.current;
+        if (!el) return;
+
+        const onLoaderEvt = (ev: Event) => {
+            const e = ev as CustomEvent<{ on?: boolean }>;
+            const on = !!e.detail?.on;
+            if (!on) return;
+
+            anchorTlRef.current?.kill();
+            anchorTlRef.current = null;
+
+            gsap.killTweensOf(el);
+            gsap.set(el, { opacity: 1 });
+        };
+
+        window.addEventListener(LOADER_EVENT, onLoaderEvt as any);
+        return () => window.removeEventListener(LOADER_EVENT, onLoaderEvt as any);
+    }, []);
 
     useEffect(() => {
         const onAnchorNavigate = (ev: Event) => {
@@ -60,34 +99,27 @@ export default function TransitionShell({
             const { anchorId, offsetPercent, href } = e.detail || ({} as any);
             if (!anchorId) return;
 
-            // prevent TransitionRouter enter() from forcing top right after
+            // anchor navigation counts as client navigation
+            markClientNav();
+
             skipNextEnterScrollResetRef.current = true;
 
-            // kill any existing fades on the page root
             gsap.killTweensOf(el);
             anchorTlRef.current?.kill();
             anchorTlRef.current = null;
 
-            // Make sure we're visible before starting
             gsap.set(el, { opacity: 1 });
 
-            // Tune these to taste
             const FADE_OUT = 0.55;
             const PAUSE_OUT = 0.12;
             const PAUSE_IN = 0.08;
             const FADE_IN = 0.55;
 
-            const tl = gsap.timeline({
-                defaults: { ease: "none", overwrite: "auto" },
-            });
+            const tl = gsap.timeline({ defaults: { ease: "none", overwrite: "auto" } });
 
-            // Fade out (slower)
             tl.to(el, { opacity: 0, duration: FADE_OUT });
-
-            // Pause while hidden
             tl.to({}, { duration: PAUSE_OUT });
 
-            // Teleport while hidden + update URL without native jump
             tl.add(() => {
                 try {
                     const nextHref = href ?? `/#${anchorId}`;
@@ -97,10 +129,7 @@ export default function TransitionShell({
                 teleportToAnchor(anchorId, offsetPercent);
             });
 
-            // Small pause after teleport (lets layout settle while hidden)
             tl.to({}, { duration: PAUSE_IN });
-
-            // Fade in (slower)
             tl.to(el, { opacity: 1, duration: FADE_IN });
 
             anchorTlRef.current = tl;
@@ -118,10 +147,12 @@ export default function TransitionShell({
         <TransitionRouter
             auto
             leave={(next) => {
+                // any page transition = client nav
+                markClientNav();
+
                 const el = pageRef.current;
                 if (!el) return next();
 
-                // If an anchor timeline is mid-flight, kill it so router fade is clean
                 anchorTlRef.current?.kill();
                 anchorTlRef.current = null;
 
@@ -138,11 +169,24 @@ export default function TransitionShell({
                 const el = pageRef.current;
                 if (!el) return next();
 
-                // Same: avoid competing tweens
                 anchorTlRef.current?.kill();
                 anchorTlRef.current = null;
 
                 gsap.killTweensOf(el);
+
+                // HARD STOP: never animate the initial mount.
+                if (isFirstEnterRef.current) {
+                    isFirstEnterRef.current = false;
+                    gsap.set(el, { opacity: 1 });
+                    return next();
+                }
+
+                // If loader is active, do NOT run enter fade-in.
+                if (isLoaderPlayingNow()) {
+                    gsap.set(el, { opacity: 1 });
+                    return next();
+                }
+
                 gsap.set(el, { opacity: 0 });
 
                 try {
@@ -152,8 +196,6 @@ export default function TransitionShell({
                     if (!shouldSkip && !hasHash) {
                         window.scrollTo(0, 0);
                     }
-                } catch {
-                    // ignore
                 } finally {
                     skipNextEnterScrollResetRef.current = false;
                 }

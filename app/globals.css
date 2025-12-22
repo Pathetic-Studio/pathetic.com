@@ -45,6 +45,13 @@
   }
 }
 
+/* During loader, hide the native header logo UNTIL the flip is done */
+html[data-loader-playing="true"]:not([data-logo-flip-done="true"]) [data-header-logo-native="true"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+
 /* ===== Scrollbar (Chrome / Edge / Safari) ===== */
 
 /* width of the whole scrollbar */

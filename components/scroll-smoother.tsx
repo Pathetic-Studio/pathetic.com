@@ -1,3 +1,4 @@
+// components/layout/smooth-scroller.tsx
 "use client";
 
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
@@ -11,6 +12,9 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 }
 
+const LOADER_FLAG_ATTR = "data-loader-playing";
+const LOADER_EVENT = "loader-playing-change";
+
 export default function SmoothScroller({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
@@ -22,6 +26,21 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
   const savedTabScrollRef = useRef<number>(0);
 
   const [enableSmooth, setEnableSmooth] = useState(false);
+  const [suppressForLoader, setSuppressForLoader] = useState(false);
+
+  // Track loader flag without changing DOM structure
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const read = () => document.documentElement.hasAttribute(LOADER_FLAG_ATTR);
+    const apply = () => setSuppressForLoader(read());
+
+    apply();
+
+    const onEvt = () => apply();
+    window.addEventListener(LOADER_EVENT, onEvt as any);
+    return () => window.removeEventListener(LOADER_EVENT, onEvt as any);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -62,7 +81,6 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
           const current = smoother.scrollTop();
           const rectTop = target.getBoundingClientRect().top;
           const y = current + rectTop;
-
           smoother.scrollTo(y, true);
         } else {
           try {
@@ -81,17 +99,40 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
   }, []);
 
   useLayoutEffect(() => {
-    if (!enableSmooth) return;
     if (typeof window === "undefined") return;
 
     const prefersReduced =
       window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-    if (prefersReduced) return;
 
     const wrapper = wrapperRef.current;
     const content = contentRef.current;
     if (!wrapper || !content) return;
 
+    // If loader is playing: kill smoother + remove transforms (DO NOT touch opacity)
+    if (suppressForLoader) {
+      try {
+        ScrollSmoother.get()?.kill();
+      } catch { }
+
+      gsap.set(content, { clearProps: "transform" });
+
+      try {
+        ScrollTrigger.refresh();
+      } catch { }
+
+      return;
+    }
+
+    // No smooth on mobile/touch or reduced motion
+    if (!enableSmooth || prefersReduced) {
+      try {
+        ScrollSmoother.get()?.kill();
+      } catch { }
+      gsap.set(content, { clearProps: "transform" });
+      return;
+    }
+
+    // Smooth mode
     try {
       if ("scrollRestoration" in window.history) {
         window.history.scrollRestoration = "manual";
@@ -107,9 +148,10 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     document.documentElement.style.overflowAnchor = "none";
     document.body.style.overflowAnchor = "none";
 
-    ScrollSmoother.get()?.kill();
-
-    gsap.set(content, { opacity: 0 });
+    // Kill any prior smoother
+    try {
+      ScrollSmoother.get()?.kill();
+    } catch { }
 
     let smoother: ScrollSmoother | null = null;
 
@@ -120,12 +162,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
     const getScrollY = () => {
       if (smoother) return smoother.scrollTop();
-      return (
-        window.scrollY ||
-        window.pageYOffset ||
-        document.documentElement.scrollTop ||
-        0
-      );
+      return window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
     };
 
     const setScrollY = (y: number) => {
@@ -134,8 +171,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     };
 
     const parsePinDurationToPx = (raw: string | null, section: HTMLElement) => {
-      const natural =
-        Math.max(section.scrollHeight, section.offsetHeight) || window.innerHeight;
+      const natural = Math.max(section.scrollHeight, section.offsetHeight) || window.innerHeight;
 
       if (!raw) return natural;
 
@@ -179,13 +215,8 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
       if (!isDesktop) return;
 
-      const pinnedSections = gsap.utils.toArray<HTMLElement>(
-        '[data-pin-to-viewport="true"]'
-      );
-
-      pinnedSections.forEach((el) => {
-        el.style.overflowAnchor = "none";
-      });
+      const pinnedSections = gsap.utils.toArray<HTMLElement>('[data-pin-to-viewport="true"]');
+      pinnedSections.forEach((el) => (el.style.overflowAnchor = "none"));
 
       ro = new ResizeObserver(() => {
         if (suppressRefresh) return;
@@ -285,20 +316,15 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       setupPinning();
 
       requestAnimationFrame(() => {
-        if (window.location.hash) {
-          scrollToHashIfPresent();
-        } else {
-          setScrollY(0);
-        }
+        if (window.location.hash) scrollToHashIfPresent();
+        else setScrollY(0);
 
-        gsap.to(content, { opacity: 1, duration: 0.15, ease: "none" });
         requestAnimationFrame(() => ScrollTrigger.refresh());
       });
     } catch (err) {
       console.error("[SmoothScroller] ScrollSmoother.create failed", err);
       setupPinning();
       ScrollTrigger.refresh();
-      gsap.set(content, { opacity: 1 });
       scrollToHashIfPresent();
     }
 
@@ -310,29 +336,31 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       pinTriggers.forEach((t) => t.kill());
       smoother?.kill();
     };
-  }, [pathname, enableSmooth, scrollToHashIfPresent]);
+  }, [pathname, enableSmooth, suppressForLoader, scrollToHashIfPresent]);
 
   useEffect(() => {
-    if (enableSmooth) return;
+    // If smooth is disabled (mobile) OR loader is suppressing, still honor hash jumps
+    if (enableSmooth && !suppressForLoader) return;
     scrollToHashIfPresent();
-  }, [pathname, enableSmooth, scrollToHashIfPresent]);
+  }, [pathname, enableSmooth, suppressForLoader, scrollToHashIfPresent]);
 
-  if (!enableSmooth) {
-    return <div className="relative overflow-x-hidden">{children}</div>;
-  }
+  // Keep DOM structure stable; toggle styles only.
+  const wrapperStyle: React.CSSProperties =
+    suppressForLoader || !enableSmooth ? { height: "auto", overflow: "visible" } : { height: "var(--app-height, 100vh)" };
+
+  const wrapperClass =
+    suppressForLoader || !enableSmooth
+      ? "relative overflow-visible overflow-x-hidden [overflow-anchor:none]"
+      : "relative overflow-hidden overflow-x-hidden [overflow-anchor:none]";
+
+  const contentClass =
+    suppressForLoader || !enableSmooth
+      ? "min-h-[100vh] [overflow-anchor:none]"
+      : "min-h-[var(--app-height,100vh)] will-change-transform [transform:translate3d(0,0,0)] [overflow-anchor:none]";
 
   return (
-    <div
-      id="smooth-wrapper"
-      ref={wrapperRef}
-      className="relative overflow-hidden overflow-x-hidden [overflow-anchor:none]"
-      style={{ height: "var(--app-height, 100vh)" }}
-    >
-      <div
-        id="smooth-content"
-        ref={contentRef}
-        className="min-h-[var(--app-height,100vh)] will-change-transform [transform:translate3d(0,0,0)] [overflow-anchor:none]"
-      >
+    <div id="smooth-wrapper" ref={wrapperRef} className={wrapperClass} style={wrapperStyle}>
+      <div id="smooth-content" ref={contentRef} className={contentClass}>
         {children}
       </div>
     </div>
