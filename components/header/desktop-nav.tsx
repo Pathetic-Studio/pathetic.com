@@ -1,4 +1,3 @@
-// components/header/desktop-nav.tsx
 "use client";
 
 import React, {
@@ -90,7 +89,6 @@ export default function DesktopNav({
   const isMemeBoothRoute = !!pathname?.startsWith("/meme-booth");
 
   const { overrides } = useHeaderNavOverrides();
-
   const loaderPlaying = useLoaderPlaying();
 
   const [hydrated, setHydrated] = useState(false);
@@ -114,10 +112,37 @@ export default function DesktopNav({
 
   const targetLeftSlot: "default" | "replace" = needsLeftReplace ? "replace" : "default";
 
-  const rightOpen = !isMemeBoothRoute ? true : (overrides?.showDesktopRightLinks ?? true);
+  // -----------------------------
+  // RIGHT SLOT: LATCHED OPEN STATE
+  // -----------------------------
+  const desiredRightOpen = useMemo(() => {
+    if (!isMemeBoothRoute) return true;
+    // when overrides are present, use them
+    return overrides?.showDesktopRightLinks ?? true;
+  }, [isMemeBoothRoute, overrides?.showDesktopRightLinks]);
 
-  const rightOpenEffective = hydrated && !loaderPlaying ? rightOpen : false;
+  // latch across the overrides-not-ready window (Home -> Meme)
+  const [latchedRightOpen, setLatchedRightOpen] = useState<boolean>(true);
 
+  useEffect(() => {
+    // Loader always forces closed
+    if (!hydrated || loaderPlaying) return;
+
+    // Home: always open
+    if (!isMemeBoothRoute) {
+      setLatchedRightOpen(true);
+      return;
+    }
+
+    // Meme: wait until overrides exist before changing latch
+    if (overrides === null) return;
+
+    setLatchedRightOpen(desiredRightOpen);
+  }, [hydrated, loaderPlaying, isMemeBoothRoute, overrides, desiredRightOpen]);
+
+  const rightOpenEffective = hydrated && !loaderPlaying ? latchedRightOpen : false;
+
+  // "ready" is purely for left slot swapping now.
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
 
   const handleSamePageAnchor = useCallback((e: React.MouseEvent, navItem: NavLinkLite) => {
@@ -163,7 +188,10 @@ export default function DesktopNav({
 
   useEffect(() => {
     if (!socialRef.current) return;
+
+    // keep existing behavior
     socialRef.current.setOpenImmediate(hydrated && !loaderPlaying);
+
     registerSocialNavController(socialRef.current);
     return () => registerSocialNavController(null);
   }, [loaderPlaying, hydrated]);
@@ -228,9 +256,7 @@ export default function DesktopNav({
               link={navItem as any}
               variant="menu"
               size="sm"
-              className={cn(
-                "transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0"
-              )}
+              className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0")}
             >
               {navItem.title}
             </Button>
@@ -317,9 +343,7 @@ export default function DesktopNav({
             variant={variant}
             size="sm"
             data-right-nav-item
-            className={cn(
-              "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
-            )}
+            className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full")}
           >
             {navItem.title}
           </Button>
@@ -388,11 +412,9 @@ export default function DesktopNav({
     void run();
   }, [loaderPlaying, hydrated, readyToInitialize, targetLeftSlot, replaceLinks.length]);
 
-  const headerLogoStyle =
-    !hydrated ? { opacity: 0, visibility: "hidden" as const } : undefined;
+  const headerLogoStyle = !hydrated ? { opacity: 0, visibility: "hidden" as const } : undefined;
 
   return (
-    // Fixed header height so open/close animations can't change layout height.
     <div className="hidden xl:flex w-full h-16 items-center justify-between text-primary">
       <div className="flex flex-1 h-16 items-center justify-start">
         <div className="grid h-8 items-center">
@@ -430,7 +452,6 @@ export default function DesktopNav({
       <div className="flex flex-1 h-16 justify-end gap-2 items-center">
         <DesktopNavRightAnim
           ref={rightRef}
-          ready={readyToInitialize}
           isOpen={rightOpenEffective}
         >
           {renderRightLinks(rightLinks as unknown as NavLinkLite[])}

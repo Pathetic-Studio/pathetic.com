@@ -54,7 +54,7 @@ const SCALE_CONFIG: Record<
   xxl: {
     mobile: { stretchScaleX: 0.55, overallScale: 1.5 },
     tablet: { stretchScaleX: 0.55, overallScale: 1.6 },
-    desktop: { stretchScaleX: 0.55, overallScale: 2.0 },
+    desktop: { stretchScaleX: 0.55, overallScale: 2.1 },
   },
   xl: {
     mobile: { stretchScaleX: 0.55, overallScale: 1.2 },
@@ -94,7 +94,7 @@ export default function TitleText({
   textOutline = false,
   textColor,
   outlineColor = "white",
-  outlineWidth = 1,
+  outlineWidth = 1.5,
 }: TitleTextProps) {
   const Tag = as;
 

@@ -1,8 +1,9 @@
 // components/effects/image-explode-loader.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Matter, { Engine, World, Bodies, Body, Vector } from "matter-js";
+import gsap from "gsap";
 
 type ImageExplodeImage = { _key?: string; url?: string | null };
 
@@ -12,6 +13,18 @@ type Props = {
     desktopSize?: number;
     tabletSize?: number;
     mobileSize?: number;
+
+    /**
+     * Called once, when all items have finished their "pop-in" animation.
+     * Fires again if images list changes and a new run completes.
+     */
+    onAllItemsAnimatedIn?: () => void;
+
+    /**
+     * Control stagger + feel from parent if needed.
+     */
+    appearStaggerEach?: number; // seconds
+    appearDuration?: number; // seconds
 };
 
 type RenderItem = {
@@ -176,6 +189,9 @@ export default function ImageExplodeLoader({
     desktopSize = DEFAULT_IMAGE_SIZE,
     tabletSize = DEFAULT_IMAGE_SIZE * 0.75,
     mobileSize = DEFAULT_IMAGE_SIZE * 0.5,
+    onAllItemsAnimatedIn,
+    appearStaggerEach = 0.14, // increased stagger
+    appearDuration = 1.1,
 }: Props) {
     const [renderItems, setRenderItems] = useState<RenderItem[]>([]);
 
@@ -183,10 +199,31 @@ export default function ImageExplodeLoader({
     const bodiesRef = useRef<Body[]>([]);
     const mouseRef = useRef<Vector | null>(null);
 
+    // animate-once tracking
+    const animatedIdsRef = useRef<Set<string>>(new Set());
+    // tracks “appearance order” for stagger consistency
+    const appearOrderRef = useRef<string[]>([]);
+
+    // "all animated" run state
+    const expectedCountRef = useRef(0);
+    const allFiredForRunRef = useRef(false);
+    const lastRunKeyRef = useRef<string>("");
+
+    const hasUrls = (images || []).some((i) => !!i?.url);
+
     useEffect(() => {
         const urls = (images || []).filter((i) => !!i?.url).map((i) => i!.url as string);
+
+        const runKey = urls.join("|");
+        lastRunKeyRef.current = runKey;
+
+        expectedCountRef.current = urls.length;
+        allFiredForRunRef.current = false;
+
         if (!urls.length) {
             setRenderItems([]);
+            animatedIdsRef.current = new Set();
+            appearOrderRef.current = [];
             return;
         }
 
@@ -194,6 +231,8 @@ export default function ImageExplodeLoader({
         if (!container) {
             console.warn("[ImageExplodeLoader] container not found:", containerId);
             setRenderItems([]);
+            animatedIdsRef.current = new Set();
+            appearOrderRef.current = [];
             return;
         }
 
@@ -206,7 +245,7 @@ export default function ImageExplodeLoader({
 
                 const rect = container.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
-                    return start(rect.width, rect.height, urls);
+                    return start(rect.width, rect.height, urls, runKey);
                 }
                 await new Promise<void>((r) => requestAnimationFrame(() => r()));
             }
@@ -215,7 +254,7 @@ export default function ImageExplodeLoader({
             console.warn("[ImageExplodeLoader] container still has no size:", rect, containerId);
         };
 
-        const start = async (width: number, height: number, spriteUrls: string[]) => {
+        const start = async (width: number, height: number, spriteUrls: string[], runKeyLocal: string) => {
             const isMobile = width < 640;
             const isTablet = width >= 640 && width < 1024;
 
@@ -258,8 +297,22 @@ export default function ImageExplodeLoader({
                 bodies.push(body);
             }
 
+            if (cancelled) return;
+
             bodiesRef.current = bodies;
             World.add(engine.world, bodies);
+
+            // seed render items once so ids exist immediately (prevents late first paint)
+            setRenderItems(
+                bodies.map((b, idx) => ({
+                    id: `img-${idx}`,
+                    url: (b as any).spriteUrl as string,
+                    x: b.position.x,
+                    y: b.position.y,
+                    angle: b.angle,
+                    size: imageSize,
+                }))
+            );
 
             const loop = () => {
                 if (cancelled) return;
@@ -300,9 +353,7 @@ export default function ImageExplodeLoader({
 
         setupWhenSized();
 
-        // IMPORTANT: listen globally so it still follows the mouse over your content (buttons, etc.)
         const handlePointerMove = (e: PointerEvent) => {
-            // If the pointer is over the site header/nav, treat it like "leave"
             const elAtPoint = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
             if (elAtPoint?.closest("#site-header-root")) {
                 mouseRef.current = null;
@@ -327,21 +378,24 @@ export default function ImageExplodeLoader({
             mouseRef.current = { x, y } as Vector;
         };
 
-
         const handlePointerDown = (e: PointerEvent) => {
-            // helps on mobile: on first touch, you still get an immediate target point
             handlePointerMove(e);
+        };
+
+        const handleBlur = () => {
+            mouseRef.current = null;
         };
 
         window.addEventListener("pointermove", handlePointerMove, { passive: true });
         window.addEventListener("pointerdown", handlePointerDown, { passive: true });
-        window.addEventListener("blur", () => (mouseRef.current = null));
+        window.addEventListener("blur", handleBlur);
 
         return () => {
             cancelled = true;
 
             window.removeEventListener("pointermove", handlePointerMove as any);
             window.removeEventListener("pointerdown", handlePointerDown as any);
+            window.removeEventListener("blur", handleBlur as any);
 
             if (loopId !== null) cancelAnimationFrame(loopId);
 
@@ -354,29 +408,90 @@ export default function ImageExplodeLoader({
             bodiesRef.current = [];
             mouseRef.current = null;
             setRenderItems([]);
+            animatedIdsRef.current = new Set();
+            appearOrderRef.current = [];
         };
     }, [images, containerId, desktopSize, tabletSize, mobileSize]);
 
-    const hasUrls = (images || []).some((i) => !!i?.url);
+    // Pop-in animation + "all done" callback
+    useLayoutEffect(() => {
+        if (!renderItems.length) return;
+
+        // record appearance order once (so stagger doesn't get weird)
+        for (const it of renderItems) {
+            if (!appearOrderRef.current.includes(it.id)) appearOrderRef.current.push(it.id);
+        }
+
+        const newIds = renderItems.map((it) => it.id).filter((id) => !animatedIdsRef.current.has(id));
+        if (!newIds.length) return;
+
+        const orderedNewIds = appearOrderRef.current.filter((id) => newIds.includes(id));
+
+        const els = orderedNewIds
+            .map((id) => document.querySelector(`[data-explode-inner="${id}"]`) as HTMLImageElement | null)
+            .filter(Boolean) as HTMLImageElement[];
+
+        if (!els.length) return;
+
+        // mark as animated immediately (prevents strict-mode double passes)
+        orderedNewIds.forEach((id) => animatedIdsRef.current.add(id));
+
+        gsap.killTweensOf(els);
+        gsap.set(els, { scale: 0, transformOrigin: "50% 50%" });
+
+        gsap.to(els, {
+            scale: 1,
+            duration: appearDuration,
+            ease: "elastic.out(1, 1)",
+            stagger: appearStaggerEach,
+            overwrite: true,
+            clearProps: "transform",
+            onComplete: () => {
+                // fire when we've animated-in all expected items for this run
+                const expected = expectedCountRef.current;
+                if (!expected) return;
+
+                // animatedIdsRef includes everything we've animated in this run (ids are stable img-0..n)
+                const animatedCount = animatedIdsRef.current.size;
+
+                if (!allFiredForRunRef.current && animatedCount >= expected) {
+                    allFiredForRunRef.current = true;
+                    onAllItemsAnimatedIn?.();
+                }
+            },
+        });
+    }, [renderItems, appearDuration, appearStaggerEach, onAllItemsAnimatedIn]);
+
     if (!hasUrls) return null;
 
     return (
         <div className="pointer-events-none absolute inset-0 z-[5]" aria-hidden="true">
             {renderItems.map((item) => (
-                <img
+                <div
                     key={item.id}
-                    src={item.url}
-                    alt=""
                     style={{
                         position: "absolute",
                         left: item.x,
                         top: item.y,
                         width: item.size,
                         height: item.size,
-                        objectFit: "contain",
                         transform: `translate(-50%, -50%) rotate(${item.angle}rad)`,
+                        willChange: "transform",
                     }}
-                />
+                >
+                    <img
+                        data-explode-inner={item.id}
+                        src={item.url}
+                        alt=""
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            transform: "scale(1)",
+                            willChange: "transform",
+                        }}
+                    />
+                </div>
             ))}
         </div>
     );

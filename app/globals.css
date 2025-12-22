@@ -45,6 +45,12 @@
   }
 }
 
+/* Prevent SSR/initial paint flashes for GSAP-controlled UI */
+.gsap-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 
 
 /* ===== Scrollbar (Chrome / Edge / Safari) ===== */

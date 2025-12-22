@@ -42,12 +42,7 @@ type PageLoaderSectionProps = {
       href?: string | null;
       target?: boolean | null;
       buttonVariant?: string | null;
-      linkType?:
-      | "internal"
-      | "external"
-      | "contact"
-      | "anchor-link"
-      | null;
+      linkType?: "internal" | "external" | "contact" | "anchor-link" | null;
     }[]
     | null;
     feature?:
@@ -70,6 +65,10 @@ const LOGO_FLIP_DONE_ATTR = "data-logo-flip-done";
 const LOGO_FLIP_EVENT = "logo-flip-done-change";
 
 const HEADER_LOGO_NATIVE_SELECTOR = '[data-header-logo-native="true"]';
+
+// Put loader safely above *anything* in header/nav while playing.
+const LOADER_Z = 20000;
+const LOADER_OVERLAY_Z = 20001;
 
 function setLoaderPlayingFlag(on: boolean) {
   if (typeof document === "undefined") return;
@@ -101,9 +100,7 @@ declare global {
 
 function getNavType(): PerformanceNavigationTiming["type"] | null {
   try {
-    const nav = performance.getEntriesByType("navigation")[0] as
-      | PerformanceNavigationTiming
-      | undefined;
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
     return (nav?.type ?? null) as any;
   } catch {
     return null;
@@ -126,8 +123,7 @@ function shouldPlayLoader(enabled: boolean, oncePerSession: boolean): boolean {
 
   const navType = getNavType();
   if (navType === "back_forward") return false;
-  if (navType === "navigate" || navType === "reload" || navType === "prerender")
-    return true;
+  if (navType === "navigate" || navType === "reload" || navType === "prerender") return true;
 
   return true;
 }
@@ -152,9 +148,7 @@ function lockScroll(lock: boolean) {
 }
 
 function getVisibleHeaderLogoTarget(): HTMLElement | null {
-  const els = Array.from(
-    document.querySelectorAll<HTMLElement>('[data-header-logo-main="true"]')
-  );
+  const els = Array.from(document.querySelectorAll<HTMLElement>('[data-header-logo-main="true"]'));
 
   for (const el of els) {
     const r = el.getBoundingClientRect();
@@ -192,33 +186,38 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const [loaderState, setLoaderState] = useState<LoaderState>("skipped");
   const [titleActive, setTitleActive] = useState(false);
 
-  // Keep section pinned while we animate, so the hero cannot be affected by header layout changes.
+  const [explodeReady, setExplodeReady] = useState(false);
   const [pin, setPin] = useState(false);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    if (!shouldRender) return;
-
-    const play = shouldPlayLoader(enabled, oncePerSession);
-    setLoaderState(play ? "playing" : "skipped");
-    setTitleActive(!play);
-
-    if (play) {
-      setLogoFlipDoneFlag(false);
-      setPin(true);
-    } else {
-      setPin(false);
-    }
-  }, [hydrated, shouldRender, enabled, oncePerSession]);
 
   const sectionRef = useRef<HTMLElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const logoWrapperRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
-  // Reserve final TitleText height to avoid TitleText-specific shifts
+  const loaderTlRef = useRef<gsap.core.Timeline | null>(null);
+
   const titleMeasureRef = useRef<HTMLDivElement | null>(null);
   const [titleMinH, setTitleMinH] = useState<number | undefined>(undefined);
+
+  // IMPORTANT: decide "playing vs skipped" in a layout effect to avoid FOUC.
+  useLayoutEffect(() => {
+    if (!hydrated) return;
+    if (!shouldRender) return;
+
+    const play = shouldPlayLoader(enabled, oncePerSession);
+
+    setLoaderState(play ? "playing" : "skipped");
+    setTitleActive(!play);
+
+    if (play) {
+      setLogoFlipDoneFlag(false);
+      setPin(true);
+      setExplodeReady(false);
+    } else {
+      setPin(false);
+      setExplodeReady(false);
+    }
+  }, [hydrated, shouldRender, enabled, oncePerSession]);
 
   useLayoutEffect(() => {
     if (!hydrated) return;
@@ -251,7 +250,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const isPlaying = hydrated && shouldRender && loaderState === "playing";
   const fixedPinned = hydrated && shouldRender && (isPlaying || pin);
 
-  // While pinned, we keep the loader-playing flag ON so nav components can read it and avoid doing anything layout-y.
   useLayoutEffect(() => {
     if (!hydrated) return;
     setLoaderPlayingFlag(fixedPinned);
@@ -280,31 +278,42 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
     };
   }, [isPlaying]);
 
+  // Build the loader timeline ONCE per play.
   useLayoutEffect(() => {
     if (!isPlaying) return;
 
     const overlayEl = overlayRef.current;
     const logoWrapperEl = logoWrapperRef.current;
-    if (!overlayEl || !logoWrapperEl) return;
+    const contentEl = contentRef.current;
+    if (!overlayEl || !logoWrapperEl || !contentEl) return;
 
     const ctx = gsap.context(() => {
       const siteHeader = document.getElementById("site-header-root");
+
+      // Prevent nav overlay/backdrop from covering loader content:
+      // push header behind loader while playing.
+      const prevHeaderZ = siteHeader?.style.zIndex ?? "";
+      const prevHeaderPE = siteHeader?.style.pointerEvents ?? "";
+      if (siteHeader) {
+        gsap.set(siteHeader, { zIndex: LOADER_Z - 5, pointerEvents: "none", autoAlpha: 1 });
+      }
 
       const left = getLeftNavController();
       const right = getRightNavController();
       const socials = getSocialNavController();
 
-      // Force nav closed before anything paints.
       left?.setOpenImmediate(false);
       right?.setOpenImmediate(false);
       socials?.setOpenImmediate(false);
 
-      if (siteHeader) gsap.set(siteHeader, { autoAlpha: 1, pointerEvents: "none" });
-
       const headerNative = document.querySelector<HTMLElement>(HEADER_LOGO_NATIVE_SELECTOR);
       if (headerNative) gsap.set(headerNative, { autoAlpha: 0 });
 
-      if (contentRef.current) gsap.set(contentRef.current, { autoAlpha: 0, y: 16 });
+      // Hide loader content immediately (layout effect) with GSAP, not React inline styles.
+      gsap.set(contentEl, { autoAlpha: 0, y: 16 });
+
+      const btns = gsap.utils.toArray<HTMLElement>(contentEl.querySelectorAll("[data-loader-btn]") ?? []);
+      if (btns.length) gsap.set(btns, { scale: 0, transformOrigin: "center center" });
 
       gsap.set(overlayEl, { autoAlpha: 0 });
 
@@ -316,11 +325,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         transformOrigin: "50% 50%",
         clearProps: "transform",
       });
-
-      const btns = gsap.utils.toArray<HTMLElement>(
-        contentRef.current?.querySelectorAll("[data-loader-btn]") ?? []
-      );
-      if (btns.length) gsap.set(btns, { scale: 0, transformOrigin: "center center" });
 
       const svgEl = logoWrapperEl.querySelector("svg");
       const paths = gsap.utils.toArray<SVGPathElement>(svgEl?.querySelectorAll("path") ?? []);
@@ -337,13 +341,21 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
             } catch { }
           }
         },
+        onInterrupt: () => {
+          if (siteHeader) {
+            siteHeader.style.zIndex = prevHeaderZ;
+            siteHeader.style.pointerEvents = prevHeaderPE;
+          }
+        },
       });
+
+      loaderTlRef.current = tl;
 
       // overlay in
       tl.to(overlayEl, { autoAlpha: 1, duration: 0.2 });
 
-      // delay logo type-on by 1s
-      tl.to({}, { duration: 1.0 });
+      // WAIT HERE until ImageExplodeLoader signals completion
+      tl.addPause("wait-exploder");
 
       // logo type on
       if (paths.length) {
@@ -377,16 +389,14 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         if (headerNative) gsap.set(headerNative, { autoAlpha: 1 });
       });
 
-      if (siteHeader) tl.to(siteHeader, { pointerEvents: "auto", duration: 0 }, "<");
-
       // content in
       tl.add(() => setTitleActive(true), "<");
-      if (contentRef.current) tl.to(contentRef.current, { autoAlpha: 1, y: 0, duration: 0.5 }, "<");
+      tl.to(contentEl, { autoAlpha: 1, y: 0, duration: 0.5 }, "<");
 
       // wait for title typing
       tl.to({}, { duration: titleTypeDur });
 
-      // open nav + socials now (loader stays pinned + content is absolute inset-0 so it can't be pushed)
+      // open nav + socials (kept behind loader by z-index push above)
       tl.add(() => {
         void left?.open();
         void right?.open();
@@ -407,16 +417,32 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         );
       }
 
-      // settle then unpin/unmount
       tl.to({}, { duration: 0.25 });
+
       tl.add(() => {
+        // restore header after loader ends
+        if (siteHeader) {
+          siteHeader.style.zIndex = prevHeaderZ;
+          siteHeader.style.pointerEvents = prevHeaderPE;
+        }
+
         setPin(false);
         setLoaderState("skipped");
       });
     }, sectionRef);
 
-    return () => ctx.revert();
+    return () => {
+      loaderTlRef.current = null;
+      ctx.revert();
+    };
   }, [isPlaying, oncePerSession, title]);
+
+  // Resume timeline when exploder finishes
+  useEffect(() => {
+    if (!isPlaying) return;
+    if (!explodeReady) return;
+    loaderTlRef.current?.play();
+  }, [isPlaying, explodeReady]);
 
   if (!shouldRender) return null;
 
@@ -426,30 +452,33 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       id={SECTION_ID}
       className={cn(
         "relative min-h-[100svh] overflow-hidden md:overflow-visible bg-background",
-        fixedPinned && "fixed inset-0 z-[9998]"
+        fixedPinned && "fixed inset-0"
       )}
-      style={!hydrated ? { visibility: "hidden" } : undefined}
+      style={{
+        ...(hydrated ? {} : { visibility: "hidden" }),
+        ...(fixedPinned ? { zIndex: LOADER_Z, isolation: "isolate" as any } : {}),
+      }}
     >
       {/* Exploder */}
       <div id={EXPLODE_STAGE_ID} className="absolute inset-0 z-0 pointer-events-none" />
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <ImageExplodeLoader containerId={EXPLODE_STAGE_ID} images={sprites as any} />
+        <ImageExplodeLoader
+          containerId={EXPLODE_STAGE_ID}
+          images={sprites as any}
+          onAllItemsAnimatedIn={() => setExplodeReady(true)}
+          appearStaggerEach={0.14}
+          appearDuration={1.1}
+        />
       </div>
 
-      {/* While pinned: absolute inset-0 so nothing outside can push it */}
-      <div
-        className={cn(
-          "relative z-10",
-          fixedPinned ? "absolute inset-0" : "container min-h-[100svh]"
-        )}
-      >
+      {/* Content */}
+      <div className={cn("relative z-10", fixedPinned ? "absolute inset-0" : "container min-h-[100svh]")}>
         <div
           ref={contentRef}
           className={cn(
             fixedPinned
               ? "absolute inset-0 flex items-center justify-center text-center px-4"
-              : "min-h-[100svh] flex flex-col justify-center py-20 text-center",
-            !hydrated && "opacity-0"
+              : "min-h-[100svh] flex flex-col justify-center py-20 text-center"
           )}
         >
           {/* hidden measurer */}
@@ -472,7 +501,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
             </div>
           )}
 
-          {/* Inner width constraint */}
           <div className={cn(fixedPinned ? "container" : "")}>
             {tagLine && (
               <h1 className="leading-[0] uppercase italic font-sans">
@@ -512,7 +540,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
                     link={link}
                     variant={stegaClean((link.buttonVariant as any) ?? "default") as any}
                     size="lg"
-                    style={isPlaying ? { transform: "scale(0)" } : undefined}
                   >
                     {link.title}
                   </Button>
@@ -527,8 +554,8 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       {isPlaying && (
         <div
           ref={overlayRef}
-          className="pointer-events-none absolute inset-0 z-[9999] flex items-center justify-center"
-          style={{ opacity: 0, visibility: "visible" }}
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          style={{ opacity: 0, visibility: "visible", zIndex: LOADER_OVERLAY_Z }}
           aria-hidden="true"
         >
           <div

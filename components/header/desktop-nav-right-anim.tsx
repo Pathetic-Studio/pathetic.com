@@ -1,4 +1,3 @@
-// components/header/desktop-nav-right-anim.tsx
 "use client";
 
 import React, { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from "react";
@@ -13,7 +12,6 @@ export type DesktopNavRightAnimHandle = {
 
 type Props = {
   isOpen: boolean;
-  ready?: boolean;
 
   className?: string;
   boxClassName?: string;
@@ -35,7 +33,6 @@ const DesktopNavRightAnim = forwardRef<DesktopNavRightAnimHandle, Props>(
   function DesktopNavRightAnim(
     {
       isOpen,
-      ready = true,
       className,
       boxClassName,
       boxDuration = 0.45,
@@ -49,8 +46,9 @@ const DesktopNavRightAnim = forwardRef<DesktopNavRightAnimHandle, Props>(
     const boxRef = useRef<HTMLDivElement | null>(null);
     const tlRef = useRef<gsap.core.Timeline | null>(null);
 
-    // track previous isOpen per mounted instance
+    // prev state for THIS mounted instance
     const prevOpenRef = useRef<boolean | null>(null);
+    const didInitRef = useRef(false);
 
     const getParts = () => {
       const root = rootRef.current;
@@ -73,9 +71,13 @@ const DesktopNavRightAnim = forwardRef<DesktopNavRightAnimHandle, Props>(
       gsap.set(items, { scale: open ? 1 : 0 });
 
       gsap.set(root, {
-        visibility: open ? "visible" : "hidden",
+        autoAlpha: open ? 1 : 0,
         pointerEvents: open ? "auto" : "none",
+        visibility: open ? "visible" : "hidden",
       });
+
+
+      prevOpenRef.current = open;
     };
 
     const close = async () => {
@@ -84,28 +86,26 @@ const DesktopNavRightAnim = forwardRef<DesktopNavRightAnimHandle, Props>(
 
       tlRef.current?.kill();
 
-      if (!items.length) {
-        gsap.set(root, { visibility: "hidden", pointerEvents: "none" });
-        gsap.set(box, { scaleX: 0 });
-        prevOpenRef.current = false;
-        return;
-      }
-
-      gsap.set(root, { visibility: "visible", pointerEvents: "auto" });
+      gsap.set(root, { autoAlpha: 1, pointerEvents: "auto" });
       gsap.set(box, { transformOrigin: "right center", willChange: "transform" });
       gsap.set(items, { transformOrigin: "center center", willChange: "transform" });
 
       const staggerCfg: gsap.StaggerVars = { each: stagger, from: "end" };
 
       const tl = gsap.timeline();
-      tl.to(items, {
-        scale: 0,
-        duration: itemsDuration * 0.85,
-        ease: "elastic.in(1, 1)",
-        stagger: staggerCfg,
-      });
-      tl.to(box, { scaleX: 0, duration: boxDuration, ease: "power2.inOut" }, "-=0.2");
-      tl.set(root, { visibility: "hidden", pointerEvents: "none" });
+      if (items.length) {
+        tl.to(items, {
+          scale: 0,
+          duration: itemsDuration * 0.85,
+          ease: "elastic.in(1, 1)",
+          stagger: staggerCfg,
+        });
+        tl.to(box, { scaleX: 0, duration: boxDuration, ease: "power2.inOut" }, "-=0.2");
+      } else {
+        tl.to(box, { scaleX: 0, duration: boxDuration, ease: "power2.inOut" }, 0);
+      }
+
+      tl.set(root, { autoAlpha: 0, pointerEvents: "none" });
 
       tlRef.current = tl;
       await waitTimeline(tl);
@@ -119,15 +119,13 @@ const DesktopNavRightAnim = forwardRef<DesktopNavRightAnimHandle, Props>(
 
       tlRef.current?.kill();
 
+      // if nothing to show, keep closed
       if (!items.length) {
-        gsap.set(root, { visibility: "hidden", pointerEvents: "none" });
-        gsap.set(box, { scaleX: 0 });
-        prevOpenRef.current = false;
+        setOpenImmediate(false);
         return;
       }
 
-      // start from closed baseline every time we animate open
-      gsap.set(root, { visibility: "visible", pointerEvents: "auto" });
+      gsap.set(root, { autoAlpha: 1, pointerEvents: "auto" });
       gsap.set(box, { transformOrigin: "right center", willChange: "transform" });
       gsap.set(items, { transformOrigin: "center center", willChange: "transform" });
 
@@ -157,56 +155,45 @@ const DesktopNavRightAnim = forwardRef<DesktopNavRightAnimHandle, Props>(
 
     useImperativeHandle(ref, () => ({ open, close, setOpenImmediate }));
 
+    // One-time init: enforce baseline via GSAP (not React style props)
+    useLayoutEffect(() => {
+      if (didInitRef.current) return;
+      didInitRef.current = true;
+
+      const { root, box, items } = getParts();
+      if (!root || !box) return;
+
+      // baseline closed (prevents SSR flashes)
+      gsap.set(root, { autoAlpha: 0, pointerEvents: "none" });
+      gsap.set(box, { transformOrigin: "right center", scaleX: 0 });
+      gsap.set(items, { transformOrigin: "center center", scale: 0 });
+
+      // now sync to current isOpen immediately (no animation on very first mount)
+      setOpenImmediate(isOpen);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Animate on state changes
     useLayoutEffect(() => {
       if (!rootRef.current || !boxRef.current) return;
 
-      const ctx = gsap.context(() => {
-        if (!ready) {
-          // hard baseline while not ready
-          setOpenImmediate(false);
-          prevOpenRef.current = false;
-          return;
-        }
+      const prev = prevOpenRef.current;
+      if (prev === null) return; // init effect sets this
 
-        const prev = prevOpenRef.current;
+      if (prev === isOpen) return;
 
-        // first ready mount: always start CLOSED, then animate to open if needed
-        if (prev === null) {
-          setOpenImmediate(false);
-          prevOpenRef.current = false;
-
-          if (isOpen) void open();
-          return;
-        }
-
-        // subsequent updates: animate on change
-        if (prev !== isOpen) {
-          void (isOpen ? open() : close());
-          return;
-        }
-
-        // no change: do nothing (preserve current visual state)
-      }, rootRef);
-
-      return () => ctx.revert();
+      void (isOpen ? open() : close());
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, ready, boxDuration, itemsDuration, stagger]);
+    }, [isOpen, boxDuration, itemsDuration, stagger]);
 
     return (
-      <div
-        ref={rootRef}
-        className={cn("flex items-stretch", className)}
-        // SSR baseline
-        style={{ visibility: "hidden", pointerEvents: "none" }}
-      >
+      <div ref={rootRef} className={cn("flex items-stretch gsap-hidden", className)}>
         <div
           ref={boxRef}
           className={cn(
             "flex items-center gap-2 border border-border bg-background/100 px-3 py-0",
             boxClassName
           )}
-          // SSR baseline
-          style={{ transform: "scaleX(0)" }}
         >
           {children}
         </div>
