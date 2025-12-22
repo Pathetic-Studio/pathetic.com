@@ -42,7 +42,12 @@ type PageLoaderSectionProps = {
       href?: string | null;
       target?: boolean | null;
       buttonVariant?: string | null;
-      linkType?: "internal" | "external" | "contact" | "anchor-link" | null;
+      linkType?:
+      | "internal"
+      | "external"
+      | "contact"
+      | "anchor-link"
+      | null;
     }[]
     | null;
     feature?:
@@ -121,7 +126,8 @@ function shouldPlayLoader(enabled: boolean, oncePerSession: boolean): boolean {
 
   const navType = getNavType();
   if (navType === "back_forward") return false;
-  if (navType === "navigate" || navType === "reload" || navType === "prerender") return true;
+  if (navType === "navigate" || navType === "reload" || navType === "prerender")
+    return true;
 
   return true;
 }
@@ -145,12 +151,6 @@ function lockScroll(lock: boolean) {
   }
 }
 
-/**
- * DesktopNav is hidden below xl, so its logo may not exist at all.
- * This finds *any* header logo (desktop or mobile) that is actually visible (non-zero bounds).
- *
- * You MUST ensure your mobile header logo uses data-header-logo-main="true" too.
- */
 function getVisibleHeaderLogoTarget(): HTMLElement | null {
   const els = Array.from(
     document.querySelectorAll<HTMLElement>('[data-header-logo-main="true"]')
@@ -164,12 +164,9 @@ function getVisibleHeaderLogoTarget(): HTMLElement | null {
   return els[0] ?? null;
 }
 
-// Rough estimate for how long TitleText's type-on takes so we can sync nav+buttons after it.
-// Keep conservative so nav/buttons don’t jump early.
 function estimateTitleTypeDuration(text?: string | null) {
   const t = (text ?? "").trim();
   if (!t) return 0.6;
-  // base + per-char, clamped
   return Math.max(0.8, Math.min(2.0, 0.8 + t.length * 0.045));
 }
 
@@ -180,7 +177,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const oncePerSession = !!data.oncePerSession;
   const { tagLine, title, body, links, feature } = data;
 
-  // IMPORTANT: keep hooks unconditional; never early-return above this point
   const shouldRender = pathname === "/" && enabled;
 
   const sprites = useMemo(
@@ -190,12 +186,14 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
   type LoaderState = "playing" | "skipped";
 
-  // useLayoutEffect hydration gate = avoids 1-frame “wrong initial state” paint
   const [hydrated, setHydrated] = useState(false);
   useLayoutEffect(() => setHydrated(true), []);
 
   const [loaderState, setLoaderState] = useState<LoaderState>("skipped");
   const [titleActive, setTitleActive] = useState(false);
+
+  // Keep section pinned while we animate, so the hero cannot be affected by header layout changes.
+  const [pin, setPin] = useState(false);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -205,7 +203,12 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
     setLoaderState(play ? "playing" : "skipped");
     setTitleActive(!play);
 
-    if (play) setLogoFlipDoneFlag(false);
+    if (play) {
+      setLogoFlipDoneFlag(false);
+      setPin(true);
+    } else {
+      setPin(false);
+    }
   }, [hydrated, shouldRender, enabled, oncePerSession]);
 
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -213,14 +216,47 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const logoWrapperRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
-  const isPlaying = hydrated && shouldRender && loaderState === "playing";
+  // Reserve final TitleText height to avoid TitleText-specific shifts
+  const titleMeasureRef = useRef<HTMLDivElement | null>(null);
+  const [titleMinH, setTitleMinH] = useState<number | undefined>(undefined);
 
-  // IMPORTANT: useLayoutEffect so the html attr is correct before paint on state changes.
   useLayoutEffect(() => {
     if (!hydrated) return;
-    setLoaderPlayingFlag(isPlaying);
+    if (!shouldRender) return;
+    if (!title) return;
+
+    const el = titleMeasureRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      const h = Math.ceil(r.height);
+      if (h > 0) setTitleMinH(h);
+    };
+
+    measure();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => measure());
+      ro.observe(el);
+      return () => ro?.disconnect();
+    }
+
+    const onResize = () => measure();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [hydrated, shouldRender, title]);
+
+  const isPlaying = hydrated && shouldRender && loaderState === "playing";
+  const fixedPinned = hydrated && shouldRender && (isPlaying || pin);
+
+  // While pinned, we keep the loader-playing flag ON so nav components can read it and avoid doing anything layout-y.
+  useLayoutEffect(() => {
+    if (!hydrated) return;
+    setLoaderPlayingFlag(fixedPinned);
     return () => setLoaderPlayingFlag(false);
-  }, [hydrated, isPlaying]);
+  }, [hydrated, fixedPinned]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -240,6 +276,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       } catch { }
       lockScroll(false);
       setLogoFlipDoneFlag(false);
+      setPin(false);
     };
   }, [isPlaying]);
 
@@ -262,20 +299,15 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       right?.setOpenImmediate(false);
       socials?.setOpenImmediate(false);
 
-      // Header must be laid out so logo bounds exist.
-      // Keep it visible, but non-interactive during loader.
       if (siteHeader) gsap.set(siteHeader, { autoAlpha: 1, pointerEvents: "none" });
 
-      // Hide native header logo until our overlay logo "arrives"
       const headerNative = document.querySelector<HTMLElement>(HEADER_LOGO_NATIVE_SELECTOR);
       if (headerNative) gsap.set(headerNative, { autoAlpha: 0 });
 
-      if (contentRef.current) gsap.set(contentRef.current, { autoAlpha: 0, y: 32 });
+      if (contentRef.current) gsap.set(contentRef.current, { autoAlpha: 0, y: 16 });
 
-      // overlay starts hidden, then fades in
       gsap.set(overlayEl, { autoAlpha: 0 });
 
-      // Reset overlay logo transform baseline
       gsap.set(logoWrapperEl, {
         x: 0,
         y: 0,
@@ -290,7 +322,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       );
       if (btns.length) gsap.set(btns, { scale: 0, transformOrigin: "center center" });
 
-      // "type on": reveal svg paths
       const svgEl = logoWrapperEl.querySelector("svg");
       const paths = gsap.utils.toArray<SVGPathElement>(svgEl?.querySelectorAll("path") ?? []);
       if (paths.length) gsap.set(paths, { autoAlpha: 0 });
@@ -309,84 +340,58 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       });
 
       // overlay in
-      tl.to(overlayEl, { autoAlpha: 1, duration: 0.2, ease: "power2.out" });
+      tl.to(overlayEl, { autoAlpha: 1, duration: 0.2 });
 
-      // type on (logo)
+      // delay logo type-on by 1s
+      tl.to({}, { duration: 1.0 });
+
+      // logo type on
       if (paths.length) {
-        tl.to(paths, {
-          autoAlpha: 1,
-          duration: 0.01,
-          stagger: 0.04,
-          ease: "none",
-        });
+        tl.to(paths, { autoAlpha: 1, duration: 0.01, stagger: 0.04, ease: "none" });
       }
 
-      // PAUSE after logo animates on (your request)
       tl.to({}, { duration: 0.7 });
 
-      // ===== MOVE LOGO TO HEADER =====
+      // move logo to header
       tl.add(() => {
         const target = getVisibleHeaderLogoTarget();
         if (!target) return;
-
         const tr = target.getBoundingClientRect();
         if (tr.width <= 0 || tr.height <= 0) return;
 
         const state = Flip.getState(logoWrapperEl);
-
         Flip.fit(logoWrapperEl, target, { absolute: true, scale: true });
 
-        const tween = Flip.from(state, {
+        Flip.from(state, {
           duration: 0.8,
           ease: "power3.inOut",
           absolute: true,
           scale: true,
         });
-
-        // Fallback if Flip returns null (rare)
-        if (!tween) {
-          const sr = logoWrapperEl.getBoundingClientRect();
-          const dx = tr.left + tr.width / 2 - (sr.left + sr.width / 2);
-          const dy = tr.top + tr.height / 2 - (sr.top + sr.height / 2);
-          const sc = sr.width ? tr.width / sr.width : 0.35;
-
-          gsap.to(logoWrapperEl, {
-            duration: 0.8,
-            ease: "power3.inOut",
-            x: `+=${dx}`,
-            y: `+=${dy}`,
-            scale: sc,
-          });
-        }
       });
 
-      // keep timeline time aligned with move duration
       tl.to({}, { duration: 0.8 });
 
-      // Arrived: reveal native header logo (and mark flip done)
       tl.add(() => {
         setLogoFlipDoneFlag(true);
         if (headerNative) gsap.set(headerNative, { autoAlpha: 1 });
       });
 
-      // Re-enable header interactions immediately after arrival
       if (siteHeader) tl.to(siteHeader, { pointerEvents: "auto", duration: 0 }, "<");
 
-      // Start title typing + content in FIRST
+      // content in
       tl.add(() => setTitleActive(true), "<");
+      if (contentRef.current) tl.to(contentRef.current, { autoAlpha: 1, y: 0, duration: 0.5 }, "<");
 
-      if (contentRef.current) {
-        tl.to(contentRef.current, { autoAlpha: 1, y: 0, duration: 0.6 }, "<");
-      }
-
-      // Wait for the title to finish typing, then bring nav + buttons together (your request)
+      // wait for title typing
       tl.to({}, { duration: titleTypeDur });
 
+      // open nav + socials now (loader stays pinned + content is absolute inset-0 so it can't be pushed)
       tl.add(() => {
         void left?.open();
         void right?.open();
         void socials?.open();
-      }, "<");
+      });
 
       if (btns.length) {
         tl.to(
@@ -402,13 +407,17 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         );
       }
 
-      tl.add(() => setLoaderState("skipped"), "<");
+      // settle then unpin/unmount
+      tl.to({}, { duration: 0.25 });
+      tl.add(() => {
+        setPin(false);
+        setLoaderState("skipped");
+      });
     }, sectionRef);
 
     return () => ctx.revert();
   }, [isPlaying, oncePerSession, title]);
 
-  // The only return guard is here, after hooks.
   if (!shouldRender) return null;
 
   return (
@@ -417,71 +426,104 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       id={SECTION_ID}
       className={cn(
         "relative min-h-[100svh] overflow-hidden md:overflow-visible bg-background",
-        isPlaying && "fixed inset-0 z-[9998]"
+        fixedPinned && "fixed inset-0 z-[9998]"
       )}
       style={!hydrated ? { visibility: "hidden" } : undefined}
     >
-      {/* Exploder always-on, scoped to this section */}
+      {/* Exploder */}
       <div id={EXPLODE_STAGE_ID} className="absolute inset-0 z-0 pointer-events-none" />
       <div className="absolute inset-0 z-0 pointer-events-none">
         <ImageExplodeLoader containerId={EXPLODE_STAGE_ID} images={sprites as any} />
       </div>
 
-      <div className="container relative z-10 min-h-[100svh]">
+      {/* While pinned: absolute inset-0 so nothing outside can push it */}
+      <div
+        className={cn(
+          "relative z-10",
+          fixedPinned ? "absolute inset-0" : "container min-h-[100svh]"
+        )}
+      >
         <div
           ref={contentRef}
           className={cn(
-            "min-h-[100svh] flex flex-col justify-center py-20 text-center",
-            isPlaying && "opacity-0 translate-y-8",
+            fixedPinned
+              ? "absolute inset-0 flex items-center justify-center text-center px-4"
+              : "min-h-[100svh] flex flex-col justify-center py-20 text-center",
             !hydrated && "opacity-0"
           )}
         >
-          {tagLine && (
-            <h1 className="leading-[0] uppercase italic font-sans">
-              <span className="text-base font-semibold opacity-50">{tagLine}</span>
-            </h1>
-          )}
-
+          {/* hidden measurer */}
           {title && (
-            <TitleText
-              variant="stretched"
-              as="h2"
-              size="xl"
-              align="center"
-              maxChars={26}
-              animation={titleActive ? "typeOn" : "none"}
-              animationSpeed={1.2}
-              textOutline
-            >
-              {title}
-            </TitleText>
-          )}
-
-          {body && (
-            <div className="text-lg lg:text-2xl mt-6 max-w-2xl mx-auto">
-              <PortableTextRenderer value={body} />
-            </div>
-          )}
-
-          {links && links.length > 0 && (
-            <div className="z-10 mt-10 flex flex-wrap gap-4 justify-center">
-              {links.map((link) => (
-                <Button
-                  key={link._key ?? link.title ?? ""}
-                  data-loader-btn
-                  link={link}
-                  variant={stegaClean((link.buttonVariant as any) ?? "default") as any}
-                  size="lg"
-                  style={isPlaying ? { transform: "scale(0)" } : undefined}
+            <div className="pointer-events-none opacity-0 absolute left-0 right-0 top-0 -z-10" aria-hidden="true">
+              <div ref={titleMeasureRef} className="mx-auto">
+                <TitleText
+                  variant="stretched"
+                  as="h2"
+                  size="xl"
+                  align="center"
+                  maxChars={26}
+                  animation="none"
+                  animationSpeed={1.2}
+                  textOutline
                 >
-                  {link.title}
-                </Button>
-              ))}
+                  {title}
+                </TitleText>
+              </div>
             </div>
           )}
+
+          {/* Inner width constraint */}
+          <div className={cn(fixedPinned ? "container" : "")}>
+            {tagLine && (
+              <h1 className="leading-[0] uppercase italic font-sans">
+                <span className="text-base font-semibold opacity-50">{tagLine}</span>
+              </h1>
+            )}
+
+            {title && (
+              <div className="mx-auto w-full" style={titleMinH ? { minHeight: titleMinH } : undefined}>
+                <TitleText
+                  variant="stretched"
+                  as="h2"
+                  size="xl"
+                  align="center"
+                  maxChars={26}
+                  animation={titleActive ? "typeOn" : "none"}
+                  animationSpeed={1.2}
+                  textOutline
+                >
+                  {title}
+                </TitleText>
+              </div>
+            )}
+
+            {body && (
+              <div className="text-lg lg:text-2xl mt-6 max-w-2xl mx-auto">
+                <PortableTextRenderer value={body} />
+              </div>
+            )}
+
+            {links && links.length > 0 && (
+              <div className="z-10 mt-10 flex flex-wrap gap-4 justify-center">
+                {links.map((link) => (
+                  <Button
+                    key={link._key ?? link.title ?? ""}
+                    data-loader-btn
+                    link={link}
+                    variant={stegaClean((link.buttonVariant as any) ?? "default") as any}
+                    size="lg"
+                    style={isPlaying ? { transform: "scale(0)" } : undefined}
+                  >
+                    {link.title}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Overlay logo */}
       {isPlaying && (
         <div
           ref={overlayRef}

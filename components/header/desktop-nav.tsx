@@ -59,12 +59,6 @@ function dispatchAnchorNavigate(anchorId: string, offsetPercent?: number | null)
   } catch { }
 }
 
-/**
- * Critical fix:
- * - old hook used useEffect => initial client render saw loaderPlaying=false
- * - right nav mounted as open, then loader flag flipped => it closed => looked like a flash
- * This reads the html attribute synchronously (useSyncExternalStore).
- */
 function useLoaderPlaying(): boolean {
   const getSnapshot = () =>
     typeof document !== "undefined" &&
@@ -99,7 +93,6 @@ export default function DesktopNav({
 
   const loaderPlaying = useLoaderPlaying();
 
-  // hydration gate to prevent any “pre-effect” mismatches
   const [hydrated, setHydrated] = useState(false);
   useLayoutEffect(() => setHydrated(true), []);
 
@@ -123,7 +116,6 @@ export default function DesktopNav({
 
   const rightOpen = !isMemeBoothRoute ? true : (overrides?.showDesktopRightLinks ?? true);
 
-  // ✅ hard gate: until hydrated + loader not playing, keep closed (kills the “open then close” flash)
   const rightOpenEffective = hydrated && !loaderPlaying ? rightOpen : false;
 
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
@@ -171,7 +163,6 @@ export default function DesktopNav({
 
   useEffect(() => {
     if (!socialRef.current) return;
-    // mirror the right side behavior
     socialRef.current.setOpenImmediate(hydrated && !loaderPlaying);
     registerSocialNavController(socialRef.current);
     return () => registerSocialNavController(null);
@@ -237,7 +228,9 @@ export default function DesktopNav({
               link={navItem as any}
               variant="menu"
               size="sm"
-              className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0")}
+              className={cn(
+                "transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0"
+              )}
             >
               {navItem.title}
             </Button>
@@ -324,7 +317,9 @@ export default function DesktopNav({
             variant={variant}
             size="sm"
             data-right-nav-item
-            className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full")}
+            className={cn(
+              "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
+            )}
           >
             {navItem.title}
           </Button>
@@ -397,40 +392,51 @@ export default function DesktopNav({
     !hydrated ? { opacity: 0, visibility: "hidden" as const } : undefined;
 
   return (
-    <div className="hidden xl:flex w-full items-center justify-between text-primary">
-      <div className="flex flex-1 items-center justify-start">
-        <div className="grid">
-          <DesktopNavLeftAnim ref={leftDefaultRef} className="flex items-center gap-4 [grid-area:1/1]">
+    // Fixed header height so open/close animations can't change layout height.
+    <div className="hidden xl:flex w-full h-16 items-center justify-between text-primary">
+      <div className="flex flex-1 h-16 items-center justify-start">
+        <div className="grid h-8 items-center">
+          <DesktopNavLeftAnim
+            ref={leftDefaultRef}
+            className="flex h-8 items-center gap-4 [grid-area:1/1]"
+          >
             {renderLeftLinks(defaultLeftLinks as unknown as NavLinkLite[])}
           </DesktopNavLeftAnim>
 
-          <DesktopNavLeftAnim ref={leftReplaceRef} className="flex items-center gap-4 [grid-area:1/1]">
+          <DesktopNavLeftAnim
+            ref={leftReplaceRef}
+            className="flex h-8 items-center gap-4 [grid-area:1/1]"
+          >
             {renderLeftLinks(replaceLinks)}
           </DesktopNavLeftAnim>
         </div>
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex h-16 items-center justify-center">
         <Link
           href="/"
           aria-label="Home page"
           id="header-logo-main-desktop"
           data-header-logo-main="true"
-          className="relative flex items-center justify-center"
+          className="relative flex h-8 items-center justify-center"
           style={headerLogoStyle}
         >
-          <span data-header-logo-native="true" className="flex items-center justify-center">
+          <span data-header-logo-native="true" className="flex h-8 items-center justify-center">
             <LogoAnimated className="h-8 w-auto" />
           </span>
         </Link>
       </div>
 
-      <div className="flex flex-1 justify-end gap-2 items-stretch">
-        <DesktopNavRightAnim ref={rightRef} ready={readyToInitialize} isOpen={rightOpenEffective}>
+      <div className="flex flex-1 h-16 justify-end gap-2 items-center">
+        <DesktopNavRightAnim
+          ref={rightRef}
+          ready={readyToInitialize}
+          isOpen={rightOpenEffective}
+        >
           {renderRightLinks(rightLinks as unknown as NavLinkLite[])}
         </DesktopNavRightAnim>
 
-        <DesktopNavSocialAnim ref={socialRef} className="h-full">
+        <DesktopNavSocialAnim ref={socialRef} className="h-8">
           <span
             data-social-nav-item
             className={cn(

@@ -33,6 +33,9 @@ export async function POST(req: Request) {
         const apiKey = process.env.BEEHIIV_API_KEY;
         const publicationId = process.env.BEEHIIV_PUBLICATION_ID;
 
+
+
+
         if (!apiKey || !publicationId) {
             return NextResponse.json(
                 { error: "Beehiiv API configuration is missing." },
