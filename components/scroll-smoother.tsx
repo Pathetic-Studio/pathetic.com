@@ -310,7 +310,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
         smooth: 1,
         smoothTouch: 0,
         effects: true,
-        normalizeScroll: false,
+        normalizeScroll: true,
       });
 
       setupPinning();
