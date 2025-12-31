@@ -86,7 +86,7 @@ export default function DesktopNav({
   const rightLinks: NavLink[] = (nav?.rightLinks as NavLink[]) ?? [];
 
   const pathname = usePathname();
-  const isMemeBoothRoute = !!pathname?.startsWith("/meme-booth");
+  const isMemeBoothRoute = !!pathname?.startsWith("/booth");
 
   const { overrides } = useHeaderNavOverrides();
   const loaderPlaying = useLoaderPlaying();

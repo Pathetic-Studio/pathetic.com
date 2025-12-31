@@ -86,7 +86,7 @@ export default function MobileNav({
 
   useEffect(() => setMounted(true), []);
 
-  const isMemeBoothRoute = !!pathname?.startsWith("/meme-booth");
+  const isMemeBoothRoute = !!pathname?.startsWith("/booth");
   const { overrides } = useHeaderNavOverrides();
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
 
