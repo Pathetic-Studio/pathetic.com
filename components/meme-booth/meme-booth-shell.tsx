@@ -24,7 +24,6 @@ export default function MemeBoothShell({
 
     const timerRef = useRef<number | null>(null);
 
-    // auto-open only once per entry into /meme-booth
     const autoOpenedThisEntryRef = useRef(false);
     const lastPathRef = useRef<string | null>(null);
 
@@ -32,8 +31,8 @@ export default function MemeBoothShell({
         const last = lastPathRef.current;
         lastPathRef.current = pathname;
 
-        const onMemeBooth = pathname === "/meme-booth";
-        const wasOnMemeBooth = last === "/meme-booth";
+        const onMemeBooth = pathname === "/booth";
+        const wasOnMemeBooth = last === "/booth";
 
         const clearTimer = () => {
             if (timerRef.current) window.clearTimeout(timerRef.current);
