@@ -34,7 +34,6 @@ export default function SplitCardsListAnimated({
   return (
     <div
       className={cn(
-        // Mobile stacked deck; Desktop normal flow
         "relative overflow-visible min-h-[260px] sm:min-h-[320px] lg:min-h-0 flex flex-col",
         animateInRight ? "gap-8 lg:gap-0" : "gap-24",
       )}
@@ -48,12 +47,15 @@ export default function SplitCardsListAnimated({
             key={index}
             data-card-item
             className={cn(
-              // Mobile: all cards overlap
-              "absolute inset-0",
-              // Desktop: normal flow so diagonal offsets work
-              "lg:static lg:inset-auto",
+              // Mobile: overlap, but DON'T use inset-0 (it forces right:0 and blocks width shrinking)
+              "absolute top-0 left-0 w-full",
+              // Desktop: normal flow
+              "lg:static lg:w-auto",
               "will-change-transform",
             )}
+            style={{
+              zIndex: 10 + index + (isActive ? 100 : 0),
+            }}
             onMouseEnter={() => onHoverCard?.(index)}
             onFocus={() => onHoverCard?.(index)}
           >
