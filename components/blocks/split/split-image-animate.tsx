@@ -77,7 +77,7 @@ export default function SplitImageAnimate({
   return (
     <div className="relative flex items-start justify-center">
       <div ref={frameRef} className="flex w-full justify-center" data-image-track>
-        <div className="relative mx-auto w-[35%] sm:w-[60%] md:w-[75%] max-w-md">
+        <div className="relative mx-auto w-[50%] sm:w-[60%] md:w-[75%] max-w-md">
           <div className="relative w-full pt-[133.333%]">
             <div
               className="absolute inset-0"
