@@ -85,7 +85,7 @@ export default function GridCardAnimated({
 
         {excerpt && (
           <p
-            className="mx-auto max-w-prose"
+            className="mx-auto max-w-2/3 md:max-w-prose"
             data-speed={bodySpeed ?? undefined} // NEW
           >
             {excerpt}

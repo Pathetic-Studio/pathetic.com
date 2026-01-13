@@ -24,6 +24,7 @@ import {
   useHeaderNavOverrides,
   type NavLinkLite,
 } from "@/components/header/nav-overrides";
+import { registerMobileNavController } from "@/components/header/nav-anim-registry";
 
 type NavigationDoc = NAVIGATION_QUERYResult[0];
 
@@ -69,6 +70,12 @@ function dispatchAnchorNavigate(anchorId: string, offsetPercent?: number | null)
       })
     );
   } catch { }
+}
+
+function waitTimeline(tl: gsap.core.Timeline) {
+  return new Promise<void>((resolve) => {
+    tl.eventCallback("onComplete", () => resolve());
+  });
 }
 
 export default function MobileNav({
@@ -189,6 +196,134 @@ export default function MobileNav({
       }
     );
   }, [icon]);
+
+  /* ---------------- TRIGGER ANIM ---------------- */
+
+  const triggerWrapRef = useRef<HTMLSpanElement | null>(null);
+  const triggerTlRef = useRef<gsap.core.Timeline | null>(null);
+  const triggerOpenRef = useRef(false);
+
+  const setTriggerOpenImmediate = useCallback((isOpen: boolean) => {
+    const el = triggerWrapRef.current;
+    if (!el) return;
+
+    triggerTlRef.current?.kill();
+    triggerTlRef.current = null;
+
+    gsap.set(el, {
+      autoAlpha: isOpen ? 1 : 0,
+      scale: isOpen ? 1 : 0,
+      y: isOpen ? 0 : -6,
+      transformOrigin: "50% 50%",
+      pointerEvents: isOpen ? "auto" : "none",
+    });
+
+    triggerOpenRef.current = isOpen;
+  }, []);
+
+  const openTrigger = useCallback(async () => {
+    const el = triggerWrapRef.current;
+    if (!el) return;
+    if (triggerOpenRef.current) return;
+
+    triggerTlRef.current?.kill();
+    triggerTlRef.current = null;
+
+    triggerOpenRef.current = true;
+
+    gsap.set(el, {
+      autoAlpha: 0,
+      scale: 0,
+      y: -6,
+      transformOrigin: "50% 50%",
+      pointerEvents: "auto",
+    });
+
+    const tl = gsap.timeline();
+    tl.to(el, {
+      autoAlpha: 1,
+      scale: 1,
+      y: 0,
+      duration: 0.65,
+      ease: "elastic.out(1, 1)",
+    });
+
+    triggerTlRef.current = tl;
+    await waitTimeline(tl);
+  }, []);
+
+  const closeTrigger = useCallback(async () => {
+    const el = triggerWrapRef.current;
+    if (!el) return;
+
+    triggerTlRef.current?.kill();
+    triggerTlRef.current = null;
+
+    triggerOpenRef.current = false;
+
+    gsap.set(el, { transformOrigin: "50% 50%", pointerEvents: "auto" });
+
+    const tl = gsap.timeline();
+    tl.to(el, {
+      autoAlpha: 0,
+      scale: 0,
+      y: -6,
+      duration: 0.25,
+      ease: "power2.inOut",
+    });
+    tl.set(el, { pointerEvents: "none" });
+
+    triggerTlRef.current = tl;
+    await waitTimeline(tl);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!mounted) return;
+    setTriggerOpenImmediate(false);
+  }, [mounted, setTriggerOpenImmediate]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const sync = (playing: boolean) => {
+      if (playing) {
+        setTriggerOpenImmediate(false);
+        return;
+      }
+
+      if (triggerOpenRef.current) return;
+      void openTrigger();
+    };
+
+    const playingNow =
+      typeof document !== "undefined" &&
+      document.documentElement.hasAttribute("data-loader-playing");
+    sync(!!playingNow);
+
+    const handleLoaderChange = (event: Event) => {
+      const on = (event as CustomEvent<{ on?: boolean }>).detail?.on;
+      const playing =
+        typeof on === "boolean"
+          ? on
+          : document.documentElement.hasAttribute("data-loader-playing");
+
+      sync(playing);
+    };
+
+    window.addEventListener("loader-playing-change", handleLoaderChange as EventListener);
+    return () => window.removeEventListener("loader-playing-change", handleLoaderChange as EventListener);
+  }, [mounted, openTrigger, setTriggerOpenImmediate]);
+
+  useEffect(() => {
+    const proxy = {
+      open: openTrigger,
+      close: closeTrigger,
+      setOpenImmediate: setTriggerOpenImmediate,
+    };
+
+    registerMobileNavController(proxy);
+    return () => registerMobileNavController(null);
+  }, [openTrigger, closeTrigger, setTriggerOpenImmediate]);
 
   /* ---------------- OVERLAY + GSAP ---------------- */
 
@@ -455,30 +590,38 @@ export default function MobileNav({
 
   return (
     <>
-      <Button
-        aria-label={open ? "Close Menu" : "Open Menu"}
-        variant="menu"
-        onClick={toggleMenu}
-        className={cn(
-          "relative z-[70] h-10 w-10 rounded-none",
-          "!p-0",
-          "!inline-flex !items-center !justify-center",
-          "!leading-none"
-        )}
-        style={{ lineHeight: 0 }}
+      <span
+        ref={triggerWrapRef}
+        data-mobile-header-item="true"
+        data-mobile-header-role="nav"
+        className="inline-flex"
+        style={{ visibility: "hidden", pointerEvents: "none" }}
       >
-        <span
-          ref={iconWrapRef}
-          className={cn("h-full w-full", "inline-flex items-center justify-center", "leading-none")}
+        <Button
+          aria-label={open ? "Close Menu" : "Open Menu"}
+          variant="menu"
+          onClick={toggleMenu}
+          className={cn(
+            "relative z-[70] h-10 w-10 rounded-none",
+            "!p-0",
+            "!inline-flex !items-center !justify-center",
+            "!leading-none"
+          )}
           style={{ lineHeight: 0 }}
         >
-          {icon === "menu" ? (
-            <Menu className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
-          ) : (
-            <X className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
-          )}
-        </span>
-      </Button>
+          <span
+            ref={iconWrapRef}
+            className={cn("h-full w-full", "inline-flex items-center justify-center", "leading-none")}
+            style={{ lineHeight: 0 }}
+          >
+            {icon === "menu" ? (
+              <Menu className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
+            ) : (
+              <X className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
+            )}
+          </span>
+        </Button>
+      </span>
 
       {overlay}
     </>

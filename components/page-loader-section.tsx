@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import ImageExplodeLoader from "@/components/effects/image-explode-loader";
 import {
   getLeftNavController,
+  getMobileNavController,
+  getMobileSocialNavController,
   getRightNavController,
   getSocialNavController,
 } from "@/components/header/nav-anim-registry";
@@ -134,16 +136,34 @@ function lockScroll(lock: boolean) {
 
   if (lock) {
     body.dataset.loaderScrollLock = "true";
-    body.style.overflow = "hidden";
-    html.style.overflow = "hidden";
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    body.dataset.loaderScrollY = `${scrollY}`;
+
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflowY = "scroll";
+
+    html.style.overflowY = "scroll";
     html.style.height = "100%";
-    body.style.height = "100%";
   } else {
     if (body.dataset.loaderScrollLock) delete body.dataset.loaderScrollLock;
-    body.style.overflow = "";
-    body.style.height = "";
-    html.style.overflow = "";
+    const scrollY = Number.parseInt(body.dataset.loaderScrollY ?? "0", 10) || 0;
+
+    body.style.position = "";
+    body.style.top = "";
+    body.style.left = "";
+    body.style.right = "";
+    body.style.width = "";
+    body.style.overflowY = "";
+
+    html.style.overflowY = "";
     html.style.height = "";
+
+    if (body.dataset.loaderScrollY) delete body.dataset.loaderScrollY;
+    window.scrollTo(0, scrollY);
   }
 }
 
@@ -188,6 +208,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
   const [explodeReady, setExplodeReady] = useState(false);
   const [pin, setPin] = useState(false);
+  const prevLoaderStateRef = useRef<LoaderState | null>(null);
 
   const sectionRef = useRef<HTMLElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -218,6 +239,23 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       setExplodeReady(false);
     }
   }, [hydrated, shouldRender, enabled, oncePerSession]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!shouldRender) return;
+
+    const prev = prevLoaderStateRef.current;
+
+    if (loaderState === "playing") {
+      getMobileNavController()?.setOpenImmediate(false);
+      getMobileSocialNavController()?.setOpenImmediate(false);
+    } else if (prev === "playing" && loaderState === "skipped") {
+      void getMobileNavController()?.open();
+      void getMobileSocialNavController()?.open();
+    }
+
+    prevLoaderStateRef.current = loaderState;
+  }, [hydrated, shouldRender, loaderState]);
 
   useLayoutEffect(() => {
     if (!hydrated) return;
@@ -298,13 +336,9 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         gsap.set(siteHeader, { zIndex: LOADER_Z - 5, pointerEvents: "none", autoAlpha: 1 });
       }
 
-      const left = getLeftNavController();
-      const right = getRightNavController();
-      const socials = getSocialNavController();
-
-      left?.setOpenImmediate(false);
-      right?.setOpenImmediate(false);
-      socials?.setOpenImmediate(false);
+      getLeftNavController()?.setOpenImmediate(false);
+      getRightNavController()?.setOpenImmediate(false);
+      getSocialNavController()?.setOpenImmediate(false);
 
       const headerNative = document.querySelector<HTMLElement>(HEADER_LOGO_NATIVE_SELECTOR);
       if (headerNative) gsap.set(headerNative, { autoAlpha: 0 });
@@ -398,9 +432,9 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
       // open nav + socials (kept behind loader by z-index push above)
       tl.add(() => {
-        void left?.open();
-        void right?.open();
-        void socials?.open();
+        void getLeftNavController()?.open();
+        void getRightNavController()?.open();
+        void getSocialNavController()?.open();
       });
 
       if (btns.length) {
@@ -428,6 +462,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
         setPin(false);
         setLoaderState("skipped");
+
       });
     }, sectionRef);
 
@@ -472,12 +507,12 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       </div>
 
       {/* Content */}
-      <div className={cn("relative z-10", fixedPinned ? "absolute inset-0" : "container min-h-[100svh]")}>
+      <div className={cn("relative z-10", fixedPinned ? "absolute inset-0" : "")}>
         <div
           ref={contentRef}
           className={cn(
             fixedPinned
-              ? "absolute inset-0 flex items-center justify-center text-center px-4"
+              ? "absolute inset-0 flex items-center justify-center text-center"
               : "min-h-[100svh] flex flex-col justify-center py-20 text-center"
           )}
         >
@@ -501,7 +536,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
             </div>
           )}
 
-          <div className={cn(fixedPinned ? "container" : "")}>
+          <div className="container">
             {tagLine && (
               <h1 className="leading-[0] uppercase italic font-sans">
                 <span className="text-base font-semibold opacity-50">{tagLine}</span>

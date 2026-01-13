@@ -1,6 +1,7 @@
 // components/blocks/split/split-cards-list-animated.tsx
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import type { PAGE_QUERYResult, ColorVariant } from "@/sanity.types";
 import { stegaClean } from "next-sanity";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,95 @@ export default function SplitCardsListAnimated({
   onHoverCard,
 }: SplitCardsListAnimatedProps) {
   const colorParent = stegaClean(color);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Sync stacked card heights on tablet/mobile so the deck doesn't jump.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const mql = window.matchMedia("(max-width: 1023.98px)");
+    let rafId = 0;
+    let ro: ResizeObserver | null = null;
+    let items: HTMLElement[] = [];
+
+    const collectItems = () => {
+      items = Array.from(
+        container.querySelectorAll<HTMLElement>("[data-card-item]"),
+      );
+    };
+
+    const clearHeights = () => {
+      container.style.height = "";
+      container.style.removeProperty("--split-card-max-h");
+      items.forEach((el) => {
+        el.style.height = "";
+      });
+    };
+
+    const applyHeights = () => {
+      if (!mql.matches) {
+        clearHeights();
+        return;
+      }
+
+      if (!items.length) {
+        clearHeights();
+        return;
+      }
+
+      items.forEach((el) => {
+        el.style.height = "";
+      });
+      container.style.height = "";
+
+      let max = 0;
+      items.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.height > max) max = rect.height;
+      });
+
+      if (!max) {
+        clearHeights();
+        return;
+      }
+
+      const height = Math.ceil(max);
+      container.style.setProperty("--split-card-max-h", `${height}px`);
+      container.style.height = `${height}px`;
+      items.forEach((el) => {
+        el.style.height = `${height}px`;
+      });
+    };
+
+    const schedule = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(applyHeights);
+    };
+
+    const onChange = () => schedule();
+
+    collectItems();
+    schedule();
+
+    window.addEventListener("resize", schedule);
+    if (mql.addEventListener) mql.addEventListener("change", onChange);
+    else mql.addListener(onChange);
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(schedule);
+      ro = observer;
+      items.forEach((el) => observer.observe(el));
+    }
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", schedule);
+      if (mql.removeEventListener) mql.removeEventListener("change", onChange);
+      else mql.removeListener(onChange);
+      ro?.disconnect();
+    };
+  }, [list]);
 
   if (!list || list.length === 0) return null;
 
@@ -38,6 +128,7 @@ export default function SplitCardsListAnimated({
         animateInRight ? "gap-8 lg:gap-0" : "gap-24",
       )}
       data-split-cards-container
+      ref={containerRef}
     >
       {list.map((item, index) => {
         const isActive = activeIndex === index;

@@ -34,7 +34,7 @@ export default function SplitCardsItemAnimated({
   return (
     <div
       className={cn(
-        "flex flex-col items-start border px-6 lg:px-8 py-6 lg:py-8 transition-colors duration-500 ease-out",
+        "flex flex-col items-start border px-6 lg:px-8 py-6 lg:py-8 transition-colors duration-500 ease-out h-full lg:h-auto",
         isPrimary ? "border-primary" : "border-foreground/40",
         // default look
         "bg-background",

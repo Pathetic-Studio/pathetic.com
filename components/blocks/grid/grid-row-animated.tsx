@@ -1,10 +1,11 @@
 // components/blocks/grid/grid-row-animated.tsx
 "use client";
 
-import React, { useLayoutEffect, useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import ScrollSmoother from "gsap/ScrollSmoother";
 import { stegaClean } from "next-sanity";
 import { cn } from "@/lib/utils";
 import SectionContainer from "@/components/ui/section-container";
@@ -22,7 +23,7 @@ import {
 } from "./grid-row-animated-parallax"; // NEW
 
 if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
+  gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 }
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
@@ -41,6 +42,23 @@ const introPaddingClasses: Record<
 const CARD_STAGGER = 0.18;
 const CARD_DURATION = 0.7;
 const HEIGHT_STAGGER_PX = 120;
+
+function getActiveScroller(): Window | HTMLElement {
+  if (typeof window === "undefined") return {} as Window;
+
+  try {
+    const smoother = ScrollSmoother.get();
+    const wrapper = smoother?.wrapper?.();
+    if (wrapper) return wrapper as HTMLElement;
+  } catch { }
+
+  const wrapper = document.getElementById("smooth-wrapper");
+  if (wrapper?.getAttribute("data-smooth-active") === "true") {
+    return wrapper;
+  }
+
+  return window;
+}
 
 export default function GridRowAnimated(props: GridRowAnimated) {
   const {
@@ -101,11 +119,14 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   >;
   const introPaddingClass = introPaddingClasses[introPaddingKey];
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!rootRef.current) return;
 
     const ctx = gsap.context(() => {
-      const cards = gsap.utils.toArray<HTMLElement>(".animated-card");
+      const cards = gsap.utils.toArray<HTMLElement>(
+        ".animated-card",
+        rootRef.current,
+      );
 
       if (!cards.length) return;
 
@@ -115,9 +136,13 @@ export default function GridRowAnimated(props: GridRowAnimated) {
       // REMOVE this: we now handle initial state via CSS/inline style in CaptionBubble
       // gsap.set(".caption-bubble", { opacity: 0, scale: 0.8, y: 8 });
 
+      const scroller = getActiveScroller();
+
       ScrollTrigger.batch(cards, {
+        scroller,
         start: "top 75%",
         once: true,
+        invalidateOnRefresh: true,
         onEnter: (batch) => {
           batch.forEach((card, index) => {
             const caption =
@@ -153,7 +178,6 @@ export default function GridRowAnimated(props: GridRowAnimated) {
 
     return () => ctx.revert();
   }, []);
-
 
   const cleanGridPaddingTop = stegaClean(gridPaddingTop);
   const cleanGridPaddingBottom = stegaClean(gridPaddingBottom);

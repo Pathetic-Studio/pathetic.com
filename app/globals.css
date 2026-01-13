@@ -178,6 +178,10 @@
   /* thumb | track */
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 
 
 @theme inline {

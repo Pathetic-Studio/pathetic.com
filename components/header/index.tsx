@@ -2,6 +2,7 @@
 import Link from "next/link";
 import MobileNav from "@/components/header/mobile-nav";
 import DesktopNav from "@/components/header/desktop-nav";
+import MobileHeaderSocialAnim from "@/components/header/mobile-header-social-anim";
 import LogoAnimated from "@/components/logo-animated";
 import { InstagramIcon } from "../ui/instagram-icon";
 import { fetchSanitySettings, fetchSanityNavigation } from "@/sanity/lib/fetch";
@@ -18,7 +19,11 @@ export default async function Header() {
       <div className="w-full px-4 flex items-center justify-between py-4">
         {/* Mobile layout */}
         <div className="flex flex-1 items-center xl:hidden">
-          {instagramUrl && <InstagramIcon instagramUrl={instagramUrl} />}
+          {instagramUrl && (
+            <MobileHeaderSocialAnim>
+              <InstagramIcon instagramUrl={instagramUrl} />
+            </MobileHeaderSocialAnim>
+          )}
         </div>
 
         <div className="flex justify-center xl:hidden">

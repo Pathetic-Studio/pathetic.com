@@ -1,7 +1,11 @@
 // components/ui/type-on-text.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import gsap from "gsap";
+import { SplitText } from "gsap/SplitText";
+
+gsap.registerPlugin(SplitText);
 
 type TypeOnTextProps = {
   text: string;
@@ -30,12 +34,9 @@ export default function TypeOnText({
   trigger = "scroll",
 }: TypeOnTextProps) {
   const wrapperRef = useRef<HTMLSpanElement | null>(null);
+  const splitRef = useRef<SplitText | null>(null);
+  const tweenRef = useRef<gsap.core.Tween | null>(null);
   const startedRef = useRef(false);
-  const [started, setStarted] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(0);
-
-  const segments = useMemo(() => text.split(/(\s+)/), [text]);
-  const totalChars = useMemo(() => Array.from(text).length, [text]);
 
   const canStartNow = () => {
     if (typeof document === "undefined") return true;
@@ -46,48 +47,67 @@ export default function TypeOnText({
   };
 
   useEffect(() => {
-    startedRef.current = false;
-    setStarted(false);
-    setVisibleCount(0);
-  }, [text, trigger, start]);
-
-  useEffect(() => {
-    if (trigger !== "immediate") return;
-    let raf = 0;
-    const tryStart = () => {
-      if (startedRef.current) return;
-      if (!canStartNow()) return;
-      startedRef.current = true;
-      setStarted(true);
-    };
-
-    raf = requestAnimationFrame(tryStart);
-
-    const onLoaderChange = () => tryStart();
-    window.addEventListener(LOADER_EVENT, onLoaderChange as any);
-
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      window.removeEventListener(LOADER_EVENT, onLoaderChange as any);
-    };
-  }, [trigger, text]);
-
-  useEffect(() => {
-    if (trigger !== "scroll") return;
     const el = wrapperRef.current;
     if (!el) return;
 
-    const triggerEl =
-      (el.closest?.('[data-typeon-trigger="true"]') as HTMLElement | null) ?? el;
+    startedRef.current = false;
 
-    let raf = 0;
+    const cleanupSplit = () => {
+      tweenRef.current?.kill();
+      tweenRef.current = null;
+      splitRef.current?.revert();
+      splitRef.current = null;
+    };
+
+    cleanupSplit();
+
+    el.textContent = text;
+
+    const split = new SplitText(el, {
+      type: "chars,words,lines",
+      reduceWhiteSpace: false,
+    });
+    splitRef.current = split;
+
+    const chars = (split.chars ?? []) as HTMLElement[];
+    if (!chars.length) {
+      cleanupSplit();
+      return;
+    }
+
+    gsap.set(chars, { opacity: 0 });
+
+    const staggerPerChar = Math.max(0.01, 0.04 / Math.max(0.1, speed));
 
     const startTyping = () => {
       if (startedRef.current) return;
       if (!canStartNow()) return;
       startedRef.current = true;
-      setStarted(true);
+      tweenRef.current = gsap.to(chars, {
+        opacity: 1,
+        duration: 0,
+        ease: "none",
+        stagger: staggerPerChar,
+      });
     };
+
+    let raf = 0;
+
+    if (trigger === "immediate") {
+      raf = requestAnimationFrame(startTyping);
+
+      const onLoaderChange = () => startTyping();
+      window.addEventListener(LOADER_EVENT, onLoaderChange as any);
+
+      return () => {
+        if (raf) cancelAnimationFrame(raf);
+        window.removeEventListener(LOADER_EVENT, onLoaderChange as any);
+        cleanupSplit();
+      };
+    }
+
+    const triggerEl =
+      (el.closest?.('[data-typeon-trigger="true"]') as HTMLElement | null) ?? el;
 
     const check = () => {
       if (startedRef.current) return;
@@ -114,79 +134,16 @@ export default function TypeOnText({
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
       window.removeEventListener(LOADER_EVENT, onScroll as any);
+      cleanupSplit();
     };
-  }, [trigger, start]);
-
-  useEffect(() => {
-    if (!started) return;
-    if (visibleCount >= totalChars) return;
-
-    const baseStepMs = 40;
-    const stepMs = Math.max(12, baseStepMs / Math.max(0.1, speed));
-
-    const id = window.setTimeout(() => {
-      setVisibleCount((count) => Math.min(totalChars, count + 1));
-    }, stepMs);
-
-    return () => window.clearTimeout(id);
-  }, [started, visibleCount, totalChars, speed]);
+  }, [text, speed, start, trigger]);
 
   return (
     <span
       ref={wrapperRef}
       className={cn("inline-block whitespace-pre-wrap", className)}
       aria-label={text}
-    >
-      {(() => {
-        let charIndex = 0;
-
-        return segments.map((segment, segIndex) => {
-          if (!segment) return null;
-
-          const isWhitespace = /^\s+$/.test(segment);
-          if (isWhitespace) {
-            return (
-              <span key={`ws-${segIndex}`}>
-                {Array.from(segment).map((char, index) => {
-                  const currentIndex = charIndex;
-                  charIndex += 1;
-
-                  return (
-                    <span
-                      key={`ws-${segIndex}-${index}`}
-                      style={{ opacity: started && currentIndex < visibleCount ? 1 : 0 }}
-                      aria-hidden="true"
-                    >
-                      {char}
-                    </span>
-                  );
-                })}
-              </span>
-            );
-          }
-
-          return (
-            <span key={`w-${segIndex}`} className="inline-block whitespace-nowrap">
-              {Array.from(segment).map((char, index) => {
-                const currentIndex = charIndex;
-                charIndex += 1;
-
-                return (
-                  <span
-                    key={`w-${segIndex}-${index}`}
-                    className="inline-block"
-                    style={{ opacity: started && currentIndex < visibleCount ? 1 : 0 }}
-                    aria-hidden="true"
-                  >
-                    {char}
-                  </span>
-                );
-              })}
-            </span>
-          );
-        });
-      })()}
-    </span>
+    />
   );
 }
 
