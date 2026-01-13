@@ -3,9 +3,10 @@
 
 import type React from "react";
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import ScrollSmoother from "gsap/ScrollSmoother";
 import { cn } from "@/lib/utils";
 import SectionContainer from "@/components/ui/section-container";
 import { stegaClean } from "next-sanity";
@@ -21,7 +22,7 @@ import Link from "next/link";
 import { getSectionId } from "@/lib/section-id";
 import TitleText from "@/components/ui/title-text";
 
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type SplitRowAnimated = Extract<Block, { _type: "split-row-animated" }>;
@@ -53,6 +54,36 @@ const introPaddingClasses: Record<
 const PIN_DISTANCE_VH = 300;
 const NAV_HEIGHT = 80;
 
+declare global {
+  interface Window {
+    __splitRowAnimatedCleanup__?: Record<string, () => void>;
+  }
+}
+
+function unwrapPinSpacers(el: HTMLElement | null) {
+  if (!el) return;
+  while (el.parentElement?.classList.contains("pin-spacer")) {
+    const spacer = el.parentElement;
+    const parent = spacer.parentElement;
+    if (!parent) break;
+    parent.insertBefore(el, spacer);
+    parent.removeChild(spacer);
+  }
+}
+
+function getActiveScroller(): Window | HTMLElement {
+  try {
+    const s = ScrollSmoother.get();
+    const w = s?.wrapper?.();
+    if (w) return w as HTMLElement;
+  } catch { }
+  return window;
+}
+
+function getPinType(scroller: Window | HTMLElement) {
+  return scroller === window ? undefined : ("transform" as const);
+}
+
 export default function SplitRowAnimated({
   _key,
   anchor,
@@ -60,17 +91,17 @@ export default function SplitRowAnimated({
   colorVariant,
   noGap,
   splitColumns,
-
   tagLine,
   title,
   body,
   links,
   introPadding,
-  animateText,
+  animateText = true,
   stickyIntro,
 }: SplitRowAnimated) {
   const cleanedColor = stegaClean(colorVariant);
   const color = (cleanedColor ?? undefined) as ColorVariant | undefined;
+
   const sectionId = getSectionId(
     "split-row-animated",
     _key,
@@ -85,8 +116,10 @@ export default function SplitRowAnimated({
     introPaddingClasses[
     (introPadding || "md") as keyof typeof introPaddingClasses
     ];
+  const shouldAnimateText = animateText !== false;
 
   const sectionRef = useRef<HTMLDivElement | null>(null);
+  const pinWrapRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLDivElement | null>(null);
   const cardsRef = useRef<HTMLDivElement | null>(null);
@@ -94,11 +127,9 @@ export default function SplitRowAnimated({
   const [activeCardIndex, setActiveCardIndex] = useState<number>(-1);
   const [imageStage, setImageStage] = useState<number>(0);
 
+  const activeIndexRef = useRef<number>(-1);
   const lastStageRef = useRef<number>(-1);
   const firstCardShownRef = useRef<boolean>(false);
-
-  // ✅ NEW: prevents React from flipping active styles BEFORE exit animation completes
-  const suppressActiveUpdateRef = useRef<boolean>(false);
 
   let containerStyle: CSSProperties | undefined;
   if (typeof anchor?.defaultOffsetPercent === "number") {
@@ -107,19 +138,74 @@ export default function SplitRowAnimated({
       String(anchor.defaultOffsetPercent);
   }
 
-  useEffect(() => {
+  const desktopPinId = `${sectionId}-pin-desktop`;
+  const mobilePinId = `${sectionId}-pin-mobile`;
+  const enterId = `${sectionId}-enter`;
+
+  useLayoutEffect(() => {
     const sectionEl = sectionRef.current;
+    const pinWrapEl = pinWrapRef.current;
     const gridEl = gridRef.current;
     const imageEl = imageRef.current;
     const cardsContainer = cardsRef.current;
 
-    if (!sectionEl) return;
+    if (!sectionEl || !pinWrapEl || !gridEl) return;
 
+    ScrollTrigger.config({ ignoreMobileResize: true });
+
+    if (typeof window !== "undefined") {
+      window.__splitRowAnimatedCleanup__ ??= {};
+      window.__splitRowAnimatedCleanup__[sectionId]?.();
+    }
+
+    const cleanupLocal = () => {
+      ScrollTrigger.getAll().forEach((t) => {
+        const vars = (t.vars || {}) as any;
+        const id = (vars.id ?? "") as string;
+
+        const pinsWrap = vars.pin === pinWrapEl || (t as any).pin === pinWrapEl;
+        const triggersWrap =
+          vars.trigger === pinWrapEl || (t as any).trigger === pinWrapEl;
+
+        const pinsGrid = vars.pin === gridEl || (t as any).pin === gridEl;
+        const triggersGrid =
+          vars.trigger === gridEl || (t as any).trigger === gridEl;
+
+        if (
+          id === desktopPinId ||
+          id === mobilePinId ||
+          id === enterId ||
+          pinsWrap ||
+          triggersWrap ||
+          pinsGrid ||
+          triggersGrid
+        ) {
+          t.kill(true);
+        }
+      });
+
+      unwrapPinSpacers(pinWrapRef.current);
+      unwrapPinSpacers(gridRef.current);
+      unwrapPinSpacers(imageRef.current);
+      unwrapPinSpacers(cardsRef.current);
+      unwrapPinSpacers(sectionRef.current);
+    };
+
+    cleanupLocal();
+
+    activeIndexRef.current = -1;
     lastStageRef.current = -1;
     firstCardShownRef.current = false;
-    suppressActiveUpdateRef.current = false;
+
+    const mm = gsap.matchMedia();
 
     const ctx = gsap.context(() => {
+      const scroller = getActiveScroller();
+      const pinType = getPinType(scroller);
+
+      const isDesktopNow = () =>
+        window.matchMedia("(min-width: 1024px)").matches;
+
       const cardItemEls = cardsContainer
         ? Array.from(
           cardsContainer.querySelectorAll<HTMLElement>("[data-card-item]"),
@@ -137,329 +223,362 @@ export default function SplitRowAnimated({
         ? (imageEl.querySelector("[data-oval-container]") as HTMLElement | null)
         : null;
 
-      const mm = gsap.matchMedia();
+      const totalStages = cardItemEls.length;
 
-      mm.add(
-        { isDesktop: "(min-width: 1024px)", isMobile: "(max-width: 1023.98px)" },
-        (context) => {
-          const { isDesktop, isMobile } = context.conditions as {
-            isDesktop: boolean;
-            isMobile: boolean;
-          };
+      const clampStageIndex = (stage: number) =>
+        Math.max(0, Math.min(stage, totalStages - 1));
 
-          // NO CARDS
-          if (!cardItemEls.length) {
-            if (imageEl) {
-              gsap.fromTo(
-                imageEl,
-                { autoAlpha: 0, y: 30 },
-                {
-                  autoAlpha: 1,
-                  y: 0,
-                  duration: 0.8,
-                  ease: "power3.out",
-                  scrollTrigger: {
-                    trigger: imageEl,
-                    start: isDesktop ? "top 75%" : "top 85%",
-                    toggleActions: "play none none none",
-                  },
-                },
-              );
-            }
-            return;
+      const setStage = (stage: number) => {
+        if (stage < 0) {
+          activeIndexRef.current = -1;
+          setActiveCardIndex(-1);
+          setImageStage(0);
+          firstCardShownRef.current = false;
+          if (ovalEl) gsap.to(ovalEl, { scale: 0.9, duration: 0.35, overwrite: "auto" });
+          return;
+        }
+
+        const clamped = clampStageIndex(stage);
+        activeIndexRef.current = clamped;
+        setActiveCardIndex((prev) => (prev === clamped ? prev : clamped));
+        setImageStage((prev) => {
+          const next = 2 + clamped;
+          return prev === next ? prev : next;
+        });
+
+        if (ovalEl) {
+          const scale = clamped === 0 ? 1 : clamped === 1 ? 1.08 : 1.16;
+          gsap.to(ovalEl, { scale, duration: 0.45, overwrite: "auto", ease: "power2.out" });
+        }
+      };
+
+      // Desktop diagonal offsets (“fan”)
+      const getCardOffsets = (index: number) => {
+        const isDesktop = isDesktopNow();
+        if (!hasAnimatedCards || !isDesktop) return { x: 0, y: 0 };
+        return { x: 32 * index, y: -24 * index };
+      };
+
+      const enterCardDesktop = (index: number) => {
+        const el = cardItemEls[index];
+        if (!el) return;
+
+        const o = getCardOffsets(index);
+        gsap.fromTo(
+          el,
+          { autoAlpha: 0, x: o.x + 120, y: o.y },
+          {
+            autoAlpha: 1,
+            x: o.x,
+            y: o.y,
+            duration: 0.7,
+            ease: "power2.out",
+            overwrite: "auto",
+          },
+        );
+      };
+
+      const exitCardDesktop = (index: number) => {
+        const el = cardItemEls[index];
+        if (!el) return;
+
+        const o = getCardOffsets(index);
+        gsap.to(el, {
+          autoAlpha: 0,
+          x: o.x + 120,
+          y: o.y,
+          duration: 0.55,
+          ease: "power2.inOut",
+          overwrite: "auto",
+        });
+      };
+
+      const showOnlyFirstCardDesktop = () => {
+        if (!totalStages) return;
+        cardItemEls.forEach((el, i) => {
+          const o = getCardOffsets(i);
+          gsap.set(el, {
+            force3D: true,
+            autoAlpha: i === 0 ? 1 : 0,
+            x: i === 0 ? o.x : o.x + 120,
+            y: o.y,
+          });
+          el.style.zIndex = String(10 + i);
+        });
+        firstCardShownRef.current = true;
+        lastStageRef.current = 0;
+        setStage(0);
+      };
+
+      const hideAllCardsDesktop = () => {
+        if (!totalStages) return;
+        cardItemEls.forEach((el, i) => {
+          const o = getCardOffsets(i);
+          gsap.set(el, { force3D: true, autoAlpha: 0, x: o.x + 120, y: o.y });
+          el.style.zIndex = String(10 + i);
+        });
+        lastStageRef.current = -1;
+        setStage(-1);
+      };
+
+      const showOnlyFirstCardMobile = () => {
+        if (!totalStages) return;
+        cardItemEls.forEach((el, i) => {
+          gsap.set(el, {
+            force3D: true,
+            x: 0,
+            y: i === 0 ? 0 : 60,
+            autoAlpha: i === 0 ? 1 : 0,
+          });
+          el.style.zIndex = String(10 + i);
+        });
+        firstCardShownRef.current = true;
+        lastStageRef.current = 0;
+        setStage(0);
+      };
+
+      const hideAllCardsMobile = () => {
+        if (!totalStages) return;
+        cardItemEls.forEach((el, i) => {
+          gsap.set(el, { force3D: true, x: 0, y: 60, autoAlpha: 0 });
+          el.style.zIndex = String(10 + i);
+        });
+        lastStageRef.current = -1;
+        setStage(-1);
+      };
+
+      const applyStageChangeDesktop = (prev: number, next: number) => {
+        if (prev === next) return;
+
+        if (next < 0) {
+          if (prev >= 0) {
+            for (let i = prev; i >= 0; i--) exitCardDesktop(i);
           }
+          lastStageRef.current = -1;
+          setStage(-1);
+          return;
+        }
 
-          // DESKTOP
-          if (isDesktop) {
-            if (!gridEl) return;
-
-            const enterCard = (index: number) => {
-              const el = cardItemEls[index];
-              if (!el) return;
-
-              const xOffset = hasAnimatedCards ? 32 * index : 0;
-              const yOffset = hasAnimatedCards ? -24 * index : 0;
-
-              gsap.fromTo(
-                el,
-                { autoAlpha: 0, x: xOffset + 120, y: yOffset },
-                {
-                  autoAlpha: 1,
-                  x: xOffset,
-                  y: yOffset,
-                  duration: 0.6,
-                  ease: "power3.out",
-                },
-              );
-            };
-
-            // ✅ UPDATED: exit keeps card “active” until animation ends
-            const exitCard = (index: number, onComplete?: () => void) => {
-              const el = cardItemEls[index];
-              if (!el) return;
-
-              const xOffset = hasAnimatedCards ? 32 * index : 0;
-              const yOffset = hasAnimatedCards ? -24 * index : 0;
-
-              suppressActiveUpdateRef.current = true;
-
-              gsap.to(el, {
-                autoAlpha: 0,
-                x: xOffset + 120,
-                y: yOffset,
-                duration: 0.4,
-                ease: "power3.inOut",
-                onComplete: () => {
-                  suppressActiveUpdateRef.current = false;
-                  onComplete?.();
-                },
-              });
-            };
-
-            // initial enter/exit layer state
-            cardItemEls.forEach((el, index) => {
-              const xOffset = hasAnimatedCards ? 32 * index : 0;
-              const yOffset = hasAnimatedCards ? -24 * index : 0;
-
-              gsap.set(el, {
-                autoAlpha: 0,
-                x: xOffset + 120,
-                y: yOffset,
-                zIndex: 10 + index,
-              });
-            });
-
-            // oval initial
-            if (ovalEl) {
-              gsap.set(ovalEl, { scale: 0.9, transformOrigin: "50% 50%" });
-            }
-
-            // IMAGE + FIRST CARD
-            if (imageEl) {
-              gsap.set(imageEl, { autoAlpha: 0, y: 40 });
-
-              ScrollTrigger.create({
-                trigger: gridEl,
-                start: "top 80%",
-                toggleActions: "play none none none",
-                onEnter: () => {
-                  gsap.to(imageEl, {
-                    autoAlpha: 1,
-                    y: 0,
-                    duration: 0.8,
-                    ease: "power3.out",
-                  });
-
-                  if (cardItemEls.length > 0 && !firstCardShownRef.current) {
-                    enterCard(0);
-                    firstCardShownRef.current = true;
-                    setActiveCardIndex(0);
-                    setImageStage(2);
-                  }
-                },
-              });
-            }
-
-            // drift (pinned progress-driven)
-            const driftEls = cardsContainer
-              ? gsap.utils.toArray<HTMLElement>("[data-card-drift]", cardsContainer)
-              : [];
-
-            const driftSetters = driftEls.map((el) => ({
-              x: gsap.quickSetter(el, "xPercent"),
-              y: gsap.quickSetter(el, "yPercent"),
-            }));
-
-            const baseOffsetXPx = 80;
-            const baseOffsetYPx = 80;
-
-            // keep your chosen multiplier
-            const multiplier = (i: number) => [1, 1.35, 1.75][i] ?? (1 + i * 0.4);
-
-            gsap.set(driftEls, { xPercent: 0, yPercent: 0 });
-
-            const updateDrift = (p: number) => {
-              const baseX =
-                window.innerWidth > 0
-                  ? (baseOffsetXPx / window.innerWidth) * 100
-                  : 0;
-              const baseY =
-                window.innerHeight > 0
-                  ? (baseOffsetYPx / window.innerHeight) * 100
-                  : 0;
-
-              for (let i = 0; i < driftSetters.length; i++) {
-                const m = multiplier(i);
-                driftSetters[i].x(gsap.utils.interpolate(0, -baseX * m, p));
-                driftSetters[i].y(gsap.utils.interpolate(0, -baseY * m, p));
-              }
-            };
-
-            const applyStageChange = (prev: number, next: number) => {
-              if (prev === next) return;
-
-              // leaving pinned region upwards
-              if (next < 0) {
-                if (prev >= 0) {
-                  // exit cards while keeping current active colour
-                  // update active AFTER the last exit completes
-                  let remaining = prev + 1;
-                  for (let i = prev; i >= 0; i--) {
-                    exitCard(i, () => {
-                      remaining -= 1;
-                      if (remaining <= 0) {
-                        firstCardShownRef.current = false;
-                        setActiveCardIndex(-1);
-                        setImageStage(0);
-                      }
-                    });
-                  }
-                } else {
-                  firstCardShownRef.current = false;
-                  setActiveCardIndex(-1);
-                  setImageStage(0);
-                }
-                return;
-              }
-
-              // forward (normal)
-              if (next > prev) {
-                for (let i = Math.max(0, prev + 1); i <= next; i++) {
-                  if (i === 0 && firstCardShownRef.current) continue;
-                  enterCard(i);
-                }
-
-                if (ovalEl) {
-                  const scale =
-                    next === 0 ? 1 : next === 1 ? 1.08 : next >= 2 ? 1.16 : 0.9;
-                  gsap.to(ovalEl, { scale, duration: 0.8, ease: "power3.out" });
-                }
-
-                const clamped = Math.max(0, Math.min(next, cardItemEls.length - 1));
-                if (!suppressActiveUpdateRef.current) {
-                  setActiveCardIndex(clamped);
-                  setImageStage(2 + clamped);
-                }
-                return;
-              }
-
-              // ✅ backward: animate out FIRST, then switch active index
-              if (next < prev) {
-                let remaining = prev - next; // number of cards exiting
-                for (let i = prev; i > next; i--) {
-                  exitCard(i, () => {
-                    remaining -= 1;
-                    if (remaining <= 0) {
-                      if (ovalEl) {
-                        const scale =
-                          next === 0
-                            ? 1
-                            : next === 1
-                              ? 1.08
-                              : next >= 2
-                                ? 1.16
-                                : 0.9;
-                        gsap.to(ovalEl, { scale, duration: 0.8, ease: "power3.out" });
-                      }
-
-                      const clamped = Math.max(
-                        0,
-                        Math.min(next, cardItemEls.length - 1),
-                      );
-
-                      setActiveCardIndex(clamped);
-                      setImageStage(2 + clamped);
-                    }
-                  });
-                }
-                return;
-              }
-            };
-
-            const pinDistancePx = (PIN_DISTANCE_VH / 100) * window.innerHeight;
-
-            // pin: drives both drift + stages
-            ScrollTrigger.create({
-              trigger: gridEl,
-              start: `center-=${NAV_HEIGHT} center`,
-              end: `+=${pinDistancePx}`,
-              pin: gridEl,
-              pinSpacing: true,
-              scrub: true,
-              invalidateOnRefresh: true,
-              onUpdate: (self) => {
-                const p = self.progress;
-
-                // drift across pinned duration
-                updateDrift(p);
-
-                // stage calc
-                let stage = -1;
-                if (p > 0 && p < 1 / 3) stage = 0;
-                else if (p >= 1 / 3 && p < 2 / 3) stage = 1;
-                else if (p >= 2 / 3) stage = 2;
-
-                if (stage !== lastStageRef.current) {
-                  const prev = lastStageRef.current;
-                  lastStageRef.current = stage;
-                  applyStageChange(prev, stage);
-                }
-              },
-            });
-
-            return;
+        if (next > prev) {
+          for (let i = Math.max(0, prev + 1); i <= next; i++) {
+            if (i === 0 && firstCardShownRef.current) continue;
+            enterCardDesktop(i);
+            if (i === 0) firstCardShownRef.current = true;
           }
+          setStage(next);
+          return;
+        }
 
-          // MOBILE / TABLET
-          if (isMobile) {
-            if (imageEl) {
-              gsap.fromTo(
-                imageEl,
-                { autoAlpha: 0, y: 30 },
-                {
-                  autoAlpha: 1,
-                  y: 0,
-                  duration: 0.6,
-                  ease: "power3.out",
-                  scrollTrigger: {
-                    trigger: imageEl,
-                    start: "top 85%",
-                    toggleActions: "play none none none",
-                  },
-                },
-              );
-            }
+        for (let i = prev; i > next; i--) exitCardDesktop(i);
+        setStage(next);
+      };
 
-            cardItemEls.forEach((el, index) => {
-              gsap.fromTo(
-                el,
-                { autoAlpha: 0, y: 30 },
-                {
-                  autoAlpha: 1,
-                  y: 0,
-                  duration: 0.5,
-                  delay: index * 0.05,
-                  ease: "power2.out",
-                  scrollTrigger: {
-                    trigger: el,
-                    start: "top 90%",
-                    toggleActions: "play none none none",
-                  },
-                },
-              );
-            });
+      const stageFromProgress = (progress: number) => {
+        if (!totalStages) return -1;
+        const clamped = Math.max(0, Math.min(0.999999, progress));
+        return Math.min(totalStages - 1, Math.floor(clamped * totalStages));
+      };
 
-            if (cardItemEls.length > 0) {
-              setActiveCardIndex(0);
-              setImageStage(2);
-            }
-          }
+      // Prevent flash
+      cardItemEls.forEach((el, index) => {
+        const o = getCardOffsets(index);
+        gsap.set(el, {
+          force3D: true,
+          autoAlpha: 0,
+          x: isDesktopNow() ? o.x + 120 : 0,
+          y: isDesktopNow() ? o.y : 60,
+          zIndex: 10 + index,
+        });
+      });
+
+      if (ovalEl) {
+        gsap.set(ovalEl, {
+          scale: 0.9,
+          transformOrigin: "50% 50%",
+          willChange: "transform",
+        });
+      }
+      if (imageEl) gsap.set(imageEl, { autoAlpha: 1, y: 0 });
+
+      const enter = ScrollTrigger.create({
+        id: enterId,
+        scroller,
+        trigger: pinWrapEl,
+        start: "top 85%",
+        onEnter: () => {
+          if (totalStages <= 0) return;
+          if (isDesktopNow()) showOnlyFirstCardDesktop();
+          else showOnlyFirstCardMobile();
         },
-      );
+        onEnterBack: () => {
+          if (totalStages <= 0) return;
+          if (isDesktopNow()) showOnlyFirstCardDesktop();
+          else showOnlyFirstCardMobile();
+        },
+        onLeaveBack: () => {
+          if (isDesktopNow()) hideAllCardsDesktop();
+          else hideAllCardsMobile();
+        },
+      });
+
+      // -------------------------
+      // DESKTOP (unchanged behavior)
+      // -------------------------
+      mm.add("(min-width: 1024px)", () => {
+        if (!totalStages) return;
+
+        const pinPx = (PIN_DISTANCE_VH / 100) * window.innerHeight;
+
+        const st = ScrollTrigger.create({
+          id: desktopPinId,
+          scroller,
+          trigger: pinWrapEl,
+          start: `center-=${NAV_HEIGHT} center`,
+          end: () => `+=${pinPx}`,
+          pin: pinWrapEl,
+          pinSpacing: true,
+          scrub: true,
+          invalidateOnRefresh: true,
+          anticipatePin: 1,
+          pinType: pinType as any,
+
+          onEnter: () => showOnlyFirstCardDesktop(),
+          onEnterBack: () => showOnlyFirstCardDesktop(),
+
+          onUpdate: (self) => {
+            const stage = stageFromProgress(self.progress);
+            if (stage !== lastStageRef.current) {
+              const prev = lastStageRef.current;
+              lastStageRef.current = stage;
+              applyStageChangeDesktop(prev, stage);
+            }
+          },
+          onRefresh: (self) => {
+            const stage = stageFromProgress(self.progress);
+            if (stage !== lastStageRef.current) {
+              const prev = lastStageRef.current;
+              lastStageRef.current = stage;
+              applyStageChangeDesktop(prev, stage);
+            }
+          },
+
+          onLeaveBack: () => hideAllCardsDesktop(),
+        });
+
+        requestAnimationFrame(() => ScrollTrigger.refresh());
+
+        return () => {
+          st.kill(true);
+          unwrapPinSpacers(pinWrapEl);
+        };
+      });
+
+      // -------------------------
+      // MOBILE/TABLET: PIN + SCRUBBED TIMELINE (NO per-scroll setters)
+      // Works cleanly because ScrollSmoother is now active on mobile (scroller is wrapper).
+      // -------------------------
+      mm.add("(max-width: 1023.98px)", () => {
+        if (!totalStages) return;
+
+        const pinPx = (PIN_DISTANCE_VH / 100) * window.innerHeight;
+
+        hideAllCardsMobile();
+        showOnlyFirstCardMobile();
+
+        const tl = gsap.timeline({ paused: true, defaults: { ease: "none" } });
+
+        tl.set(cardItemEls[0], { autoAlpha: 1, y: 0, force3D: true }, 0);
+
+        for (let i = 0; i < totalStages - 1; i++) {
+          const t0 = i;
+          const mid = i + 0.6;
+
+          tl.set(cardItemEls[i], { zIndex: 200 }, t0);
+          tl.set(cardItemEls[i + 1], { zIndex: 201 }, t0);
+
+          // hold
+          tl.to({}, { duration: 0.6 }, t0);
+
+          // crossfade
+          tl.to(
+            cardItemEls[i],
+            { autoAlpha: 0, y: -60, duration: 0.4, overwrite: "auto" },
+            mid,
+          );
+          tl.fromTo(
+            cardItemEls[i + 1],
+            { autoAlpha: 0, y: 60 },
+            { autoAlpha: 1, y: 0, duration: 0.4, overwrite: "auto" },
+            mid,
+          );
+        }
+
+        tl.to({}, { duration: 0.6 });
+
+        const st = ScrollTrigger.create({
+          id: mobilePinId,
+          scroller,
+          trigger: pinWrapEl,
+          start: `top top+=${NAV_HEIGHT}`,
+          end: () => `+=${pinPx}`,
+          pin: pinWrapEl,
+          pinSpacing: true,
+          scrub: true,
+
+          // key for smoother scroller
+          pinType: "transform" as any,
+          pinReparent: true,
+
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+
+          animation: tl,
+
+          onEnter: () => {
+            showOnlyFirstCardMobile();
+            tl.progress(0);
+          },
+          onEnterBack: () => {
+            showOnlyFirstCardMobile();
+            tl.progress(0);
+          },
+          onUpdate: (self) => {
+            const stage = Math.min(
+              totalStages - 1,
+              Math.floor(self.progress * totalStages),
+            );
+            if (stage !== activeIndexRef.current) setStage(stage);
+          },
+          onLeaveBack: () => showOnlyFirstCardMobile(),
+        });
+
+        requestAnimationFrame(() => ScrollTrigger.refresh());
+
+        return () => {
+          st.kill(true);
+          tl.kill();
+          unwrapPinSpacers(pinWrapEl);
+        };
+      });
+
+      return () => {
+        enter.kill(true);
+        mm.revert();
+      };
     }, sectionEl);
 
-    return () => ctx.revert();
-  }, [splitColumns]);
+    const cleanup = () => {
+      ctx.revert();
+      cleanupLocal();
+    };
+
+    if (typeof window !== "undefined") {
+      window.__splitRowAnimatedCleanup__ ??= {};
+      window.__splitRowAnimatedCleanup__[sectionId] = cleanup;
+    }
+
+    return cleanup;
+  }, [animateText, splitColumns, sectionId, desktopPinId, mobilePinId, enterId]);
 
   return (
     <SectionContainer
@@ -475,9 +594,9 @@ export default function SplitRowAnimated({
             className={cn(
               "text-center pt-8 lg:pt-20 pb-10",
               introPaddingClass,
-              stickyIntro &&
-              "lg:sticky lg:top-20 z-20 bg-background/80 backdrop-blur",
+              stickyIntro && "lg:sticky lg:top-20 z-20 bg-background/80 backdrop-blur",
             )}
+            data-typeon-trigger="true"
           >
             <div className="max-w-8xl mx-auto">
               {tagLine && (
@@ -494,9 +613,11 @@ export default function SplitRowAnimated({
                   as="h2"
                   size="xl"
                   align="center"
-                  maxChars={32}
-                  animation={animateText ? "typeOn" : "none"}
+                  maxChars={28}
+                  animation={shouldAnimateText ? "typeOn" : "none"}
                   animationSpeed={1.2}
+                  typeOnTrigger="scroll"
+                  typeOnStart="top 80%"
                 >
                   {title}
                 </TitleText>
@@ -532,65 +653,78 @@ export default function SplitRowAnimated({
         )}
 
         {splitColumns && splitColumns.length > 0 && (
-          <div
-            ref={gridRef}
-            className={cn(
-              "mt-4 grid grid-cols-1 lg:grid-cols-2 items-start max-w-6xl mx-auto w-full px-4 lg:px-8 overflow-visible",
-              noGap ? "gap-0" : "gap-10 lg:gap-20",
-            )}
-          >
-            {splitColumns.map((column) => {
-              if (column._type === "split-cards-list-animated") {
-                return (
-                  <div
-                    key={column._key}
-                    ref={cardsRef}
-                    className="flex flex-col overflow-visible order-2 px-6 lg:px-0 lg:order-1"
-                  >
-                    <SplitCardsListAnimated
+          <div className="overflow-visible">
+            <div ref={pinWrapRef} className="relative pt-4 overflow-visible">
+              <div
+                ref={gridRef}
+                className={cn(
+                  "grid grid-cols-1 lg:grid-cols-2 items-start max-w-6xl mx-auto w-full px-4 lg:px-8 overflow-visible",
+                  noGap ? "gap-0" : "gap-10 lg:gap-20",
+                )}
+              >
+                {splitColumns.map((column) => {
+                  if (column._type === "split-cards-list-animated") {
+                    return (
+                      <div
+                        key={column._key}
+                        ref={cardsRef}
+                        className={cn(
+                          "flex flex-col overflow-visible px-6 lg:px-0",
+                          "order-2 lg:order-none",
+                        )}
+                      >
+                        <SplitCardsListAnimated
+                          {...(column as any)}
+                          color={color}
+                          activeIndex={activeCardIndex}
+                          onHoverCard={undefined}
+                        />
+                      </div>
+                    );
+                  }
+
+                  if (column._type === "split-image-animate") {
+                    return (
+                      <div
+                        key={column._key}
+                        ref={imageRef}
+                        className={cn(
+                          "self-start overflow-visible will-change-transform",
+                          "order-1 lg:order-none",
+                        )}
+                      >
+                        <SplitImageAnimate
+                          {...(column as any)}
+                          imageStage={imageStage}
+                        />
+                      </div>
+                    );
+                  }
+
+                  const Component =
+                    componentMap[
+                    column._type as Exclude<
+                      SplitColumnAnimated["_type"],
+                      "split-cards-list-animated" | "split-image-animate"
+                    >
+                    ];
+
+                  if (!Component) {
+                    console.warn("No component implemented for:", column._type);
+                    return <div data-type={column._type} key={column._key} />;
+                  }
+
+                  return (
+                    <Component
                       {...(column as any)}
                       color={color}
-                      activeIndex={activeCardIndex}
-                      onHoverCard={undefined}
+                      noGap={noGap}
+                      key={column._key}
                     />
-                  </div>
-                );
-              }
-
-              if (column._type === "split-image-animate") {
-                return (
-                  <div
-                    key={column._key}
-                    ref={imageRef}
-                    className="self-start overflow-visible order-1 lg:order-1 lg:mb-0 opacity-0 will-change-transform"
-                  >
-                    <SplitImageAnimate {...(column as any)} imageStage={imageStage} />
-                  </div>
-                );
-              }
-
-              const Component =
-                componentMap[
-                column._type as Exclude<
-                  SplitColumnAnimated["_type"],
-                  "split-cards-list-animated" | "split-image-animate"
-                >
-                ];
-
-              if (!Component) {
-                console.warn("No component implemented for:", column._type);
-                return <div data-type={column._type} key={column._key} />;
-              }
-
-              return (
-                <Component
-                  {...(column as any)}
-                  color={color}
-                  noGap={noGap}
-                  key={column._key}
-                />
-              );
-            })}
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>

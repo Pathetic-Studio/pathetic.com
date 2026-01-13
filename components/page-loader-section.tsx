@@ -510,18 +510,21 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
             {title && (
               <div className="mx-auto w-full" style={titleMinH ? { minHeight: titleMinH } : undefined}>
-                <TitleText
-                  variant="stretched"
-                  as="h2"
-                  size="xl"
-                  align="center"
-                  maxChars={26}
-                  animation={titleActive ? "typeOn" : "none"}
-                  animationSpeed={1.2}
-                  textOutline
-                >
-                  {title}
-                </TitleText>
+                {titleActive && (
+                  <TitleText
+                    variant="stretched"
+                    as="h2"
+                    size="xl"
+                    align="center"
+                    maxChars={26}
+                    animation="typeOn"
+                    animationSpeed={1.2}
+                    typeOnTrigger="immediate"
+                    textOutline
+                  >
+                    {title}
+                  </TitleText>
+                )}
               </div>
             )}
 

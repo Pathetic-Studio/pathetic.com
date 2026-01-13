@@ -25,7 +25,11 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
   const savedTabScrollRef = useRef<number>(0);
 
-  const [enableSmooth, setEnableSmooth] = useState(false);
+  // NEW: we always run ScrollSmoother (so pins can share the same scroller on mobile),
+  // but we disable smoothing on touch via smoothTouch: 0 and near-zero smooth on < lg.
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [isTouch, setIsTouch] = useState(false);
+
   const [suppressForLoader, setSuppressForLoader] = useState(false);
 
   // Track loader flag without changing DOM structure
@@ -42,18 +46,20 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     return () => window.removeEventListener(LOADER_EVENT, onEvt as any);
   }, []);
 
+  // Detect device breakpoints + touch
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const compute = () => {
-      const isTouch =
+      const touch =
         "ontouchstart" in window ||
         navigator.maxTouchPoints > 0 ||
         (navigator as any).msMaxTouchPoints > 0;
 
-      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+      const desktop = window.matchMedia("(min-width: 1024px)").matches;
 
-      setEnableSmooth(isDesktop && !isTouch);
+      setIsTouch(touch);
+      setIsDesktop(desktop);
     };
 
     compute();
@@ -114,6 +120,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
         ScrollSmoother.get()?.kill();
       } catch { }
 
+      wrapper.setAttribute("data-smooth-active", "false");
       gsap.set(content, { clearProps: "transform" });
 
       try {
@@ -123,16 +130,23 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       return;
     }
 
-    // No smooth on mobile/touch or reduced motion
-    if (!enableSmooth || prefersReduced) {
+    // Reduced motion: kill smoother and use native scroll
+    if (prefersReduced) {
       try {
         ScrollSmoother.get()?.kill();
       } catch { }
+
+      wrapper.setAttribute("data-smooth-active", "false");
       gsap.set(content, { clearProps: "transform" });
       return;
     }
 
-    // Smooth mode
+    // IMPORTANT: we keep smoother ON for mobile/tablet too.
+    // Desktop: smooth = 1
+    // Mobile/tablet: smooth ~= 0 (no smoothing), but still uses the smoother scroller/wrapper.
+    const smooth = isDesktop && !isTouch ? 1 : 0.001; // near-native
+    const smoothTouch = 0; // NO smoothing on touch
+
     try {
       if ("scrollRestoration" in window.history) {
         window.history.scrollRestoration = "manual";
@@ -141,6 +155,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
     ScrollTrigger.config({
       autoRefreshEvents: "DOMContentLoaded,load,resize",
+      ignoreMobileResize: true,
     });
 
     wrapper.style.overflowAnchor = "none";
@@ -162,7 +177,12 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
     const getScrollY = () => {
       if (smoother) return smoother.scrollTop();
-      return window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+      return (
+        window.scrollY ||
+        window.pageYOffset ||
+        document.documentElement.scrollTop ||
+        0
+      );
     };
 
     const setScrollY = (y: number) => {
@@ -171,7 +191,9 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     };
 
     const parsePinDurationToPx = (raw: string | null, section: HTMLElement) => {
-      const natural = Math.max(section.scrollHeight, section.offsetHeight) || window.innerHeight;
+      const natural =
+        Math.max(section.scrollHeight, section.offsetHeight) ||
+        window.innerHeight;
 
       if (!raw) return natural;
 
@@ -205,6 +227,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       return natural;
     };
 
+    // Keep existing desktop-only attribute pinning logic unchanged
     const setupPinning = () => {
       pinTriggers.forEach((t) => t.kill());
       pinTriggers.length = 0;
@@ -212,10 +235,11 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       ro?.disconnect();
       ro = null;
 
-      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
-      if (!isDesktop) return;
+      const desktop = window.matchMedia("(min-width: 1024px)").matches;
+      if (!desktop) return;
 
-      const pinnedSections = gsap.utils.toArray<HTMLElement>('[data-pin-to-viewport="true"]');
+      const pinnedSections =
+        gsap.utils.toArray<HTMLElement>('[data-pin-to-viewport="true"]');
       pinnedSections.forEach((el) => (el.style.overflowAnchor = "none"));
 
       ro = new ResizeObserver(() => {
@@ -226,14 +250,20 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
       pinnedSections.forEach((section) => {
         const startAttr = section.getAttribute("data-pin-start");
-        const startValue = startAttr && startAttr.trim() !== "" ? startAttr : "top top";
+        const startValue =
+          startAttr && startAttr.trim() !== "" ? startAttr : "top top";
 
         const pinSpacingAttr = section.getAttribute("data-pin-spacing");
         const pinSpacing =
-          pinSpacingAttr === "false" ? false : pinSpacingAttr === "true" ? true : true;
+          pinSpacingAttr === "false"
+            ? false
+            : pinSpacingAttr === "true"
+              ? true
+              : true;
 
         const pinTarget =
-          section.querySelector<HTMLElement>('[data-pin-target="true"]') || section;
+          section.querySelector<HTMLElement>('[data-pin-target="true"]') ||
+          section;
 
         const trigger = ScrollTrigger.create({
           trigger: section,
@@ -307,11 +337,13 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       smoother = ScrollSmoother.create({
         wrapper,
         content,
-        smooth: 1,
-        smoothTouch: 0,
+        smooth,
+        smoothTouch,
         effects: true,
         normalizeScroll: true,
       });
+
+      wrapper.setAttribute("data-smooth-active", "true");
 
       setupPinning();
 
@@ -323,6 +355,9 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       });
     } catch (err) {
       console.error("[SmoothScroller] ScrollSmoother.create failed", err);
+
+      wrapper.setAttribute("data-smooth-active", "false");
+
       setupPinning();
       ScrollTrigger.refresh();
       scrollToHashIfPresent();
@@ -335,26 +370,28 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       ro?.disconnect();
       pinTriggers.forEach((t) => t.kill());
       smoother?.kill();
+
+      wrapper.setAttribute("data-smooth-active", "false");
     };
-  }, [pathname, enableSmooth, suppressForLoader, scrollToHashIfPresent]);
+  }, [pathname, isDesktop, isTouch, suppressForLoader, scrollToHashIfPresent]);
 
   useEffect(() => {
-    // If smooth is disabled (mobile) OR loader is suppressing, still honor hash jumps
-    if (enableSmooth && !suppressForLoader) return;
+    // even when smoother is running, still honor hash jumps after nav
     scrollToHashIfPresent();
-  }, [pathname, enableSmooth, suppressForLoader, scrollToHashIfPresent]);
+  }, [pathname, scrollToHashIfPresent]);
 
   // Keep DOM structure stable; toggle styles only.
+  // With smoother always on (unless loader/reduced), wrapper is always the scroll container.
   const wrapperStyle: React.CSSProperties =
-    suppressForLoader || !enableSmooth ? { height: "auto", overflow: "visible" } : { height: "var(--app-height, 100vh)" };
+    suppressForLoader ? { height: "auto", overflow: "visible" } : { height: "var(--app-height, 100vh)" };
 
   const wrapperClass =
-    suppressForLoader || !enableSmooth
+    suppressForLoader
       ? "relative overflow-visible overflow-x-hidden [overflow-anchor:none]"
       : "relative overflow-hidden overflow-x-hidden [overflow-anchor:none]";
 
   const contentClass =
-    suppressForLoader || !enableSmooth
+    suppressForLoader
       ? "min-h-[100vh] [overflow-anchor:none]"
       : "min-h-[var(--app-height,100vh)] will-change-transform [transform:translate3d(0,0,0)] [overflow-anchor:none]";
 

@@ -36,6 +36,10 @@ interface TitleTextProps {
 
   // Outline thickness (px)
   outlineWidth?: number;
+
+  // TypeOnText config (only used when animation="typeOn")
+  typeOnStart?: string;
+  typeOnTrigger?: "scroll" | "immediate";
 }
 
 const BASE_TEXT_CLASSES = "font-bold leading-[1.1] uppercase mx-auto";
@@ -95,6 +99,8 @@ export default function TitleText({
   textColor,
   outlineColor = "white",
   outlineWidth = 1.5,
+  typeOnStart,
+  typeOnTrigger,
 }: TitleTextProps) {
   const Tag = as;
 
@@ -195,6 +201,8 @@ export default function TitleText({
       text={String(children)}
       speed={animationSpeed}
       className={cn(fillClass, typeOnOutlineClasses)}
+      start={typeOnStart}
+      trigger={typeOnTrigger}
     />
   ) : (
     children

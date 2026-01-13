@@ -1,3 +1,4 @@
+// components/blocks/split/effects/base-image-effect.tsx
 "use client";
 
 import { motion } from "framer-motion";

@@ -45,6 +45,82 @@
   }
 }
 
+@keyframes lensflare-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lensflare-drift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  33% {
+    transform: translate3d(10px, -8px, 0) rotate(10deg);
+  }
+
+  66% {
+    transform: translate3d(-8px, 10px, 0) rotate(-10deg);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes lensflare-wobble {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+
+  33% {
+    transform: rotate(6deg) scale(1.03);
+  }
+
+  66% {
+    transform: rotate(-6deg) scale(0.995);
+  }
+
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+.effect1-pulse {
+  opacity: 0;
+  animation: effect1-pulse var(--e1dur, 2.4s) ease-in-out infinite;
+}
+
+@keyframes effect1-pulse {
+  0% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: var(--e1max, 0.6);
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.lensflare-spin {
+  transform-origin: center;
+  animation: lensflare-spin var(--lf-dur, 28s) linear infinite;
+}
+
+.lensflare-drift {
+  transform-origin: center;
+  animation: lensflare-drift var(--lf-dur, 14s) ease-in-out infinite;
+}
+
+.lensflare-wobble {
+  transform-origin: center;
+  animation: lensflare-wobble var(--lf-dur, 6s) ease-in-out infinite;
+}
+
 /* Prevent SSR/initial paint flashes for GSAP-controlled UI */
 .gsap-hidden {
   visibility: hidden;

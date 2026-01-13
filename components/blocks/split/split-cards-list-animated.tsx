@@ -1,3 +1,4 @@
+//components/blocks/split/split-cards-list-animated.tsx
 "use client";
 
 import type { PAGE_QUERYResult, ColorVariant } from "@/sanity.types";
@@ -23,7 +24,8 @@ export default function SplitCardsListAnimated({
   color,
   list,
   animateInRight,
-  activeIndex = 0,
+  activeIndex = -1,
+  onHoverCard,
 }: SplitCardsListAnimatedProps) {
   const colorParent = stegaClean(color);
 
@@ -32,30 +34,43 @@ export default function SplitCardsListAnimated({
   return (
     <div
       className={cn(
-        "flex flex-col overflow-visible",
+        // Mobile stacked deck; Desktop normal flow
+        "relative overflow-visible min-h-[260px] sm:min-h-[320px] lg:min-h-0 flex flex-col",
         animateInRight ? "gap-8 lg:gap-0" : "gap-24",
       )}
       data-split-cards-container
     >
-      {list.map((item, index) => (
-        // drift wrapper (GSAP drift writes transform here)
-        <div
-          key={index}
-          data-card-drift
-          className="will-change-transform transform-gpu"
-        >
-          {/* enter/exit layer (GSAP writes opacity + x/y here) */}
-          <div data-card-item className="opacity-0 will-change-transform transform-gpu">
+      {list.map((item, index) => {
+        const isActive = activeIndex === index;
+
+        return (
+          <div
+            key={index}
+            data-card-item
+            className={cn(
+              // Mobile: all cards overlap
+              "absolute inset-0",
+              // Desktop: normal flow so diagonal offsets work
+              "lg:static lg:inset-auto",
+              "will-change-transform",
+            )}
+            style={{
+              // Ensures correct stacking on mobile
+              zIndex: 10 + index + (isActive ? 100 : 0),
+            }}
+            onMouseEnter={() => onHoverCard?.(index)}
+            onFocus={() => onHoverCard?.(index)}
+          >
             <SplitCardsItemAnimated
               color={colorParent}
               tagLine={item.tagLine}
               title={item.title}
               body={item.body}
-              active={activeIndex === index}
+              active={isActive}
             />
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
