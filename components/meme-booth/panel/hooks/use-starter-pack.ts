@@ -7,7 +7,7 @@ type Result =
     | { ok: true; image: string }
     | { ok: false; error: string };
 
-export function useStarterPack() {
+export function useStarterPack(styleMode: string = "pathetic") {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -18,6 +18,7 @@ export function useStarterPack() {
         try {
             const fd = new FormData();
             fd.append("image", imageBlob, "fit.png");
+            fd.append("styleMode", styleMode);
 
             const res = await fetch("/api/starter-pack", {
                 method: "POST",
@@ -40,7 +41,7 @@ export function useStarterPack() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [styleMode]);
 
     return { loading, error, setError, generate };
 }
