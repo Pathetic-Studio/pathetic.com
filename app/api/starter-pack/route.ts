@@ -33,6 +33,16 @@ const REFERENCE_IMAGES: Array<{ filename: string; mimeType: string }> = [
     { filename: "starter-pack-refs/ref-6.webp", mimeType: "image/webp" },
 ];
 
+const WOJAK_REFERENCE_IMAGES: Array<{ filename: string; mimeType: string }> = [
+    { filename: "wojak-refs/ref-1.png", mimeType: "image/png" },
+    { filename: "wojak-refs/ref-2.png", mimeType: "image/png" },
+    { filename: "wojak-refs/ref-3.png", mimeType: "image/png" },
+    { filename: "wojak-refs/ref-4.png", mimeType: "image/png" },
+    { filename: "wojak-refs/ref-5.png", mimeType: "image/png" },
+    { filename: "wojak-refs/ref-6.png", mimeType: "image/png" },
+    { filename: "wojak-refs/ref-7.png", mimeType: "image/png" },
+];
+
 const STARTER_PACK_PROMPT = `
 You will receive multiple images:
 The FIRST images are reference examples showing the @PATHETIC starter pack style (layout, tone, composition, and design language).
@@ -70,28 +80,67 @@ Do NOT overlap elements.
 Output the final result as a single image.
 `.trim();
 
+const WOJAK_PROMPT = `
+# DOOMSCROLL FOREVER-Style Meme Generation Prompt
+
+## ⚙️ Image Composition & Framing Rules
+- The title text must be *fully visible and never cropped*, even at the very top of the frame.
+- Leave a *clear top and bottom margin equal to at least 20% of total image height* to ensure the title and bottom elements are never cropped.
+- Leave at least *10–15% margin* on left and right sides too.
+- All content (title, text, and items) must fit entirely inside this "safe zone."
+- Center everything inside the safe zone — no element should touch or extend to image edges.
+- Maintain balanced spacing between each item and caption.
+- Do not include a watermark anywhere on the post.
+- Ensure captions are never repeated.
+- THE ASPECT RATIO MUST BE 5:6, portrait.
+
+## 🧠 Task
+Generate a \`@DOOMSCROLL_FOREVER\`-style meme (examples attached) using the fit pic attached (the last image).
+Take the fit pic and generate a chaotic wojak archetype that represents the social group, sub-culture or demographic that you can deduce that the user is part of.
+The format should resemble the meme examples.
+
+## Style Requirements
+- Use the classic "soy wojak" or similar wojak character style
+- Include exaggerated facial expressions
+- Add labels, badges, or brand markers on clothing/items
+- Include text bubbles with sarcastic or self-aware commentary
+- Use the characteristic wojak art style: simple lines, expressive faces, minimalist but detailed
+- Capture the ironic, self-deprecating humor typical of wojak memes
+- Make it culturally specific and cutting
+
+Output the final result as a single image in 5:6 aspect ratio.
+`.trim();
+
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
 
-async function loadReferenceImageParts(indices?: number[]): Promise<GeminiPart[]> {
+async function loadReferenceImageParts(
+    indices?: number[], 
+    refImages: Array<{ filename: string; mimeType: string }> = REFERENCE_IMAGES
+): Promise<GeminiPart[]> {
     const parts: GeminiPart[] = [];
-    const which = indices?.length ? indices : REFERENCE_IMAGES.map((_, i) => i);
+    const which = indices?.length ? indices : refImages.map((_, i) => i);
 
     for (const idx of which) {
-        const ref = REFERENCE_IMAGES[idx];
+        const ref = refImages[idx];
         const filePath = path.join(process.cwd(), "public", ref.filename);
 
-        const stat = await fs.stat(filePath);
-        if (DEBUG) console.log("[starter-pack] ref:", ref.filename, "bytes:", stat.size);
+        try {
+            const stat = await fs.stat(filePath);
+            if (DEBUG) console.log("[starter-pack] ref:", ref.filename, "bytes:", stat.size);
 
-        const buffer = await fs.readFile(filePath);
-        const base64Data = buffer.toString("base64");
+            const buffer = await fs.readFile(filePath);
+            const base64Data = buffer.toString("base64");
 
-        parts.push({
-            inlineData: {
-                data: base64Data,
-                mimeType: ref.mimeType,
-            },
-        });
+            parts.push({
+                inlineData: {
+                    data: base64Data,
+                    mimeType: ref.mimeType,
+                },
+            });
+        } catch (err) {
+            console.error(`[starter-pack] Failed to load reference image: ${ref.filename}`, err);
+            continue;
+        }
     }
 
     return parts;
@@ -115,6 +164,7 @@ export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
         const file = formData.get("image");
+        const styleMode = formData.get("styleMode") || "pathetic";
 
         if (!file || !(file instanceof File)) {
             return NextResponse.json({ error: "Missing image file" }, { status: 400 });
@@ -136,6 +186,11 @@ export async function POST(req: NextRequest) {
 
         const parsed = parseDebugMode(DEBUG_MODE);
 
+        // Choose which prompt and refs based on styleMode
+        const isWojak = styleMode === "wojak";
+        const currentPrompt = isWojak ? WOJAK_PROMPT : STARTER_PACK_PROMPT;
+        const currentRefs = isWojak ? WOJAK_REFERENCE_IMAGES : REFERENCE_IMAGES;
+
         // Decide which parts to send
         let referenceParts: GeminiPart[] = [];
         let includeRefs = true;
@@ -148,25 +203,25 @@ export async function POST(req: NextRequest) {
             includeUser = false;
         } else if (parsed.kind === "refsOnly") {
             includeUser = false;
-            refIndicesUsed = REFERENCE_IMAGES.map((_, i) => i);
-            referenceParts = await loadReferenceImageParts(refIndicesUsed);
+            refIndicesUsed = currentRefs.map((_, i) => i);
+            referenceParts = await loadReferenceImageParts(refIndicesUsed, currentRefs);
         } else if (parsed.kind === "userOnly") {
             includeRefs = false;
         } else if (parsed.kind === "singleRef") {
             includeRefs = true;
             includeUser = true;
             refIndicesUsed = [parsed.singleRefIndex!];
-            referenceParts = await loadReferenceImageParts(refIndicesUsed);
+            referenceParts = await loadReferenceImageParts(refIndicesUsed, currentRefs);
         } else {
             // all
             includeRefs = true;
             includeUser = true;
-            refIndicesUsed = REFERENCE_IMAGES.map((_, i) => i);
-            referenceParts = await loadReferenceImageParts(refIndicesUsed);
+            refIndicesUsed = currentRefs.map((_, i) => i);
+            referenceParts = await loadReferenceImageParts(refIndicesUsed, currentRefs);
         }
 
         const parts: GeminiPart[] = [];
-        if (includePrompt) parts.push({ text: STARTER_PACK_PROMPT });
+        if (includePrompt) parts.push({ text: currentPrompt });
         if (includeRefs) parts.push(...referenceParts);
         if (includeUser) parts.push(userImagePart);
 

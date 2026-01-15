@@ -8,6 +8,7 @@ import { gsap } from "gsap";
 import StarterPackParticles from "@/components/effects/starter-pack-particles";
 import ImageUploadPanel from "@/components/meme-booth/image-upload-panel";
 import ModeToggle, { type InputMode } from "@/components/meme-booth/mode-toggle";
+import StyleToggle, { type StyleMode } from "@/components/meme-booth/style-toggle";
 import BottomActions from "@/components/meme-booth/bottom-actions";
 import StarterPackResultView from "@/components/meme-booth/starter-pack-result-view";
 
@@ -45,8 +46,6 @@ type Props = {
 };
 
 export default function CameraPanelCore({ CameraRenderer }: Props) {
-    const { loading, error: apiError, setError: setApiError, generate } = useStarterPack();
-
     const srcCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const outCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const snapCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -54,6 +53,15 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
     const activeSpaceRef = useRef<HTMLDivElement | null>(null);
 
     const [mode, setMode] = useState<InputMode>("camera");
+    const [styleMode, setStyleMode] = useState<StyleMode>("pathetic");
+
+const handleStyleModeChange = (newMode: StyleMode) => {
+    if (newMode === styleMode) return;
+    resetState();
+    setStyleMode(newMode);
+};
+const { loading, error: apiError, setError: setApiError, generate } = useStarterPack(styleMode);
+
     const [blob, setBlob] = useState<Blob | null>(null);
 
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -212,8 +220,8 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
                         <StarterPackResultView
                             image={generatedImage}
                             imgRef={React.createRef()}
-                            useSpriteMode={USE_SPRITE_MODE}
-                            useYoloSplitter={USE_YOLO_SPLITTER}
+                            useSpriteMode={USE_SPRITE_MODE && styleMode === "pathetic"}
+                            useYoloSplitter={USE_YOLO_SPLITTER && styleMode === "pathetic"}
                             onSprites={setSprites}
                         />
                     ) : mode === "camera" ? (
@@ -233,7 +241,10 @@ export default function CameraPanelCore({ CameraRenderer }: Props) {
                     ) : (
                         <ImageUploadPanel disabled={loading} onImageLoaded={handleUploadedImage} />
                     )}
-
+{/* Style toggle - shown when camera is active or image uploaded */}
+                    {(mode === "camera" || blob) && !generatedImage && (
+                        <StyleToggle mode={styleMode} onChange={handleStyleModeChange} />
+                    )}
                     <LoaderOverlay
                         active={loading}
                         messages={loadingMessages}
