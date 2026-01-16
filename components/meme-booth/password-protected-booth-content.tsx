@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import MemeBoothShell from "@/components/meme-booth/meme-booth-shell";
 import TitleText from "@/components/ui/title-text";
+import BoothProviders from "@/components/meme-booth/booth-providers";
+import CreditBalance from "@/components/meme-booth/credits/credit-balance";
 
 export default function PasswordProtectedBoothContent({ 
     page, 
@@ -89,32 +91,38 @@ export default function PasswordProtectedBoothContent({
 
     // Show the actual booth after authentication
     return (
-        <main className="mx-auto max-w-4xl py-32 px-4">
-            <header className="mb-8 text-center">
+        <BoothProviders>
+            <main className="relative mx-auto max-w-4xl py-32 px-4">
+                {/* Credit balance display - top right of booth */}
+                <div className="absolute right-4 top-4 z-50">
+                    <CreditBalance />
+                </div>
 
-                {page?.title && (
-                    <TitleText
-                        as="h1"
-                        variant="stretched"
-                        size="lg"
-                        align="center"
-                        maxChars={32}
-                        animation="typeOn"
-                        animationSpeed={1.2}
-                    >
-                        {page.title}
-                    </TitleText>
-                )}
+                <header className="mb-8 text-center">
+                    {page?.title && (
+                        <TitleText
+                            as="h1"
+                            variant="stretched"
+                            size="lg"
+                            align="center"
+                            maxChars={32}
+                            animation="typeOn"
+                            animationSpeed={1.2}
+                        >
+                            {page.title}
+                        </TitleText>
+                    )}
 
-                {page?.subtitle && (
-                    <p className="mt-1 text-2xl text-muted-foreground">
-                        {page.subtitle}
-                    </p>
-                )}
-            </header>
+                    {page?.subtitle && (
+                        <p className="mt-1 text-2xl text-muted-foreground">
+                            {page.subtitle}
+                        </p>
+                    )}
+                </header>
 
-            {/* Client-only, dynamic, no SSR */}
-            <MemeBoothShell showNewsletterModalOnView={showNewsletterModalOnView} />
-        </main>
+                {/* Client-only, dynamic, no SSR */}
+                <MemeBoothShell showNewsletterModalOnView={showNewsletterModalOnView} />
+            </main>
+        </BoothProviders>
     );
 }
