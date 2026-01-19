@@ -372,7 +372,7 @@ export default function GridTextBlock({
 
       <div
         className={cn(
-          "gtb-content relative flex w-full flex-col justify-between py-14 px-26 transition-colors duration-200 ease-in-out will-change-[color,transform]",
+          "gtb-content relative flex w-full flex-col justify-between py-4 lg:py-14 px-6 lg:px-26 transition-colors duration-200 ease-in-out will-change-[color,transform]",
           baseColors.text,
           hoverColors.text,
         )}
