@@ -38,18 +38,22 @@ const introPaddingClasses: Record<IntroPaddingKey, string> = {
 // IMPORTANT: derive the gap union from the Sanity type (and strip null)
 type GapSize = NonNullable<GridRowGrabBlock["rowGapSize"]>;
 
+/**
+ * Base gaps apply to mobile/tablet.
+ * Keep lg sizing for desktop.
+ */
 const rowGapClasses: Record<GapSize, string> = {
-  default: "lg:gap-y-6",
-  lg: "lg:gap-y-10",
-  xl: "lg:gap-y-14",
-  xxl: "lg:gap-y-20",
+  default: "gap-y-6 lg:gap-y-6",
+  lg: "gap-y-8 lg:gap-y-10",
+  xl: "gap-y-10 lg:gap-y-14",
+  xxl: "gap-y-12 lg:gap-y-20",
 };
 
 const colGapClasses: Record<GapSize, string> = {
-  default: "lg:gap-x-6",
-  lg: "lg:gap-x-10",
-  xl: "lg:gap-x-14",
-  xxl: "lg:gap-x-20",
+  default: "gap-x-6 lg:gap-x-6",
+  lg: "gap-x-8 lg:gap-x-10",
+  xl: "gap-x-10 lg:gap-x-14",
+  xxl: "gap-x-12 lg:gap-x-20",
 };
 
 const componentMap: {
@@ -59,10 +63,15 @@ const componentMap: {
   "image-card": ImageCard,
 };
 
+/**
+ * Mobile: always 1 col
+ * Tablet (md): 2 cols
+ * Desktop (lg): respect CMS gridType (2/3/4)
+ */
 function getGridColsClass(gridType: GridRowGrabBlock["gridType"]) {
-  if (gridType === "2") return "lg:grid lg:grid-cols-2";
-  if (gridType === "3") return "lg:grid lg:grid-cols-3";
-  return "lg:grid lg:grid-cols-4 auto-rows-[minmax(8rem,_auto)]";
+  if (gridType === "2") return "md:grid-cols-2 lg:grid-cols-2";
+  if (gridType === "3") return "md:grid-cols-2 lg:grid-cols-3";
+  return "md:grid-cols-2 lg:grid-cols-4 auto-rows-[minmax(8rem,_auto)]";
 }
 
 export default function GridRowGrab(props: GridRowGrabBlock) {
@@ -209,8 +218,12 @@ export default function GridRowGrab(props: GridRowGrabBlock) {
                           isActive={activeId === id}
                           onActivate={setActiveId}
                           className={cn(
-                            "w-full mx-auto max-w-[13rem] sm:max-w-[15rem] md:max-w-[17rem]",
+                            // Mobile: keep the compact centered card width
+                            "w-full mx-auto max-w-[13rem] sm:max-w-[15rem]",
+                            // Tablet: let cards fill the 2-col grid nicely
+                            "md:max-w-none md:mx-0",
                             "bg-background border border-border p-4 sm:p-5 md:p-6",
+                            // Desktop: original transparent layout
                             "lg:max-w-none lg:mx-0 lg:bg-transparent lg:border-none lg:p-0"
                           )}
                         >

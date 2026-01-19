@@ -1,7 +1,8 @@
+// components/blocks/grid/caption-bubble.tsx
 "use client";
 
 import type { CSSProperties } from "react";
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type CaptionSide = "left" | "right";
@@ -17,9 +18,16 @@ export interface CaptionBubbleProps {
 }
 
 // Default desktop max width
-const BUBBLE_WIDTH = "12rem";
-// Breakpoint for “mobile” behaviour
+const BUBBLE_MAX_REM = 12;
+
+// Breakpoint for “mobile/tablet” behaviour
 const MOBILE_MAX_WIDTH = 1024;
+
+// Keep a little breathing room from the edge
+const EDGE_PADDING_REM = 1;
+
+// Don’t let it get ridiculously narrow if we can avoid it
+const MIN_READABLE_REM = 7.5;
 
 export default function CaptionBubble({
   text,
@@ -35,47 +43,99 @@ export default function CaptionBubble({
 
   const clampedX = Math.min(100, Math.max(0, safeX));
   const clampedY = Math.min(100, Math.max(0, safeY));
+  const effectiveSide = (side ?? "right") as CaptionSide;
+
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
 
   const [dynamicMaxWidth, setDynamicMaxWidth] = useState<string | undefined>();
+  const [computedX, setComputedX] = useState<number>(clampedX);
 
-  // Use layout effect so width is computed before paint (reduces “flash/resize”)
   useLayoutEffect(() => {
-    const updateMaxWidth = () => {
+    if (typeof window === "undefined") return;
+
+    const updateLayout = () => {
       const vw = window.innerWidth;
-
-      // Only apply this logic on mobile
-      if (vw >= MOBILE_MAX_WIDTH) {
-        setDynamicMaxWidth(undefined);
-        return;
-      }
-
-      const nearestEdgePercent = Math.min(clampedX, 100 - clampedX);
-      const nearestEdgePx = (nearestEdgePercent / 100) * vw;
 
       const rootFontSize = parseFloat(
         getComputedStyle(document.documentElement).fontSize || "16",
       );
       const oneRem = rootFontSize || 16;
 
-      const maxWidthPx = Math.max(0, nearestEdgePx - oneRem);
+      const baseMaxPx = BUBBLE_MAX_REM * oneRem;
+      const edgePadPx = EDGE_PADDING_REM * oneRem;
+      const minReadablePx = Math.min(baseMaxPx, MIN_READABLE_REM * oneRem);
+
+      // Use the absolute-positioning context width (more accurate than viewport)
+      const container =
+        (bubbleRef.current?.offsetParent as HTMLElement | null) ??
+        bubbleRef.current?.parentElement ??
+        null;
+
+      const containerWidth = container?.getBoundingClientRect().width ?? vw;
+
+      // Desktop: use defaults, no nudging
+      if (vw >= MOBILE_MAX_WIDTH) {
+        setComputedX(clampedX);
+        setDynamicMaxWidth(undefined);
+        return;
+      }
+
+      let nextX = clampedX;
+
+      // If the bubble would become too narrow on its chosen side, nudge X inward (but DO NOT flip sides)
+      if (containerWidth > 0) {
+        const requiredPercent =
+          ((minReadablePx + edgePadPx) / containerWidth) * 100;
+
+        if (effectiveSide === "left") {
+          nextX = Math.max(nextX, requiredPercent);
+        } else {
+          nextX = Math.min(nextX, 100 - requiredPercent);
+        }
+
+        nextX = Math.min(100, Math.max(0, nextX));
+      }
+
+      const leftSpacePx = (nextX / 100) * containerWidth - edgePadPx;
+      const rightSpacePx = ((100 - nextX) / 100) * containerWidth - edgePadPx;
+
+      const availablePx = effectiveSide === "left" ? leftSpacePx : rightSpacePx;
+      const maxWidthPx = Math.max(0, Math.min(baseMaxPx, availablePx));
+
+      setComputedX(nextX);
       setDynamicMaxWidth(`${maxWidthPx}px`);
     };
 
-    updateMaxWidth();
-    window.addEventListener("resize", updateMaxWidth);
-    return () => window.removeEventListener("resize", updateMaxWidth);
-  }, [clampedX]);
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+
+    const container =
+      (bubbleRef.current?.offsetParent as HTMLElement | null) ??
+      bubbleRef.current?.parentElement ??
+      null;
+
+    let ro: ResizeObserver | undefined;
+    if (container && "ResizeObserver" in window) {
+      ro = new ResizeObserver(updateLayout);
+      ro.observe(container);
+    }
+
+    return () => {
+      window.removeEventListener("resize", updateLayout);
+      ro?.disconnect();
+    };
+  }, [clampedX, effectiveSide]);
 
   // IMPORTANT:
   // - Use `translate` (not `transform`) so parallax (transform) can't clobber anchoring.
   const horizontalPosition: CSSProperties =
-    side === "left"
+    effectiveSide === "left"
       ? {
-        left: `${clampedX}%`,
+        left: `${computedX}%`,
         translate: "-100% 0", // anchor right edge at x%
       }
       : {
-        left: `${clampedX}%`,
+        left: `${computedX}%`,
         translate: "0 0", // anchor left edge at x%
       };
 
@@ -84,18 +144,20 @@ export default function CaptionBubble({
     ...horizontalPosition,
     backgroundColor: bgColor || "rgba(0,0,0,0.85)",
     color: textColor || "#ffffff",
-    transformOrigin: side === "left" ? "top right" : "top left",
+    transformOrigin: effectiveSide === "left" ? "top right" : "top left",
 
     // Hard anti-FOUC (works even before CSS loads)
     opacity: 0,
     visibility: "hidden",
 
-    maxWidth: dynamicMaxWidth ?? BUBBLE_WIDTH,
+    // Desktop keeps a clean cap; mobile/tablet only shrinks (never grows wider than desktop)
+    maxWidth: dynamicMaxWidth ?? `${BUBBLE_MAX_REM}rem`,
     willChange: "transform, opacity",
   };
 
   return (
     <div
+      ref={bubbleRef}
       className={cn(
         "caption-bubble absolute z-20 rounded-2xl px-3 py-2 text-xs tracking-wide",
         "flex items-center justify-center",
@@ -103,13 +165,13 @@ export default function CaptionBubble({
       style={bubbleStyle}
       data-speed={parallaxSpeed ?? undefined}
     >
-      <span className="block text-left">{text}</span>
+      <span className="block text-left break-words leading-snug">{text}</span>
 
       {/* Tail */}
       <span
         className={cn(
           "pointer-events-none absolute top-0",
-          side === "left"
+          effectiveSide === "left"
             ? "right-0 translate-x-1/2"
             : "left-0 -translate-x-1/2",
         )}
@@ -123,7 +185,9 @@ export default function CaptionBubble({
           className="origin-top"
           style={{
             transform:
-              side === "left" ? "scaleX(1)" : "scaleY(-1) rotate(180deg)",
+              effectiveSide === "left"
+                ? "scaleX(1)"
+                : "scaleY(-1) rotate(180deg)",
             transformOrigin: "top center",
           }}
         >
