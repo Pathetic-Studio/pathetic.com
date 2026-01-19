@@ -58,7 +58,7 @@ const PRESETS: Record<
   title: {
     base: "font-bold leading-[1.05] m-0",
     sizes: {
-      h1: "text-8xl md:text-7xl",
+      h1: "text-6xl md:text-7xl",
       h2: "text-5xl md:text-5xl",
       h3: "text-3xl md:text-3xl",
       h4: "text-lg md:text-xl",
