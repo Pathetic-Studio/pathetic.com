@@ -17,7 +17,7 @@ import LoaderOverlay from "./ui/loader-overlay";
 
 import { useUserMedia } from "./hooks/use-user-media";
 import { captureCanvasToPngBlob } from "./hooks/use-capture-canvas-blob";
-import { useStarterPack } from "./hooks/use-starter-pack";
+import { useBoothGeneration } from "./hooks/use-booth-generation";
 
 const USE_SPRITE_MODE = true as const;
 const USE_YOLO_SPLITTER = true as const;
@@ -60,7 +60,7 @@ const handleStyleModeChange = (newMode: StyleMode) => {
     resetState();
     setStyleMode(newMode);
 };
-const { loading, error: apiError, setError: setApiError, generate } = useStarterPack(styleMode);
+const { loading, error: apiError, setError: setApiError, generate } = useBoothGeneration(styleMode);
 
     const [blob, setBlob] = useState<Blob | null>(null);
 
@@ -241,10 +241,6 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
                     ) : (
                         <ImageUploadPanel disabled={loading} onImageLoaded={handleUploadedImage} />
                     )}
-{/* Style toggle - shown when camera is active or image uploaded */}
-                    {(mode === "camera" || blob) && !generatedImage && (
-                        <StyleToggle mode={styleMode} onChange={handleStyleModeChange} />
-                    )}
                     <LoaderOverlay
                         active={loading}
                         messages={loadingMessages}
@@ -255,6 +251,11 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
                         }}
                     />
                 </div>
+
+                {/* Style toggle - shown when no generated image yet, not during loading */}
+                {!generatedImage && !loading && (
+                    <StyleToggle mode={styleMode} onChange={handleStyleModeChange} />
+                )}
 
                 <BottomActions
                     mode={mode}

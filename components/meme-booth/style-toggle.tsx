@@ -11,7 +11,7 @@ export default function StyleToggle({ mode, onChange }: StyleToggleProps) {
     return (
         <div className="mt-4 flex items-center justify-center gap-3">
             <span className={`text-sm font-semibold uppercase ${mode === "pathetic" ? "text-black" : "text-gray-400"}`}>
-                PATHETIC
+                Starter Pack
             </span>
             <button
                 onClick={() => onChange(mode === "pathetic" ? "wojak" : "pathetic")}
