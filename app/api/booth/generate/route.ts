@@ -75,14 +75,11 @@ const WOJAK_PROMPT = `
 # WOJAK-Style Meme Generation Prompt
 
 ## ⚙️ Image Composition & Framing Rules
-- The title text must be *fully visible and never cropped*, even at the very top of the frame.
-- Leave a *clear top and bottom margin equal to at least 20% of total image height* to ensure the title and bottom elements are never cropped.
+- Leave a *clear top and bottom margin equal to at least 20% of total image height* to ensure all elements are never cropped.
 - Leave at least *10–15% margin* on left and right sides too.
-- All content (title, text, and items) must fit entirely inside this "safe zone."
+- All content must fit entirely inside this "safe zone."
 - Center everything inside the safe zone — no element should touch or extend to image edges.
-- Maintain balanced spacing between each item and caption.
 - Do not EVER include a watermark anywhere on the post.
-- Ensure captions are never repeated.
 - THE ASPECT RATIO MUST BE 5:6, portrait.
 
 ## 🧠 Task
@@ -94,11 +91,17 @@ The format should resemble the meme examples.
 - Use the classic "soy wojak" or similar wojak character style
 - Include exaggerated facial expressions
 - Add labels, badges, or brand markers on clothing/items
-- Include text bubbles with sarcastic or self-aware commentary
+- Include speech bubbles with sarcastic or self-aware commentary that the wojak character is saying
 - Use the characteristic wojak art style: simple lines, expressive faces, minimalist but detailed
 - Capture the ironic, self-deprecating humor typical of wojak memes
 - Make it culturally specific and cutting
 - For each person that you critique, choose from a wide range of social and cultural observations - keep it unique, fresh and hilarious each time. Tapping into hyper-relevant millennial meme humor.
+
+## CRITICAL - Text Placement Rules
+- Do NOT include any title text at the top of the image
+- Do NOT include any caption text outside or above the main artwork
+- ALL text should ONLY appear as speech bubbles, labels, or annotations WITHIN the wojak illustration itself
+- The image should be ONLY the wojak artwork with integrated text elements - no separate title/header area
 
 Output the final result as a single image in 5:6 aspect ratio.
 `.trim();

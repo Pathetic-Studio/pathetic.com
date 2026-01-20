@@ -8,8 +8,9 @@ import { useBoothAuth } from "../auth/booth-auth-context";
 
 export default function CheckoutHandler() {
   const searchParams = useSearchParams();
-  const { refreshCredits } = useBoothAuth();
+  const { refreshCredits, credits } = useBoothAuth();
   const hasHandled = useRef(false);
+  const initialCredits = useRef<number | null>(null);
 
   useEffect(() => {
     if (hasHandled.current) return;
@@ -18,11 +19,31 @@ export default function CheckoutHandler() {
 
     if (checkout === "success") {
       hasHandled.current = true;
-      // Refresh credits after successful purchase
-      refreshCredits();
-      toast.success("Purchase successful! Your credits have been added.");
+      initialCredits.current = credits;
 
-      // Clean up URL
+      console.log("[CheckoutHandler] Checkout success detected, refreshing credits...");
+
+      // Delay to allow webhook to process, then retry a few times
+      const refreshWithRetry = async (attempts = 0) => {
+        await refreshCredits();
+
+        // Wait a bit for state to update
+        await new Promise((r) => setTimeout(r, 500));
+
+        // If credits haven't changed and we haven't exhausted retries, try again
+        if (attempts < 3) {
+          console.log(`[CheckoutHandler] Retry ${attempts + 1}/3...`);
+          setTimeout(() => refreshWithRetry(attempts + 1), 1500);
+        } else {
+          console.log("[CheckoutHandler] Finished refresh attempts");
+          toast.success("Purchase successful! Your credits have been added.");
+        }
+      };
+
+      // Initial delay to give webhook time to process
+      setTimeout(() => refreshWithRetry(0), 1000);
+
+      // Clean up URL immediately
       const url = new URL(window.location.href);
       url.searchParams.delete("checkout");
       url.searchParams.delete("session_id");
@@ -36,7 +57,7 @@ export default function CheckoutHandler() {
       url.searchParams.delete("checkout");
       window.history.replaceState({}, "", url.toString());
     }
-  }, [searchParams, refreshCredits]);
+  }, [searchParams, refreshCredits, credits]);
 
   return null;
 }
