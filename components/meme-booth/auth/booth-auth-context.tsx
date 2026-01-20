@@ -98,7 +98,7 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
       if (session?.user?.id) {
         fetchCredits(session.user.id);
       }
-    }).catch((err) => {
+    }).catch((err: Error) => {
       clearTimeout(timeout);
       console.error("Error getting session:", err);
       setState((prev) => ({ ...prev, loading: false }));
@@ -107,7 +107,7 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event: string, session: Session | null) => {
       setState((prev) => ({
         ...prev,
         session,
