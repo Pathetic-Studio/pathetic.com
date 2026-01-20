@@ -34,6 +34,14 @@ export default function FooterClient({
   const rootRef = useRef<HTMLElement | null>(null);
   const linksWrapRef = useRef<HTMLDivElement | null>(null);
 
+  // Filter out old privacy-policy page (replaced by /privacy)
+  const filteredLeftLinks = footerLeftLinks.filter(
+    (link) => !link.href?.includes("privacy-policy")
+  );
+  const filteredRightLinks = footerRightLinks.filter(
+    (link) => !link.href?.includes("privacy-policy")
+  );
+
   useLayoutEffect(() => {
     const root = rootRef.current;
     const linksWrap = linksWrapRef.current;
@@ -84,7 +92,7 @@ export default function FooterClient({
           >
             {/* Left side */}
             <div className="flex flex-wrap items-center justify-center gap-4 md:justify-start">
-              {footerLeftLinks.map((link) => (
+              {filteredLeftLinks.map((link) => (
                 <Link
                   key={link._key}
                   href={link.href ?? "#"}
@@ -106,7 +114,7 @@ export default function FooterClient({
 
             {/* Right side */}
             <div className="flex flex-wrap items-center justify-center gap-4 md:justify-end">
-              {footerRightLinks.map((link) => (
+              {filteredRightLinks.map((link) => (
                 <Link
                   key={link._key}
                   href={link.href ?? "#"}
