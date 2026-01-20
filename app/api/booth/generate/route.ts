@@ -34,18 +34,78 @@ const WOJAK_REFERENCE_IMAGES: Array<{ filename: string; mimeType: string }> = [
   { filename: "wojak-refs/ref-7.png", mimeType: "image/png" },
 ];
 
-// Prompts loaded from environment variables (not in repo for IP protection)
-function getStarterPackPrompt(): string {
-  const prompt = process.env.STARTER_PACK_PROMPT;
-  if (!prompt) throw new Error("STARTER_PACK_PROMPT environment variable is not set");
-  return prompt.trim();
-}
+const STARTER_PACK_PROMPT = `
+You will receive multiple images:
+The FIRST images are reference examples showing the @PATHETIC starter pack style (layout, tone, composition, and design language).
+The FINAL image is the user's outfit / fit pic. Base all actual content on this final image only.
+The reference images are style guides only. Do NOT copy their content or items.
+Produce a @PATHETIC-style starter pack based on the final fit pic.
 
-function getWojakPrompt(): string {
-  const prompt = process.env.WOJAK_PROMPT;
-  if (!prompt) throw new Error("WOJAK_PROMPT environment variable is not set");
-  return prompt.trim();
-}
+STRUCTURE REQUIREMENTS (READ CAREFULLY)
+Remove the person from the final image. Isolate only clothing/items.
+Use current (summer 2025) fashion trends to identify brands, tropes, patterns, or subculture signifiers.
+Include one witty title at the very top (~top 10% of image height).
+Use Arial Narrow font.
+This top title band must contain only the title—no items, no captions.
+Below the title band, arrange exactly FOUR items in a clean 2×2 grid layout.
+Each grid cell must be a perfect square.
+Absolutely NO visible lines, borders, strokes, dividers, boxes, shapes, or separators of ANY kind. The grid must be created purely by spatial arrangement and spacing. This is a hard constraint.
+Each item has a short, cutting caption directly underneath it, contained visually within its own cell area.
+Background must be pure flat white (#FFFFFF).
+Items and text may NOT overlap.
+Leave generous margins so nothing touches canvas edges.
+Output a single image in roughly 5:6 aspect ratio.
+
+STYLE + TONE
+The meme must be biting, culturally aware, and in line with the snarky @PATHETIC tone.
+Captions should be modern, punchy, and highly specific to what the model can infer from the exact clothing pieces.
+Avoid generic or vague titles. Make the archetype hyper-specific.
+
+NEGATIVE INSTRUCTIONS (DO NOT DO ANY OF THESE)
+Do NOT draw grid lines, borders, boxes, separators, or any visual structure marks.
+Do NOT create shadows or faint strokes that resemble separators.
+Do NOT place ANY content inside the top 10% title band except the title.
+Do NOT crop items or text.
+Do NOT overlap elements.
+
+Output the final result as a single image.
+`.trim();
+
+const WOJAK_PROMPT = `
+# WOJAK-Style Meme Generation Prompt
+
+## ⚙️ Image Composition & Framing Rules
+- The title text must be *fully visible and never cropped*, even at the very top of the frame.
+- Leave a *clear top and bottom margin equal to at least 20% of total image height* to ensure the title and bottom elements are never cropped.
+- Leave at least *10–15% margin* on left and right sides too.
+- All content (title, text, and items) must fit entirely inside this "safe zone."
+- Center everything inside the safe zone — no element should touch or extend to image edges.
+- Do not EVER include a watermark anywhere on the post.
+- THE ASPECT RATIO MUST BE 5:6, portrait.
+
+## 🧠 Task
+Generate a Wojak-style meme (examples attached) using the fit pic attached (the last image).
+Take the fit pic and generate a chaotic wojak archetype that represents the social group, sub-culture or demographic that you can deduce that the user is part of.
+The format should resemble the meme examples.
+
+## Style Requirements
+- Use the classic "soy wojak" or similar wojak character style
+- Include exaggerated facial expressions
+- Add labels, badges, or brand markers on clothing/items
+- Include speech bubbles with sarcastic or self-aware commentary that the wojak character is saying
+- Use the characteristic wojak art style: simple lines, expressive faces, minimalist but detailed
+- Capture the ironic, self-deprecating humor typical of wojak memes
+- Make it culturally specific and cutting
+- For each person that you critique, choose from a wide range of social and cultural observations - keep it unique, fresh and hilarious each time. Tapping into hyper-relevant millennial meme humor.
+- Optionally include award ribbons, medals, or achievement badges when relevant to mock accomplishments or personality traits
+
+## CRITICAL - No Duplicate Text
+- The title/caption at the TOP of the image must NOT be repeated anywhere else in the image
+- Speech bubbles and labels INSIDE the artwork must contain DIFFERENT text from the title
+- Never duplicate the same text in multiple places
+
+Output the final result as a single image in 5:6 aspect ratio.
+`.trim();
 
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
 
@@ -181,7 +241,7 @@ export async function POST(req: NextRequest) {
       };
 
       const isWojak = styleMode === "wojak";
-      const currentPrompt = isWojak ? getWojakPrompt() : getStarterPackPrompt();
+      const currentPrompt = isWojak ? WOJAK_PROMPT : STARTER_PACK_PROMPT;
       const currentRefs = isWojak ? WOJAK_REFERENCE_IMAGES : REFERENCE_IMAGES;
 
       const referenceParts = await loadReferenceImageParts(currentRefs);
