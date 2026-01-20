@@ -14,6 +14,7 @@ interface MemeBoothShellProps {
 }
 
 const NEWSLETTER_DELAY_MS = 1500;
+const NEWSLETTER_SEEN_KEY = "booth_newsletter_seen";
 
 export default function MemeBoothShell({
     showNewsletterModalOnView = false,
@@ -58,6 +59,15 @@ export default function MemeBoothShell({
             return;
         }
 
+        // Check if user has already seen the newsletter popup (persists across sessions)
+        try {
+            if (localStorage.getItem(NEWSLETTER_SEEN_KEY) === "true") {
+                return;
+            }
+        } catch {
+            // localStorage not available, continue with normal flow
+        }
+
         // already auto-opened this visit => never schedule again (even if user closes)
         if (autoOpenedThisEntryRef.current) return;
 
@@ -74,8 +84,15 @@ export default function MemeBoothShell({
         timerRef.current = window.setTimeout(() => {
             timerRef.current = null;
 
-            // latch before opening so close won’t retrigger later
+            // latch before opening so close won't retrigger later
             autoOpenedThisEntryRef.current = true;
+
+            // Mark as seen in localStorage so it won't show again
+            try {
+                localStorage.setItem(NEWSLETTER_SEEN_KEY, "true");
+            } catch {
+                // localStorage not available
+            }
 
             // If transition router isn't ready yet (cold hydration), still open.
             // If it is ready, open as well.

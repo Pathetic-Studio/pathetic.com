@@ -106,6 +106,7 @@ The format should resemble the meme examples.
 - Capture the ironic, self-deprecating humor typical of wojak memes
 - Make it culturally specific and cutting
 - For each person that you critique, choose from a wide range of social and cultural observations - keep it unique, fresh and hilarious each time. Tapping into hyper-relevant millennial meme humor.
+- Optionally include award ribbons, medals, or achievement badges when relevant to mock accomplishments or personality traits
 
 ## CRITICAL - No Duplicate Text
 - The title/caption at the TOP of the image must NOT be repeated anywhere else in the image
