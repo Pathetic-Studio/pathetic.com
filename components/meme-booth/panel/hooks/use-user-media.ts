@@ -16,18 +16,14 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
     const [error, setError] = useState<string | null>(null);
     const [facingMode, setFacingMode] = useState<FacingMode>("user");
     const [canFlip, setCanFlip] = useState(false);
+    const [hasStream, setHasStream] = useState(false);
 
     const startingRef = useRef(false);
+    const activeRef = useRef(active);
+    activeRef.current = active;
 
-    const stop = useCallback(() => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach((t) => t.stop());
-            streamRef.current = null;
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-    }, []);
+    // Track if we've ever successfully gotten a stream (to avoid re-prompting)
+    const hasEverHadStreamRef = useRef(false);
 
     const detectFlipSupport = useCallback(async () => {
         if (!navigator.mediaDevices?.enumerateDevices) return;
@@ -65,9 +61,60 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
         return fm === "environment" ? "environment" : "user";
     }, []);
 
+    // Pause video without stopping the stream (keeps permission)
+    const pause = useCallback(() => {
+        const v = videoRef.current;
+        if (v) {
+            v.pause();
+        }
+    }, []);
+
+    // Resume video from existing stream (no permission prompt)
+    const resume = useCallback(async () => {
+        const v = videoRef.current;
+        const s = streamRef.current;
+        if (!v || !s) return false;
+
+        // Check if stream is still active
+        const tracks = s.getVideoTracks();
+        if (tracks.length === 0 || tracks[0].readyState === "ended") {
+            return false;
+        }
+
+        if (v.srcObject !== s) v.srcObject = s;
+
+        try {
+            await v.play();
+            return true;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    // Full stop - actually releases the camera (only for cleanup)
+    const stop = useCallback(() => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((t) => t.stop());
+            streamRef.current = null;
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        setHasStream(false);
+    }, []);
+
     const start = useCallback(
         async (requestedMode?: FacingMode) => {
             if (startingRef.current) return;
+
+            // If we already have an active stream, just resume it
+            if (streamRef.current) {
+                const tracks = streamRef.current.getVideoTracks();
+                if (tracks.length > 0 && tracks[0].readyState !== "ended") {
+                    const resumed = await resume();
+                    if (resumed) return;
+                }
+            }
 
             if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
                 setError("Camera not supported in this browser.");
@@ -75,9 +122,13 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
             }
 
             startingRef.current = true;
-            stop();
 
-            const modeToTry: FacingMode = requestedMode ?? "user"; // DEFAULT SELFIE
+            // Only stop existing stream if we're switching cameras
+            if (requestedMode && streamRef.current) {
+                stop();
+            }
+
+            const modeToTry: FacingMode = requestedMode ?? facingMode ?? "user";
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -90,11 +141,12 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
                 });
 
                 streamRef.current = stream;
+                hasEverHadStreamRef.current = true;
+                setHasStream(true);
                 setFacingMode(inferFacingModeFromStream(stream));
                 await attachToVideo();
                 setError(null);
 
-                // iOS/Safari often needs permission before this is accurate
                 await detectFlipSupport();
             } catch {
                 try {
@@ -104,6 +156,8 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
                     });
 
                     streamRef.current = fallback;
+                    hasEverHadStreamRef.current = true;
+                    setHasStream(true);
                     setFacingMode(inferFacingModeFromStream(fallback));
                     await attachToVideo();
                     setError(null);
@@ -113,27 +167,55 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
                     console.error("[useUserMedia] getUserMedia failed", err2);
                     setError(err2?.message || "Camera access failed.");
                     setCanFlip(false);
+                    setHasStream(false);
                 }
             } finally {
                 startingRef.current = false;
             }
         },
-        [attachToVideo, detectFlipSupport, inferFacingModeFromStream, stop]
+        [attachToVideo, detectFlipSupport, inferFacingModeFromStream, stop, resume, facingMode]
     );
 
     const flipCamera = useCallback(() => {
         const next: FacingMode = facingMode === "user" ? "environment" : "user";
+        // For flip, we need to get a new stream
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((t) => t.stop());
+            streamRef.current = null;
+        }
         start(next);
     }, [facingMode, start]);
 
+    // Effect to start/pause camera based on active state
+    // Using a ref-based approach to avoid re-running on function changes
     useEffect(() => {
-        if (!active) {
-            stop();
-            return;
+        if (active) {
+            // Try to resume existing stream first, only start new if needed
+            if (streamRef.current) {
+                const tracks = streamRef.current.getVideoTracks();
+                if (tracks.length > 0 && tracks[0].readyState !== "ended") {
+                    resume();
+                    return;
+                }
+            }
+            // No existing stream, start fresh
+            start();
+        } else {
+            // Just pause, don't stop - keeps the stream authorized
+            pause();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [active]);
 
-        start();
-    }, [active, start, stop]);
+    // Cleanup on unmount - fully stop the stream
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach((t) => t.stop());
+                streamRef.current = null;
+            }
+        };
+    }, []);
 
     return {
         videoRef,
@@ -145,5 +227,8 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
         flipCamera,
         start,
         stop,
+        pause,
+        resume,
+        hasStream,
     };
 }
