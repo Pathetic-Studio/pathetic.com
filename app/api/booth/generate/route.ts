@@ -75,9 +75,10 @@ const WOJAK_PROMPT = `
 # WOJAK-Style Meme Generation Prompt
 
 ## ⚙️ Image Composition & Framing Rules
-- Leave a *clear top and bottom margin equal to at least 20% of total image height* to ensure all elements are never cropped.
+- The title text must be *fully visible and never cropped*, even at the very top of the frame.
+- Leave a *clear top and bottom margin equal to at least 20% of total image height* to ensure the title and bottom elements are never cropped.
 - Leave at least *10–15% margin* on left and right sides too.
-- All content must fit entirely inside this "safe zone."
+- All content (title, text, and items) must fit entirely inside this "safe zone."
 - Center everything inside the safe zone — no element should touch or extend to image edges.
 - Do not EVER include a watermark anywhere on the post.
 - THE ASPECT RATIO MUST BE 5:6, portrait.
@@ -97,11 +98,10 @@ The format should resemble the meme examples.
 - Make it culturally specific and cutting
 - For each person that you critique, choose from a wide range of social and cultural observations - keep it unique, fresh and hilarious each time. Tapping into hyper-relevant millennial meme humor.
 
-## CRITICAL - Text Placement Rules
-- Do NOT include any title text at the top of the image
-- Do NOT include any caption text outside or above the main artwork
-- ALL text should ONLY appear as speech bubbles, labels, or annotations WITHIN the wojak illustration itself
-- The image should be ONLY the wojak artwork with integrated text elements - no separate title/header area
+## CRITICAL - No Duplicate Text
+- The title/caption at the TOP of the image must NOT be repeated anywhere else in the image
+- Speech bubbles and labels INSIDE the artwork must contain DIFFERENT text from the title
+- Never duplicate the same text in multiple places
 
 Output the final result as a single image in 5:6 aspect ratio.
 `.trim();
