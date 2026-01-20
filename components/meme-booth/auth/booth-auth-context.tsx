@@ -86,7 +86,7 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
     }, 5000);
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       clearTimeout(timeout);
       setState((prev) => ({
         ...prev,
