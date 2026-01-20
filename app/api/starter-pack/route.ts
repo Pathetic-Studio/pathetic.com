@@ -41,13 +41,13 @@ const WOJAK_REFERENCE_IMAGES: Array<{ filename: string; mimeType: string }> = [
 function getStarterPackPrompt(): string {
   const prompt = process.env.STARTER_PACK_PROMPT;
   if (!prompt) throw new Error("STARTER_PACK_PROMPT environment variable is not set");
-  return prompt;
+  return prompt.trim();
 }
 
 function getWojakPrompt(): string {
   const prompt = process.env.WOJAK_PROMPT;
   if (!prompt) throw new Error("WOJAK_PROMPT environment variable is not set");
-  return prompt;
+  return prompt.trim();
 }
 
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
