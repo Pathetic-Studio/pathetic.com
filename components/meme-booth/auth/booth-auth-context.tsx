@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -42,9 +43,13 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  const supabase = createClient();
+  // Use ref for supabase client to avoid dependency issues
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
 
+  // Fetch credits from the server
   const fetchCredits = useCallback(async (userId: string) => {
+    console.log("[BoothAuth] Fetching credits for user:", userId);
     try {
       const { data, error } = await supabase
         .from("users")
@@ -53,61 +58,100 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        console.error("Error fetching credits:", error);
+        console.error("[BoothAuth] Error fetching credits:", error);
+        // If user doesn't exist yet, set to 0 and try again in a moment
+        if (error.code === "PGRST116") {
+          console.log("[BoothAuth] User not found, will retry...");
+          setState((prev) => ({ ...prev, credits: 0 }));
+          // Retry after a short delay (trigger might be creating the user)
+          setTimeout(() => fetchCredits(userId), 1000);
+        }
         return;
       }
 
+      console.log("[BoothAuth] Credits fetched:", data?.credits);
       setState((prev) => ({ ...prev, credits: data?.credits ?? 0 }));
     } catch (err) {
-      console.error("Error fetching credits:", err);
+      console.error("[BoothAuth] Error fetching credits:", err);
     }
   }, [supabase]);
 
+  // Refresh credits for current user
   const refreshCredits = useCallback(async () => {
-    if (state.user?.id) {
-      await fetchCredits(state.user.id);
+    const currentUser = state.user;
+    if (currentUser?.id) {
+      await fetchCredits(currentUser.id);
     }
-  }, [state.user?.id, fetchCredits]);
+  }, [state.user, fetchCredits]);
 
+  // Set credits directly (used by generation hook)
   const setCredits = useCallback((credits: number) => {
+    console.log("[BoothAuth] Setting credits to:", credits);
     setState((prev) => ({ ...prev, credits }));
   }, []);
 
+  // Initialize auth state
   useEffect(() => {
+    let mounted = true;
+
     // Timeout to prevent infinite loading
     const timeout = setTimeout(() => {
-      setState((prev) => {
-        if (prev.loading) {
-          console.warn("Auth loading timeout - setting to not loading");
-          return { ...prev, loading: false };
-        }
-        return prev;
-      });
+      if (mounted) {
+        setState((prev) => {
+          if (prev.loading) {
+            console.warn("[BoothAuth] Auth loading timeout");
+            return { ...prev, loading: false };
+          }
+          return prev;
+        });
+      }
     }, 5000);
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      clearTimeout(timeout);
-      setState((prev) => ({
-        ...prev,
-        session,
-        user: session?.user ?? null,
-        loading: false,
-      }));
+    const initAuth = async () => {
+      try {
+        console.log("[BoothAuth] Getting initial session...");
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-      if (session?.user?.id) {
-        fetchCredits(session.user.id);
+        if (error) {
+          console.error("[BoothAuth] Error getting session:", error);
+        }
+
+        if (!mounted) return;
+
+        clearTimeout(timeout);
+
+        console.log("[BoothAuth] Initial session:", session ? "found" : "none");
+
+        setState((prev) => ({
+          ...prev,
+          session,
+          user: session?.user ?? null,
+          loading: false,
+        }));
+
+        if (session?.user?.id) {
+          fetchCredits(session.user.id);
+        }
+      } catch (err) {
+        console.error("[BoothAuth] Error initializing auth:", err);
+        if (mounted) {
+          clearTimeout(timeout);
+          setState((prev) => ({ ...prev, loading: false }));
+        }
       }
-    }).catch((err: Error) => {
-      clearTimeout(timeout);
-      console.error("Error getting session:", err);
-      setState((prev) => ({ ...prev, loading: false }));
-    });
+    };
+
+    initAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event: string, session: Session | null) => {
+    } = supabase.auth.onAuthStateChange(async (event: string, session: Session | null) => {
+      console.log("[BoothAuth] Auth state changed:", event, session ? "has session" : "no session");
+
+      if (!mounted) return;
+
       setState((prev) => ({
         ...prev,
         session,
@@ -116,13 +160,19 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
       }));
 
       if (session?.user?.id) {
-        await fetchCredits(session.user.id);
+        // Small delay to ensure user row is created by trigger
+        setTimeout(() => {
+          if (mounted) {
+            fetchCredits(session.user.id);
+          }
+        }, 100);
       } else {
         setState((prev) => ({ ...prev, credits: null }));
       }
     });
 
     return () => {
+      mounted = false;
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
@@ -130,15 +180,18 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = useCallback(
     async (email: string, password: string) => {
+      console.log("[BoothAuth] Signing in with email...");
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error("[BoothAuth] Sign in error:", error);
         return { error: error.message };
       }
 
+      console.log("[BoothAuth] Sign in successful");
       setIsAuthModalOpen(false);
       return { error: null };
     },
@@ -147,18 +200,21 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithEmail = useCallback(
     async (email: string, password: string) => {
+      console.log("[BoothAuth] Signing up with email...");
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/booth`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/booth`,
         },
       });
 
       if (error) {
+        console.error("[BoothAuth] Sign up error:", error);
         return { error: error.message };
       }
 
+      console.log("[BoothAuth] Sign up successful");
       setIsAuthModalOpen(false);
       return { error: null };
     },
@@ -166,6 +222,7 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signInWithGoogle = useCallback(async () => {
+    console.log("[BoothAuth] Signing in with Google...");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -174,6 +231,7 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) {
+      console.error("[BoothAuth] Google sign in error:", error);
       return { error: error.message };
     }
 
@@ -181,13 +239,23 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
   }, [supabase]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setState((prev) => ({
-      ...prev,
+    console.log("[BoothAuth] Signing out...");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("[BoothAuth] Sign out error:", error);
+      }
+      console.log("[BoothAuth] Sign out complete");
+    } catch (err) {
+      console.error("[BoothAuth] Sign out exception:", err);
+    }
+    // Always clear state even if there's an error
+    setState({
       user: null,
       session: null,
+      loading: false,
       credits: null,
-    }));
+    });
   }, [supabase]);
 
   const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);

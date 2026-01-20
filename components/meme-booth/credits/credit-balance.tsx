@@ -54,7 +54,12 @@ export default function CreditBalance() {
 
       <button
         type="button"
-        onClick={signOut}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log("[CreditBalance] Sign out clicked");
+          signOut();
+        }}
         className={cn(
           "flex items-center gap-1 border border-border p-1.5 text-muted-foreground transition-colors",
           "hover:bg-muted hover:text-foreground"
