@@ -241,10 +241,6 @@ const { loading, error: apiError, setError: setApiError, generate } = useBoothGe
                     ) : (
                         <ImageUploadPanel disabled={loading} onImageLoaded={handleUploadedImage} />
                     )}
-{/* Style toggle - shown when camera is active or image uploaded */}
-                    {(mode === "camera" || blob) && !generatedImage && (
-                        <StyleToggle mode={styleMode} onChange={handleStyleModeChange} />
-                    )}
                     <LoaderOverlay
                         active={loading}
                         messages={loadingMessages}
@@ -255,6 +251,11 @@ const { loading, error: apiError, setError: setApiError, generate } = useBoothGe
                         }}
                     />
                 </div>
+
+                {/* Style toggle - shown when no generated image yet, not during loading */}
+                {!generatedImage && !loading && (
+                    <StyleToggle mode={styleMode} onChange={handleStyleModeChange} />
+                )}
 
                 <BottomActions
                     mode={mode}

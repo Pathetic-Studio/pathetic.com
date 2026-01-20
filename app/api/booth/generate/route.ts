@@ -72,21 +72,21 @@ Output the final result as a single image.
 `.trim();
 
 const WOJAK_PROMPT = `
-# DOOMSCROLL FOREVER-Style Meme Generation Prompt
+# WOJAK-Style Meme Generation Prompt
 
-## Image Composition & Framing Rules
+## ⚙️ Image Composition & Framing Rules
 - The title text must be *fully visible and never cropped*, even at the very top of the frame.
 - Leave a *clear top and bottom margin equal to at least 20% of total image height* to ensure the title and bottom elements are never cropped.
 - Leave at least *10–15% margin* on left and right sides too.
 - All content (title, text, and items) must fit entirely inside this "safe zone."
 - Center everything inside the safe zone — no element should touch or extend to image edges.
 - Maintain balanced spacing between each item and caption.
-- Do not include a watermark anywhere on the post.
+- Do not EVER include a watermark anywhere on the post.
 - Ensure captions are never repeated.
 - THE ASPECT RATIO MUST BE 5:6, portrait.
 
-## Task
-Generate a \`@DOOMSCROLL_FOREVER\`-style meme (examples attached) using the fit pic attached (the last image).
+## 🧠 Task
+Generate a Wojak-style meme (examples attached) using the fit pic attached (the last image).
 Take the fit pic and generate a chaotic wojak archetype that represents the social group, sub-culture or demographic that you can deduce that the user is part of.
 The format should resemble the meme examples.
 
@@ -98,6 +98,7 @@ The format should resemble the meme examples.
 - Use the characteristic wojak art style: simple lines, expressive faces, minimalist but detailed
 - Capture the ironic, self-deprecating humor typical of wojak memes
 - Make it culturally specific and cutting
+- For each person that you critique, choose from a wide range of social and cultural observations - keep it unique, fresh and hilarious each time. Tapping into hyper-relevant millennial meme humor.
 
 Output the final result as a single image in 5:6 aspect ratio.
 `.trim();

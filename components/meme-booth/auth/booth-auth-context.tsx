@@ -74,8 +74,20 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      setState((prev) => {
+        if (prev.loading) {
+          console.warn("Auth loading timeout - setting to not loading");
+          return { ...prev, loading: false };
+        }
+        return prev;
+      });
+    }, 5000);
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(timeout);
       setState((prev) => ({
         ...prev,
         session,
@@ -86,6 +98,10 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
       if (session?.user?.id) {
         fetchCredits(session.user.id);
       }
+    }).catch((err) => {
+      clearTimeout(timeout);
+      console.error("Error getting session:", err);
+      setState((prev) => ({ ...prev, loading: false }));
     });
 
     // Listen for auth changes
@@ -106,7 +122,10 @@ export function BoothAuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, [supabase, fetchCredits]);
 
   const signInWithEmail = useCallback(

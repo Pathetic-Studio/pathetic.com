@@ -6,9 +6,18 @@ import { boothLogger } from "@/lib/booth-logger";
 
 export const runtime = "nodejs";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// Lazy-initialize Stripe client to avoid build-time errors
+let stripe: Stripe | null = null;
+function getStripe() {
+  if (!stripe) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  }
+  return stripe;
+}
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+function getWebhookSecret() {
+  return process.env.STRIPE_WEBHOOK_SECRET!;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -22,7 +31,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+    event = getStripe().webhooks.constructEvent(body, sig, getWebhookSecret());
   } catch (err: any) {
     console.error("[booth/webhook] Signature verification failed:", err.message);
     return NextResponse.json(

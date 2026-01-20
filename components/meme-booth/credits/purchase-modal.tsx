@@ -100,6 +100,7 @@ export default function PurchaseModal() {
                 className={cn(
                   "relative w-full border p-4 text-left transition-all",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
+                  pack.popular && "mt-4",
                   selectedPack?.id === pack.id
                     ? "border-foreground bg-foreground/5"
                     : "border-border hover:border-foreground/50"
@@ -114,30 +115,39 @@ export default function PurchaseModal() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase">{pack.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {pack.credits} credits
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">{pack.priceDisplay}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      ${(pack.price / pack.credits / 100).toFixed(2)}/meme
-                    </p>
-                  </div>
-                </div>
-
-                {selectedPack?.id === pack.id && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <div className="h-4 w-4 rounded-full border-2 border-foreground bg-foreground">
-                      <div className="flex h-full w-full items-center justify-center">
-                        <div className="h-1.5 w-1.5 rounded-full bg-background" />
-                      </div>
+                <div className="flex items-center gap-4">
+                  {/* Radio indicator */}
+                  <div className="flex-shrink-0">
+                    <div className={cn(
+                      "h-4 w-4 rounded-full border-2",
+                      selectedPack?.id === pack.id
+                        ? "border-foreground bg-foreground"
+                        : "border-muted-foreground"
+                    )}>
+                      {selectedPack?.id === pack.id && (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <div className="h-1.5 w-1.5 rounded-full bg-background" />
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {/* Pack info */}
+                  <div className="flex flex-1 items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase">{pack.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {pack.credits} credits
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold">{pack.priceDisplay}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        ${(pack.price / pack.credits / 100).toFixed(2)}/meme
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </button>
             ))}
           </div>

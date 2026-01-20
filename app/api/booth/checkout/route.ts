@@ -7,7 +7,14 @@ import { boothLogger } from "@/lib/booth-logger";
 
 export const runtime = "nodejs";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// Lazy-initialize Stripe client to avoid build-time errors
+let stripe: Stripe | null = null;
+function getStripe() {
+  if (!stripe) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  }
+  return stripe;
+}
 
 const CREDIT_PACKS: Record<string, { credits: number; price: number; name: string }> = {
   starter: { credits: 10, price: 499, name: "Starter Pack" },
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
     // Create Stripe checkout session
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
         {

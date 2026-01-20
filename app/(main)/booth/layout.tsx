@@ -1,14 +1,32 @@
 //app/(main)/meme-booth/layout.tsx
 import { ReactNode } from "react";
-import { fetchMemeBooth } from "@/sanity/lib/fetch";
 import { HeaderNavOverridesSetter } from "@/components/header/nav-overrides";
+
+// Check if Sanity is configured
+const isSanityConfigured = !!(
+    process.env.NEXT_PUBLIC_SANITY_PROJECT_ID &&
+    process.env.NEXT_PUBLIC_SANITY_DATASET
+);
+
+async function getBoothConfig() {
+    if (!isSanityConfigured) {
+        return null;
+    }
+
+    try {
+        const { fetchMemeBooth } = await import("@/sanity/lib/fetch");
+        return await fetchMemeBooth();
+    } catch {
+        return null;
+    }
+}
 
 export default async function MemeBoothLayout({
     children,
 }: {
     children: ReactNode;
 }) {
-    const memeBooth = await fetchMemeBooth();
+    const memeBooth = await getBoothConfig();
 
     return (
         <>

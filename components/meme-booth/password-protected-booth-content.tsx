@@ -93,10 +93,6 @@ export default function PasswordProtectedBoothContent({
     return (
         <BoothProviders>
             <main className="relative mx-auto max-w-4xl py-32 px-4">
-                {/* Credit balance display - top right of booth */}
-                <div className="absolute right-4 top-4 z-50">
-                    <CreditBalance />
-                </div>
 
                 <header className="mb-8 text-center">
                     {page?.title && (
@@ -122,6 +118,11 @@ export default function PasswordProtectedBoothContent({
 
                 {/* Client-only, dynamic, no SSR */}
                 <MemeBoothShell showNewsletterModalOnView={showNewsletterModalOnView} />
+
+                {/* Credit balance display - centered below booth */}
+                <div className="mt-6 flex justify-center">
+                    <CreditBalance />
+                </div>
             </main>
         </BoothProviders>
     );
