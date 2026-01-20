@@ -138,6 +138,10 @@ export default function FooterClient({
                     <PortableTextRenderer value={settings.copyright} />
                   </span>
                 )}
+                <span className="mx-1">·</span>
+                <Link href="/privacy" className="hover:text-foreground/80 transition-colors">
+                  Privacy Policy
+                </Link>
               </div>
             </div>
 
