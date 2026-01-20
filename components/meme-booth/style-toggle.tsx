@@ -9,7 +9,7 @@ interface StyleToggleProps {
 
 export default function StyleToggle({ mode, onChange }: StyleToggleProps) {
     return (
-        <div className="mt-4 flex items-center justify-center gap-3">
+        <div className="mt-4 flex w-full items-center justify-center gap-3">
             <span className={`text-sm font-semibold uppercase ${mode === "pathetic" ? "text-black" : "text-gray-400"}`}>
                 Starter Pack
             </span>
