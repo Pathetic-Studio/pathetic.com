@@ -1,6 +1,9 @@
 //app/(main)/meme-booth/page.tsx
 import type { Metadata } from "next";
-import PasswordProtectedBoothContent from "@/components/meme-booth/password-protected-booth-content";
+import MemeBoothShell from "@/components/meme-booth/meme-booth-shell";
+import TitleText from "@/components/ui/title-text";
+import BoothProviders from "@/components/meme-booth/booth-providers";
+import CreditBalance from "@/components/meme-booth/credits/credit-balance";
 
 // Check if Sanity is configured
 const isSanityConfigured = !!(
@@ -62,9 +65,36 @@ export default async function MemeBoothPage() {
     const showNewsletterModalOnView = page?.showNewsletterModalOnView ?? false;
 
     return (
-        <PasswordProtectedBoothContent
-            page={page}
-            showNewsletterModalOnView={showNewsletterModalOnView}
-        />
+        <BoothProviders>
+            <main className="relative mx-auto max-w-4xl py-32 px-4">
+                <header className="mb-8 text-center">
+                    {page?.title && (
+                        <TitleText
+                            as="h1"
+                            variant="stretched"
+                            size="lg"
+                            align="center"
+                            maxChars={32}
+                            animation="typeOn"
+                            animationSpeed={1.2}
+                        >
+                            {page.title}
+                        </TitleText>
+                    )}
+
+                    {page?.subtitle && (
+                        <p className="mt-1 text-2xl text-muted-foreground">
+                            {page.subtitle}
+                        </p>
+                    )}
+                </header>
+
+                <MemeBoothShell showNewsletterModalOnView={showNewsletterModalOnView} />
+
+                <div className="mt-6 flex justify-center">
+                    <CreditBalance />
+                </div>
+            </main>
+        </BoothProviders>
     );
 }
