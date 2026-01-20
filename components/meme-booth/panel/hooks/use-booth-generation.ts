@@ -13,20 +13,13 @@ export function useBoothGeneration(styleMode: string = "pathetic") {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { user, setCredits, openAuthModal } = useBoothAuth();
+  const { setCredits, openAuthModal } = useBoothAuth();
   const { openPurchaseModal } = useCreditsModal();
 
   const generate = useCallback(
     async (imageBlob: Blob): Promise<GenerationResult> => {
       setLoading(true);
       setError(null);
-
-      // Check if user is logged in BEFORE making request
-      if (!user) {
-        setLoading(false);
-        openAuthModal();
-        return { ok: false, error: "Please sign in to generate memes", requireAuth: true };
-      }
 
       try {
         const fd = new FormData();
@@ -89,7 +82,7 @@ export function useBoothGeneration(styleMode: string = "pathetic") {
         setLoading(false);
       }
     },
-    [styleMode, user, openAuthModal, openPurchaseModal, setCredits]
+    [styleMode, openAuthModal, openPurchaseModal, setCredits]
   );
 
   return { loading, error, setError, generate };
