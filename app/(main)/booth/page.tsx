@@ -30,7 +30,7 @@ async function getPageData() {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-    const page = await getPageData();
+    const page = await getPageData() as any;
 
     const title = page?.meta_title || page?.title || "Meme Booth";
     const description =
