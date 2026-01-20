@@ -61,11 +61,24 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        // Update purchase status
+        // SECURITY: Check if already processed (prevents replay attacks)
+        const { data: existingPurchase } = await supabase
+          .from("purchases")
+          .select("status")
+          .eq("stripe_session_id", session.id)
+          .single();
+
+        if (existingPurchase?.status === "completed") {
+          console.log("[booth/webhook] Session already processed, skipping:", session.id);
+          break;
+        }
+
+        // Update purchase status to completed
         const { error: purchaseError } = await supabase
           .from("purchases")
           .update({ status: "completed" })
-          .eq("stripe_session_id", session.id);
+          .eq("stripe_session_id", session.id)
+          .eq("status", "pending"); // Only update if still pending (extra safety)
 
         if (purchaseError) {
           console.error("[booth/webhook] Failed to update purchase:", purchaseError);
