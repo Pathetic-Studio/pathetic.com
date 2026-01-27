@@ -186,8 +186,10 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
         start(next);
     }, [facingMode, start]);
 
-    // Effect to start/pause camera based on active state
-    // Using a ref-based approach to avoid re-running on function changes
+    // Effect to start/stop camera based on active state.
+    // IMPORTANT: We fully stop() instead of pause() when inactive.
+    // pause() keeps the stream alive, which on mobile causes the browser
+    // to show camera permission popups over the loading screen / result.
     useEffect(() => {
         if (active) {
             // Try to resume existing stream first, only start new if needed
@@ -201,8 +203,7 @@ export function useUserMedia({ active }: UseUserMediaOptions) {
             // No existing stream, start fresh
             start();
         } else {
-            // Just pause, don't stop - keeps the stream authorized
-            pause();
+            stop();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [active]);

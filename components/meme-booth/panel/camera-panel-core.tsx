@@ -183,6 +183,10 @@ const { loading, error: apiError, setError: setApiError, generate } = useBoothGe
         const b = await captureCanvasToPngBlob(out, snap);
         if (!b) return;
 
+        // Immediately release camera after capture — prevents mobile
+        // browsers from showing the permission popup during generation.
+        stopCamera();
+
         setBlob(b);
         setSprites(null);
         setGeneratedImage(null);
