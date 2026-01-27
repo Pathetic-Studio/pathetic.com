@@ -137,26 +137,31 @@ async function loadReferenceImageParts(
   return parts;
 }
 
+function getClientIp(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return req.headers.get("x-real-ip") || "unknown";
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Get authenticated user
+    // Attempt to get authenticated user (optional — anonymous users get free gens)
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Please sign in to generate memes", requireAuth: true },
-        { status: 401 }
-      );
-    }
+    const { data: { user } } = await supabase.auth.getUser();
 
     const serviceClient = await createServiceClient();
 
-    // Check rate limit
+    // Rate limiting — stricter for anonymous users
+    const clientIp = getClientIp(req);
+    const rateLimitIdentifier = user ? user.id : `anon:${clientIp}`;
+    const rateLimitMax = user ? 10 : 5;
+
     const { data: rateCheck } = await serviceClient.rpc("check_rate_limit", {
-      p_identifier: user.id,
+      p_identifier: rateLimitIdentifier,
       p_action: "generation",
-      p_max_count: 10,
+      p_max_count: rateLimitMax,
       p_window_minutes: 1,
     });
 
@@ -167,28 +172,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get current credits (server-side check)
-    const { data: userData, error: userError } = await serviceClient
-      .from("users")
-      .select("credits")
-      .eq("id", user.id)
-      .single();
+    // For authenticated users: check credits
+    let creditsBefore = 0;
+    let creditsAfter = 0;
 
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: "Something went wrong, try again in a minute" },
-        { status: 500 }
-      );
+    if (user) {
+      const { data: userData, error: userError } = await serviceClient
+        .from("users")
+        .select("credits")
+        .eq("id", user.id)
+        .single();
+
+      if (userError || !userData) {
+        return NextResponse.json(
+          { error: "Something went wrong, try again in a minute" },
+          { status: 500 }
+        );
+      }
+
+      if (userData.credits <= 0) {
+        return NextResponse.json(
+          { error: "No credits remaining", requireCredits: true, credits: 0 },
+          { status: 402 }
+        );
+      }
+
+      creditsBefore = userData.credits;
     }
-
-    if (userData.credits <= 0) {
-      return NextResponse.json(
-        { error: "No credits remaining", requireCredits: true, credits: 0 },
-        { status: 402 }
-      );
-    }
-
-    const creditsBefore = userData.credits;
 
     // Parse form data BEFORE deducting credit - this can fail for large uploads
     let formData: FormData;
@@ -228,32 +238,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Image too large (max ~20MB)" }, { status: 400 });
     }
 
+    const logUserId = user ? user.id : `anon:${clientIp}`;
+
     // Log file details for debugging
-    console.log(`[booth/generate] Processing upload: ${file.name}, size: ${file.size}, type: ${file.type}`);
+    console.log(`[booth/generate] Processing upload: ${file.name}, size: ${file.size}, type: ${file.type}, user: ${logUserId}`);
 
-    // Now deduct credit - formData is valid
-    const { data: deductResult, error: deductError } = await serviceClient.rpc(
-      "deduct_credit",
-      { p_user_id: user.id }
-    );
+    // For authenticated users: deduct credit before generation
+    if (user) {
+      const { data: deductResult, error: deductError } = await serviceClient.rpc(
+        "deduct_credit",
+        { p_user_id: user.id }
+      );
 
-    if (deductError || !deductResult?.[0]?.success) {
-      const errorMsg = deductResult?.[0]?.error_message || "Failed to deduct credit";
-      if (errorMsg === "Insufficient credits") {
+      if (deductError || !deductResult?.[0]?.success) {
+        const errorMsg = deductResult?.[0]?.error_message || "Failed to deduct credit";
+        if (errorMsg === "Insufficient credits") {
+          return NextResponse.json(
+            { error: "No credits remaining", requireCredits: true, credits: 0 },
+            { status: 402 }
+          );
+        }
         return NextResponse.json(
-          { error: "No credits remaining", requireCredits: true, credits: 0 },
-          { status: 402 }
+          { error: "Something went wrong, try again in a minute" },
+          { status: 500 }
         );
       }
-      return NextResponse.json(
-        { error: "Something went wrong, try again in a minute" },
-        { status: 500 }
-      );
+
+      creditsAfter = deductResult[0].new_credits;
     }
 
-    const creditsAfter = deductResult[0].new_credits;
-
-    // From here on, we've deducted credit - refund on any failure
+    // From here on, if authenticated we've deducted credit — refund on any failure
     // Proceed with generation
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -284,28 +298,38 @@ export async function POST(req: NextRequest) {
 
       const promptFeedback = (response as any).promptFeedback;
       if (promptFeedback?.blockReason) {
-        // Refund on blocked prompt
-        await refundCredit(serviceClient, user.id, "Prompt blocked by Gemini");
+        if (user) {
+          await refundCredit(serviceClient, user.id, "Prompt blocked by Gemini");
+          return NextResponse.json(
+            {
+              error: "Generation failed - your credit has been refunded",
+              refunded: true,
+              credits: creditsAfter + 1,
+            },
+            { status: 400 }
+          );
+        }
         return NextResponse.json(
-          {
-            error: "Generation failed - your credit has been refunded",
-            refunded: true,
-            credits: creditsAfter + 1,
-          },
+          { error: "Generation failed. Please try again." },
           { status: 400 }
         );
       }
 
       const candidates = (response as any).candidates ?? [];
       if (!candidates.length) {
-        // Refund on empty response
-        await refundCredit(serviceClient, user.id, "Empty Gemini response");
+        if (user) {
+          await refundCredit(serviceClient, user.id, "Empty Gemini response");
+          return NextResponse.json(
+            {
+              error: "Generation failed - your credit has been refunded",
+              refunded: true,
+              credits: creditsAfter + 1,
+            },
+            { status: 400 }
+          );
+        }
         return NextResponse.json(
-          {
-            error: "Generation failed - your credit has been refunded",
-            refunded: true,
-            credits: creditsAfter + 1,
-          },
+          { error: "Generation failed. Please try again." },
           { status: 400 }
         );
       }
@@ -323,35 +347,49 @@ export async function POST(req: NextRequest) {
       }
 
       if (!dataUrl) {
-        // Refund on no image returned
-        await refundCredit(serviceClient, user.id, "No image in Gemini response");
+        if (user) {
+          await refundCredit(serviceClient, user.id, "No image in Gemini response");
+          return NextResponse.json(
+            {
+              error: "Generation failed - your credit has been refunded",
+              refunded: true,
+              credits: creditsAfter + 1,
+            },
+            { status: 500 }
+          );
+        }
         return NextResponse.json(
-          {
-            error: "Generation failed - your credit has been refunded",
-            refunded: true,
-            credits: creditsAfter + 1,
-          },
+          { error: "Generation failed. Please try again." },
           { status: 500 }
         );
       }
 
       // Log successful generation
       boothLogger.generation({
-        userId: user.id,
+        userId: logUserId,
         creditsBefore,
         creditsAfter,
         styleMode: styleMode as string,
       });
 
+      if (user) {
+        return NextResponse.json({
+          image: dataUrl,
+          credits: creditsAfter,
+        });
+      }
+
       return NextResponse.json({
         image: dataUrl,
-        credits: creditsAfter,
+        anonymous: true,
       });
     } catch (genErr: any) {
       console.error("[booth/generate] Generation error:", genErr);
 
-      // Auto-refund on generation failure
-      await refundCredit(serviceClient, user.id, genErr?.message || "Generation failed");
+      // Auto-refund on generation failure (authenticated users only)
+      if (user) {
+        await refundCredit(serviceClient, user.id, genErr?.message || "Generation failed");
+      }
 
       const isQuota =
         genErr?.status === 429 ||
@@ -361,8 +399,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             error: "Daily meme limit reached, please try again tomorrow!",
-            refunded: true,
-            credits: creditsAfter + 1,
+            ...(user ? { refunded: true, credits: creditsAfter + 1 } : {}),
           },
           { status: 429 }
         );
@@ -370,9 +407,10 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          error: "Generation failed - your credit has been refunded",
-          refunded: true,
-          credits: creditsAfter + 1,
+          error: user
+            ? "Generation failed - your credit has been refunded"
+            : "Generation failed. Please try again.",
+          ...(user ? { refunded: true, credits: creditsAfter + 1 } : {}),
         },
         { status: 500 }
       );

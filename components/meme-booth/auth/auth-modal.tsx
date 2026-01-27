@@ -98,7 +98,7 @@ export default function AuthModal() {
           <p className="mb-6 text-center text-xs uppercase text-muted-foreground">
             {mode === "login"
               ? "Sign in to generate memes"
-              : "Sign up to get 2 free generations"}
+              : "Create an account to buy more credits"}
           </p>
 
           {error && (

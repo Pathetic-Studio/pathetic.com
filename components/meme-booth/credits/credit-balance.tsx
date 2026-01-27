@@ -1,10 +1,12 @@
 // components/meme-booth/credits/credit-balance.tsx
 "use client";
 
+import { useEffect, useState } from "react";
 import { Sparkles, LogOut, User } from "lucide-react";
 import { useBoothAuth } from "../auth/booth-auth-context";
 import { useCreditsModal } from "./credits-context";
 import { cn } from "@/lib/utils";
+import { getAnonGensUsed, MAX_FREE_GENS } from "@/lib/anon-generations";
 
 export default function CreditBalance() {
   const { user, credits, loading, signOut, openAuthModal } = useBoothAuth();
@@ -18,19 +20,37 @@ export default function CreditBalance() {
     );
   }
 
+  // Anonymous user: show free gen counter + subtle sign-in
+  const [anonUsed, setAnonUsed] = useState(0);
+
+  useEffect(() => {
+    if (user) return;
+    setAnonUsed(getAnonGensUsed());
+
+    const handler = () => setAnonUsed(getAnonGensUsed());
+    window.addEventListener("anon-gen-updated", handler);
+    return () => window.removeEventListener("anon-gen-updated", handler);
+  }, [user]);
+
   if (!user) {
+    const remaining = Math.max(0, MAX_FREE_GENS - anonUsed);
     return (
-      <button
-        type="button"
-        onClick={openAuthModal}
-        className={cn(
-          "flex items-center gap-1.5 border border-border px-3 py-1.5 text-xs font-semibold uppercase transition-colors",
-          "hover:bg-muted"
-        )}
-      >
-        <User className="h-3.5 w-3.5" />
-        Sign In
-      </button>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold uppercase text-muted-foreground">
+          {remaining} free {remaining === 1 ? "gen" : "gens"} left
+        </span>
+        <button
+          type="button"
+          onClick={openAuthModal}
+          className={cn(
+            "flex items-center gap-1.5 border border-border px-3 py-1.5 text-xs font-semibold uppercase transition-colors",
+            "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <User className="h-3.5 w-3.5" />
+          Sign in
+        </button>
+      </div>
     );
   }
 

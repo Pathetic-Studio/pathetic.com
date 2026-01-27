@@ -4,6 +4,7 @@
 import { useCallback, useState } from "react";
 import { useBoothAuth } from "../../auth/booth-auth-context";
 import { useCreditsModal } from "../../credits/credits-context";
+import { hasAnonGensRemaining, incrementAnonGens } from "@/lib/anon-generations";
 
 type GenerationResult =
   | { ok: true; image: string; credits: number }
@@ -16,11 +17,17 @@ export function useBoothGeneration(styleMode: string = "pathetic") {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { setCredits, openAuthModal } = useBoothAuth();
+  const { user, setCredits, openAuthModal } = useBoothAuth();
   const { openPurchaseModal } = useCreditsModal();
 
   const generate = useCallback(
     async (imageBlob: Blob): Promise<GenerationResult> => {
+      // Anonymous users: gate on localStorage free gens
+      if (!user && !hasAnonGensRemaining()) {
+        openAuthModal();
+        return { ok: false, error: "Please sign in to generate more memes", requireAuth: true };
+      }
+
       setLoading(true);
       setError(null);
 
@@ -102,6 +109,12 @@ export function useBoothGeneration(styleMode: string = "pathetic") {
         }
 
         console.log("[useBoothGeneration] Generation successful");
+
+        // Track anonymous generation in localStorage
+        if (!user) {
+          incrementAnonGens();
+        }
+
         return { ok: true, image: data.image as string, credits: data.credits };
       } catch (err: any) {
         clearTimeout(timeoutId);
@@ -122,7 +135,7 @@ export function useBoothGeneration(styleMode: string = "pathetic") {
         setLoading(false);
       }
     },
-    [styleMode, openAuthModal, openPurchaseModal, setCredits]
+    [user, styleMode, openAuthModal, openPurchaseModal, setCredits]
   );
 
   return { loading, error, setError, generate };

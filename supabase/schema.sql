@@ -11,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
-  credits INTEGER NOT NULL DEFAULT 2,
+  credits INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -138,7 +138,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.users (id, email, credits)
-  VALUES (NEW.id, NEW.email, 2)
+  VALUES (NEW.id, NEW.email, 0)
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
