@@ -1,7 +1,7 @@
 //components/meme-booth/panel/camera-panel-core.tsx
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ScrollTrigger from "gsap/ScrollTrigger";
 import { gsap } from "gsap";
 
@@ -78,7 +78,17 @@ const { loading, error: apiError, setError: setApiError, generate } = useBoothGe
         facingMode,
         canFlip,
         flipCamera,
+        stop: stopCamera,
     } = useUserMedia({ active: cameraActive });
+
+    // Fully release camera when a result is displayed.
+    // pause() alone keeps the stream alive, which causes mobile browsers
+    // to show the camera permission popup over the result.
+    useEffect(() => {
+        if (generatedImage) {
+            stopCamera();
+        }
+    }, [generatedImage, stopCamera]);
 
     const error = apiError || cameraError;
 
@@ -213,7 +223,8 @@ const { loading, error: apiError, setError: setApiError, generate } = useBoothGe
                     </div>
                 )}
 
-                <ModeToggle mode={mode} onChange={switchMode} />
+                {/* Hide mode toggle when showing result — prevents accidental meme loss */}
+                {!generatedImage && <ModeToggle mode={mode} onChange={switchMode} />}
 
                 <div ref={activeSpaceRef} className="relative w-full">
                     {generatedImage ? (
@@ -261,6 +272,7 @@ const { loading, error: apiError, setError: setApiError, generate } = useBoothGe
                     mode={mode}
                     hasBlob={!!blob}
                     hasGenerated={!!generatedImage}
+                    generatedImage={generatedImage}
                     loading={loading}
                     onChangeImage={handleChangeImage}
                     onGenerateUpload={() => {
