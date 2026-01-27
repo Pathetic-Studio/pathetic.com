@@ -53,6 +53,13 @@ export function useBoothGeneration(styleMode: string = "pathetic") {
 
         console.log("[useBoothGeneration] Response status:", res.status, "data:", data);
 
+        // Handle Vercel/platform body size rejection (non-JSON 413 response)
+        if (res.status === 413) {
+          const msg = "Image too large. Please use a smaller image.";
+          setError(msg);
+          return { ok: false, error: msg };
+        }
+
         // Handle auth required
         if (res.status === 401 || data?.requireAuth) {
           openAuthModal();

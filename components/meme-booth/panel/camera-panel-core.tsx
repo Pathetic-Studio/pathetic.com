@@ -87,7 +87,7 @@ const { loading, error: apiError, setError: setApiError, generate } = useBoothGe
         typeof error === "string" &&
         /daily meme limit reached|try again tomorrow|quota|rate limit|resource_exhausted|too many requests/i.test(error);
 
-    const errorBoxClass = isQuotaError ? "bg-[##e1ff04]" : "bg-red-500";
+    const errorBoxClass = isQuotaError ? "bg-[#e1ff04]" : "bg-red-500";
     const errorTextClass = isQuotaError ? "text-black" : "text-white";
 
     const loadingMessages = useMemo(

@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { boothLogger } from "@/lib/booth-logger";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // 60 seconds for large image processing
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
@@ -189,7 +190,48 @@ export async function POST(req: NextRequest) {
 
     const creditsBefore = userData.credits;
 
-    // Deduct credit BEFORE generation
+    // Parse form data BEFORE deducting credit - this can fail for large uploads
+    let formData: FormData;
+    let file: File | null = null;
+    let styleMode: string = "pathetic";
+
+    try {
+      formData = await req.formData();
+      const fileField = formData.get("image");
+      file = fileField instanceof File ? fileField : null;
+      styleMode = (formData.get("styleMode") as string) || "pathetic";
+    } catch (formError: any) {
+      // FormData parsing failed - likely body too large (Vercel 4.5MB limit)
+      const errMsg = formError?.message?.toLowerCase() || "";
+      console.error("[booth/generate] FormData parsing failed:", formError?.message || formError);
+
+      // Detect body size limit errors from Vercel/Next.js
+      const isBodySizeError =
+        errMsg.includes("body exceeded") ||
+        errMsg.includes("too large") ||
+        errMsg.includes("payload") ||
+        errMsg.includes("limit") ||
+        errMsg.includes("failed to parse body");
+
+      const errorMsg = isBodySizeError
+        ? "Image too large. Please use a smaller image (max 4MB)."
+        : `Upload failed: ${formError?.message || "Please try again."}`;
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
+    }
+
+    if (!file) {
+      return NextResponse.json({ error: "Missing image file" }, { status: 400 });
+    }
+
+    // Check file size (note: Vercel's limit is ~4.5MB, but we check here too)
+    if (file.size > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: "Image too large (max ~20MB)" }, { status: 400 });
+    }
+
+    // Log file details for debugging
+    console.log(`[booth/generate] Processing upload: ${file.name}, size: ${file.size}, type: ${file.type}`);
+
+    // Now deduct credit - formData is valid
     const { data: deductResult, error: deductError } = await serviceClient.rpc(
       "deduct_credit",
       { p_user_id: user.id }
@@ -211,23 +253,7 @@ export async function POST(req: NextRequest) {
 
     const creditsAfter = deductResult[0].new_credits;
 
-    // Parse form data
-    const formData = await req.formData();
-    const file = formData.get("image");
-    const styleMode = formData.get("styleMode") || "pathetic";
-
-    if (!file || !(file instanceof File)) {
-      // Refund credit if no image
-      await refundCredit(serviceClient, user.id, "Missing image file");
-      return NextResponse.json({ error: "Missing image file" }, { status: 400 });
-    }
-
-    if (file.size > 20 * 1024 * 1024) {
-      // Refund credit if image too large
-      await refundCredit(serviceClient, user.id, "Image too large");
-      return NextResponse.json({ error: "Image too large (max ~20MB)" }, { status: 400 });
-    }
-
+    // From here on, we've deducted credit - refund on any failure
     // Proceed with generation
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -352,9 +378,16 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (err: any) {
-    console.error("[booth/generate] error:", err);
+    // This catches errors before credit deduction (auth, rate limit, etc.)
+    const errorMessage = err?.message || "Unknown error";
+    const errorStack = err?.stack || "";
+    console.error("[booth/generate] Outer catch error:", {
+      message: errorMessage,
+      stack: errorStack,
+      name: err?.name,
+    });
     return NextResponse.json(
-      { error: "Something went wrong, try again in a minute" },
+      { error: `Something went wrong: ${errorMessage}` },
       { status: 500 }
     );
   }
