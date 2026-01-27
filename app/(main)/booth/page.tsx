@@ -4,7 +4,6 @@ import MemeBoothShell from "@/components/meme-booth/meme-booth-shell";
 import TitleText from "@/components/ui/title-text";
 import BoothProviders from "@/components/meme-booth/booth-providers";
 import CreditBalance from "@/components/meme-booth/credits/credit-balance";
-import QuickBuyButton from "@/components/meme-booth/credits/quick-buy-button";
 
 // Check if Sanity is configured
 const isSanityConfigured = !!(
@@ -92,9 +91,8 @@ export default async function MemeBoothPage() {
 
                 <MemeBoothShell showNewsletterModalOnView={showNewsletterModalOnView} />
 
-                <div className="mt-6 flex flex-col items-center gap-3">
+                <div className="mt-6 flex justify-center">
                     <CreditBalance />
-                    <QuickBuyButton />
                 </div>
             </main>
         </BoothProviders>
