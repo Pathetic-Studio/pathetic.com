@@ -15,6 +15,7 @@ import StarterPackResultView from "@/components/meme-booth/starter-pack-result-v
 import UploadedImagePreview from "./ui/uploaded-image-preview";
 import LoaderOverlay from "./ui/loader-overlay";
 
+import { applyWatermark } from "@/lib/apply-watermark";
 import { useUserMedia } from "./hooks/use-user-media";
 import { captureCanvasToPngBlob } from "./hooks/use-capture-canvas-blob";
 import { useBoothGeneration } from "./hooks/use-booth-generation";
@@ -168,7 +169,8 @@ const { loading, error: apiError, setError: setApiError, generate } = useBoothGe
         const res = await generate(b);
         if (!res.ok || !res.image) return;
 
-        setPendingImage(res.image as string);
+        const watermarked = await applyWatermark(res.image as string);
+        setPendingImage(watermarked);
     };
 
     const handleCaptureAndGenerate = async () => {

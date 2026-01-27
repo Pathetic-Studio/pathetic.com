@@ -86,3 +86,11 @@ export const CREDIT_PACKS = [
 ] as const;
 
 export type CreditPack = (typeof CREDIT_PACKS)[number];
+
+// Quick-buy pack for the always-visible Apple Pay / Google Pay button
+export const QUICK_BUY_PACK = {
+  id: "quick-buy",
+  credits: 10,
+  price: 999, // in cents
+  priceDisplay: "$9.99",
+} as const;

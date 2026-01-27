@@ -145,6 +145,75 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+
+        const userId = paymentIntent.metadata?.user_id;
+        const credits = parseInt(paymentIntent.metadata?.credits || "0", 10);
+        const packId = paymentIntent.metadata?.pack_id;
+
+        if (!userId || !credits) {
+          console.log("[booth/webhook] PI missing metadata:", paymentIntent.metadata);
+          break;
+        }
+
+        // Idempotency check
+        const { data: existingPIPurchase } = await supabase
+          .from("purchases")
+          .select("status")
+          .eq("stripe_session_id", paymentIntent.id)
+          .single();
+
+        if (existingPIPurchase?.status === "completed") {
+          console.log("[booth/webhook] PI already processed:", paymentIntent.id);
+          break;
+        }
+
+        // Mark purchase completed
+        const { error: piPurchaseError } = await supabase
+          .from("purchases")
+          .update({ status: "completed" })
+          .eq("stripe_session_id", paymentIntent.id)
+          .eq("status", "pending");
+
+        if (piPurchaseError) {
+          console.error("[booth/webhook] Failed to update PI purchase:", piPurchaseError);
+        }
+
+        // Add credits
+        const { data: piCreditResult, error: piCreditError } = await supabase.rpc(
+          "add_credits",
+          {
+            p_user_id: userId,
+            p_amount: credits,
+            p_type: "purchase",
+            p_stripe_payment_id: paymentIntent.id,
+          }
+        );
+
+        if (piCreditError) {
+          console.error("[booth/webhook] Failed to add credits for PI:", piCreditError);
+          await supabase
+            .from("purchases")
+            .update({ status: "failed" })
+            .eq("stripe_session_id", paymentIntent.id);
+          break;
+        }
+
+        boothLogger.purchase({
+          userId,
+          amount: paymentIntent.amount,
+          credits,
+          packId: packId || "quick-buy",
+          sessionId: paymentIntent.id,
+          status: "completed",
+          newCredits: piCreditResult?.[0]?.new_credits,
+        });
+
+        console.log(`[booth/webhook] Quick-buy: added ${credits} credits to ${userId}`);
+        break;
+      }
+
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         console.log(`[booth/webhook] Payment failed: ${paymentIntent.id}`);
