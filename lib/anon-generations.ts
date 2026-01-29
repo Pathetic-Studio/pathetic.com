@@ -2,7 +2,7 @@
 // Client-side tracking for anonymous free meme generations.
 
 const ANON_GENS_KEY = "pathetic_anon_gens";
-export const MAX_FREE_GENS = 2;
+export const MAX_FREE_GENS = 1;
 
 export function getAnonGensUsed(): number {
   if (typeof window === "undefined") return 0;
