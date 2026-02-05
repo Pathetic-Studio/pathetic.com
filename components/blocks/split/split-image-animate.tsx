@@ -23,6 +23,7 @@ type FlareOverrides = Partial<Omit<LensFlareProps, "isActive">>;
 
 interface SplitImageAnimateProps extends SplitImageAnimateBase {
   activeIndex?: number;
+  effectsEnabled?: boolean;
 
   // imageStage:
   // 0 = off / not entered
@@ -51,6 +52,7 @@ export default function SplitImageAnimate({
   useCustomEffect,
   activeIndex = 0,
   imageStage = 0,
+  effectsEnabled = true,
   effect2FlareProps,
   effect2RampProps,
 }: SplitImageAnimateProps) {
@@ -67,9 +69,10 @@ export default function SplitImageAnimate({
   const baseSrc = "/split-image-animate-1.png";
   const effect1Src = "/effect-1.png";
 
-  const effect1IsActive = !!useCustomEffect && imageStage >= 2;
-  const effect2IsActive = !!useCustomEffect && imageStage >= 3;
-  const effect3IsActive = !!useCustomEffect && imageStage >= 4;
+  const effectsOn = !!useCustomEffect && effectsEnabled;
+  const effect1IsActive = effectsOn && imageStage >= 2;
+  const effect2IsActive = effectsOn && imageStage >= 3;
+  const effect3IsActive = effectsOn && imageStage >= 4;
 
   // Effect2 ramps up when Effect3 becomes active, and ramps down when leaving Effect3.
   const effect2Mode: "base" | "ramped" = effect3IsActive ? "ramped" : "base";
@@ -149,24 +152,27 @@ export default function SplitImageAnimate({
                       />
                     </div>
 
-                    {/* EFFECT 1 */}
-                    <Effect1
-                      src={effect1Src}
-                      isActive={effect1IsActive}
-                      isBoosted={effect3IsActive}
-                    />
+                    {effectsOn && (
+                      <div>
+                        {/* EFFECT 1 */}
+                        <Effect1
+                          src={effect1Src}
+                          isActive={effect1IsActive}
+                          isBoosted={effect3IsActive}
+                        />
 
+                        {/* EFFECT 2 (ramps up smoothly while Effect3 is active, ramps down when leaving) */}
+                        <Effect2
+                          isActive={effect2IsActive}
+                          mode={effect2Mode}
+                          flareProps={effect2FlareProps}
+                          rampProps={effect2RampProps}
+                        />
 
-                    {/* EFFECT 2 (ramps up smoothly while Effect3 is active, ramps down when leaving) */}
-                    <Effect2
-                      isActive={effect2IsActive}
-                      mode={effect2Mode}
-                      flareProps={effect2FlareProps}
-                      rampProps={effect2RampProps}
-                    />
-
-                    {/* EFFECT 3 (extra flares inside) */}
-                    <Effect3 isActive={effect3IsActive} />
+                        {/* EFFECT 3 (extra flares inside) */}
+                        <Effect3 isActive={effect3IsActive} />
+                      </div>
+                    )}
                   </>
                 )}
               </div>

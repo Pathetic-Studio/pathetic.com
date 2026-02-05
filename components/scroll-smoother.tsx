@@ -291,7 +291,6 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       suppressRefresh = true;
 
       smoother?.paused(true);
-      ScrollTrigger.getAll().forEach((t) => t.disable(false));
     };
 
     const resumeOnVisible = () => {
@@ -303,15 +302,12 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       const y = savedTabScrollRef.current || 0;
 
       requestAnimationFrame(() => {
-        ScrollTrigger.getAll().forEach((t) => t.enable(false));
-        ScrollTrigger.refresh();
-
-        requestAnimationFrame(() => {
-          setScrollY(y);
-          smoother?.paused(false);
-          ScrollTrigger.refresh();
-          suppressRefresh = false;
-        });
+        // Restore scroll first, then resume smoother.
+        setScrollY(y);
+        smoother?.paused(false);
+        // Keep triggers in sync without forcing a full refresh that can shift scroll.
+        ScrollTrigger.update();
+        suppressRefresh = false;
       });
     };
 

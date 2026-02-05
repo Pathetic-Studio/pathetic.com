@@ -1,10 +1,11 @@
 // components/effects/rotating-images.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     motion,
     useAnimationFrame,
+    useInView,
     useMotionValue,
     useTransform,
     useSpring,
@@ -59,6 +60,7 @@ type OrbitingImageProps = {
     index: number;
     count: number;
     animatedIn?: boolean;
+    inView?: boolean;
     showDotMarker?: boolean;
 };
 
@@ -74,6 +76,7 @@ function OrbitingImage({
     index,
     count,
     animatedIn,
+    inView,
     showDotMarker,
 }: OrbitingImageProps) {
     const angle = useTransform(angleOffset, (o) => baseAngle + o);
@@ -97,6 +100,7 @@ function OrbitingImage({
     });
 
     const delay = animatedIn ? 0.15 + index * 0.06 : 0;
+    const shouldAnimateIn = animatedIn ? !!inView : true;
 
     return (
         <motion.div
@@ -113,8 +117,18 @@ function OrbitingImage({
                 pointerEvents: "none",
             }}
             initial={animatedIn ? { opacity: 0, scale: 0.6 } : { opacity: 1, scale: 1 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay, duration: animatedIn ? 0.4 : 0, ease: "easeOut" }}
+            animate={
+                animatedIn
+                    ? shouldAnimateIn
+                        ? { opacity: 1, scale: 1 }
+                        : { opacity: 0, scale: 0.6 }
+                    : { opacity: 1, scale: 1 }
+            }
+            transition={{
+                delay: animatedIn && shouldAnimateIn ? delay : 0,
+                duration: animatedIn ? 0.4 : 0,
+                ease: "easeOut",
+            }}
         >
             {showDotMarker && (
                 <div
@@ -164,6 +178,8 @@ export default function RotatingImages({
     logoSizeTablet,
     logoSizeMobile,
 }: RotatingImagesProps) {
+    const rootRef = useRef<HTMLDivElement>(null);
+    const isInView = useInView(rootRef, { amount: 0.25, once: true });
     const [bounds, setBounds] = useState<Bounds | null>(null);
     const angleOffset = useMotionValue(0);
 
@@ -257,6 +273,7 @@ export default function RotatingImages({
 
     return (
         <motion.div
+            ref={rootRef}
             className="pointer-events-none absolute inset-0 z-0 transform-gpu"
             aria-hidden="true"
             style={
@@ -265,7 +282,13 @@ export default function RotatingImages({
                     : undefined
             }
             initial={animatedIn ? { opacity: 0, scale: 0.8 } : { opacity: 1, scale: 1 }}
-            animate={{ opacity: 1, scale: 1 }}
+            animate={
+                animatedIn
+                    ? isInView
+                        ? { opacity: 1, scale: 1 }
+                        : { opacity: 0, scale: 0.8 }
+                    : { opacity: 1, scale: 1 }
+            }
             transition={animatedIn ? { duration: 0.5, ease: "easeOut" } : { duration: 0 }}
         >
             {hasBounds && (
@@ -305,6 +328,7 @@ export default function RotatingImages({
                             index={index}
                             count={count}
                             animatedIn={animatedIn}
+                            inView={isInView}
                             showDotMarker={showDotMarker}
                         />
                     ))}

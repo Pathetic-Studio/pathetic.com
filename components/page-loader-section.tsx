@@ -442,7 +442,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
           btns,
           {
             scale: 1,
-            duration: 0.8,
+            duration: 0.1,
             ease: "elastic.out(1, 1)",
             stagger: { each: 0.06, from: "start" },
             clearProps: "transform",

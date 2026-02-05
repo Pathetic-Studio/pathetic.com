@@ -53,6 +53,7 @@ const introPaddingClasses: Record<
 
 const PIN_DISTANCE_VH = 300;
 const NAV_HEIGHT = 80;
+const STAGE_EPS = 0.004;
 
 declare global {
   interface Window {
@@ -126,10 +127,12 @@ export default function SplitRowAnimated({
 
   const [activeCardIndex, setActiveCardIndex] = useState<number>(-1);
   const [imageStage, setImageStage] = useState<number>(0);
+  const [effectsEnabled, setEffectsEnabled] = useState<boolean>(true);
 
   const activeIndexRef = useRef<number>(-1);
   const lastStageRef = useRef<number>(-1);
   const firstCardShownRef = useRef<boolean>(false);
+  const effectsEnabledRef = useRef<boolean>(true);
 
   let containerStyle: CSSProperties | undefined;
   if (typeof anchor?.defaultOffsetPercent === "number") {
@@ -196,6 +199,8 @@ export default function SplitRowAnimated({
     activeIndexRef.current = -1;
     lastStageRef.current = -1;
     firstCardShownRef.current = false;
+    effectsEnabledRef.current = true;
+    setEffectsEnabled(true);
 
     const mm = gsap.matchMedia();
 
@@ -228,12 +233,19 @@ export default function SplitRowAnimated({
       const clampStageIndex = (stage: number) =>
         Math.max(0, Math.min(stage, totalStages - 1));
 
+      const setEffectsEnabledSafe = (next: boolean) => {
+        if (effectsEnabledRef.current === next) return;
+        effectsEnabledRef.current = next;
+        setEffectsEnabled(next);
+      };
+
       const setStage = (stage: number) => {
         if (stage < 0) {
           activeIndexRef.current = -1;
           setActiveCardIndex(-1);
           setImageStage(0);
           firstCardShownRef.current = false;
+          setEffectsEnabledSafe(false);
           if (ovalEl)
             gsap.to(ovalEl, {
               scale: 0.9,
@@ -250,6 +262,7 @@ export default function SplitRowAnimated({
           const next = 2 + clamped;
           return prev === next ? prev : next;
         });
+        setEffectsEnabledSafe(true);
 
         if (ovalEl) {
           const scale = clamped === 0 ? 1 : clamped === 1 ? 1.08 : 1.16;
@@ -292,19 +305,16 @@ export default function SplitRowAnimated({
         if (!el) return;
 
         const o = getCardOffsets(index);
-        gsap.fromTo(
-          el,
-          { autoAlpha: 0, x: o.x + enterDistDesktop, y: o.y, width: getCardWidth() },
-          {
-            autoAlpha: 1,
-            x: o.x,
-            y: o.y,
-            width: getCardWidth(),
-            duration: 0.7,
-            ease: "power2.out",
-            overwrite: "auto",
-          },
-        );
+        gsap.to(el, {
+          autoAlpha: 1,
+          x: o.x,
+          y: o.y,
+          width: getCardWidth(),
+          duration: 0.7,
+          ease: "power2.out",
+          overwrite: "auto",
+          force3D: true,
+        });
       };
 
       const exitCardDesktop = (index: number) => {
@@ -323,19 +333,32 @@ export default function SplitRowAnimated({
         });
       };
 
-      const showOnlyFirstCardDesktop = () => {
+      const showOnlyFirstCardDesktop = (animate = false) => {
         if (!totalStages) return;
+        gsap.killTweensOf(cardItemEls);
         const w = getCardWidth();
         cardItemEls.forEach((el, i) => {
           const o = getCardOffsets(i);
           gsap.set(el, {
             force3D: true,
-            autoAlpha: i === 0 ? 1 : 0,
-            x: i === 0 ? o.x : o.x + enterDistDesktop,
+            autoAlpha: 0,
+            x: o.x + enterDistDesktop,
             y: o.y,
             width: w,
           });
         });
+        if (animate && !firstCardShownRef.current) {
+          enterCardDesktop(0);
+        } else {
+          const o0 = getCardOffsets(0);
+          gsap.set(cardItemEls[0], {
+            force3D: true,
+            autoAlpha: 1,
+            x: o0.x,
+            y: o0.y,
+            width: w,
+          });
+        }
         firstCardShownRef.current = true;
         lastStageRef.current = 0;
         setStage(0);
@@ -343,6 +366,7 @@ export default function SplitRowAnimated({
 
       const hideAllCardsDesktop = () => {
         if (!totalStages) return;
+        gsap.killTweensOf(cardItemEls);
         const w = getCardWidth();
         cardItemEls.forEach((el, i) => {
           const o = getCardOffsets(i);
@@ -358,19 +382,69 @@ export default function SplitRowAnimated({
         setStage(-1);
       };
 
-      const showOnlyFirstCardMobile = () => {
+      const syncCardsToStageDesktop = (stage: number) => {
+        if (!totalStages) return;
+        const clamped = stage < 0 ? -1 : clampStageIndex(stage);
+        gsap.killTweensOf(cardItemEls);
+        const w = getCardWidth();
+        cardItemEls.forEach((el, i) => {
+          const o = getCardOffsets(i);
+          const visible = clamped >= 0 && i <= clamped;
+          gsap.set(el, {
+            force3D: true,
+            autoAlpha: visible ? 1 : 0,
+            x: visible ? o.x : o.x + enterDistDesktop,
+            y: o.y,
+            width: w,
+          });
+        });
+        firstCardShownRef.current = clamped >= 0;
+        lastStageRef.current = clamped;
+        setStage(clamped);
+      };
+
+      const enterCardMobile = (index: number) => {
+        const el = cardItemEls[index];
+        if (!el) return;
+
+        const o = getCardOffsets(index);
+        gsap.to(el, {
+          autoAlpha: 1,
+          x: o.x,
+          y: hasAnimatedCards ? o.y : 0,
+          width: getCardWidth(),
+          duration: 0.6,
+          ease: "power2.out",
+          overwrite: "auto",
+          force3D: true,
+        });
+      };
+
+      const showOnlyFirstCardMobile = (animate = false) => {
         if (!totalStages) return;
         const w = getCardWidth();
         cardItemEls.forEach((el, i) => {
           const o = getCardOffsets(i);
           gsap.set(el, {
             force3D: true,
-            autoAlpha: i === 0 ? 1 : 0,
-            x: i === 0 ? o.x : o.x + enterDistMobile,
+            autoAlpha: 0,
+            x: o.x + enterDistMobile,
             y: hasAnimatedCards ? o.y : 60,
             width: w,
           });
         });
+        if (animate && !firstCardShownRef.current) {
+          enterCardMobile(0);
+        } else {
+          const o0 = getCardOffsets(0);
+          gsap.set(cardItemEls[0], {
+            force3D: true,
+            autoAlpha: 1,
+            x: o0.x,
+            y: hasAnimatedCards ? o0.y : 0,
+            width: w,
+          });
+        }
         firstCardShownRef.current = true;
         lastStageRef.current = 0;
         setStage(0);
@@ -391,6 +465,26 @@ export default function SplitRowAnimated({
         });
         lastStageRef.current = -1;
         setStage(-1);
+      };
+
+      const syncCardsToStageMobile = (stage: number) => {
+        if (!totalStages) return;
+        const clamped = stage < 0 ? -1 : clampStageIndex(stage);
+        const w = getCardWidth();
+        cardItemEls.forEach((el, i) => {
+          const o = getCardOffsets(i);
+          const visible = clamped >= 0 && i <= clamped;
+          gsap.set(el, {
+            force3D: true,
+            autoAlpha: visible ? 1 : 0,
+            x: visible ? o.x : o.x + enterDistMobile,
+            y: visible ? (hasAnimatedCards ? o.y : 0) : hasAnimatedCards ? o.y : 60,
+            width: w,
+          });
+        });
+        firstCardShownRef.current = clamped >= 0;
+        lastStageRef.current = clamped;
+        setStage(clamped);
       };
 
       const applyStageChangeDesktop = (prev: number, next: number) => {
@@ -419,9 +513,10 @@ export default function SplitRowAnimated({
         setStage(next);
       };
 
-      const stageFromProgress = (progress: number) => {
+      const stageFromProgress = (progress: number, direction = 1) => {
         if (!totalStages) return -1;
-        const clamped = Math.max(0, Math.min(0.999999, progress));
+        const offset = direction === 0 ? 0 : direction > 0 ? STAGE_EPS : -STAGE_EPS;
+        const clamped = Math.max(0, Math.min(0.999999, progress + offset));
         return Math.min(totalStages - 1, Math.floor(clamped * totalStages));
       };
 
@@ -454,17 +549,22 @@ export default function SplitRowAnimated({
         start: "top 85%",
         onEnter: () => {
           if (totalStages <= 0) return;
-          if (isDesktopNow()) showOnlyFirstCardDesktop();
-          else showOnlyFirstCardMobile();
+          if (lastStageRef.current >= 0) return;
+          setEffectsEnabledSafe(true);
+          if (isDesktopNow()) showOnlyFirstCardDesktop(true);
+          else showOnlyFirstCardMobile(true);
         },
         onEnterBack: () => {
           if (totalStages <= 0) return;
-          if (isDesktopNow()) showOnlyFirstCardDesktop();
-          else showOnlyFirstCardMobile();
+          if (lastStageRef.current >= 0) return;
+          setEffectsEnabledSafe(true);
+          if (isDesktopNow()) showOnlyFirstCardDesktop(true);
+          else showOnlyFirstCardMobile(true);
         },
         onLeaveBack: () => {
           if (isDesktopNow()) hideAllCardsDesktop();
           else hideAllCardsMobile();
+          setEffectsEnabledSafe(false);
         },
       });
 
@@ -489,11 +589,23 @@ export default function SplitRowAnimated({
           anticipatePin: 1,
           pinType: pinType as any,
 
-          onEnter: () => showOnlyFirstCardDesktop(),
-          onEnterBack: () => showOnlyFirstCardDesktop(),
+          onEnter: (self) => {
+            setEffectsEnabledSafe(true);
+            if (lastStageRef.current >= 0) {
+              const stage = stageFromProgress(self.progress, self.direction);
+              syncCardsToStageDesktop(stage);
+              return;
+            }
+            showOnlyFirstCardDesktop();
+          },
+          onEnterBack: (self) => {
+            setEffectsEnabledSafe(true);
+            const stage = stageFromProgress(self.progress, self.direction);
+            syncCardsToStageDesktop(stage);
+          },
 
           onUpdate: (self) => {
-            const stage = stageFromProgress(self.progress);
+            const stage = stageFromProgress(self.progress, self.direction);
             if (stage !== lastStageRef.current) {
               const prev = lastStageRef.current;
               lastStageRef.current = stage;
@@ -501,7 +613,7 @@ export default function SplitRowAnimated({
             }
           },
           onRefresh: (self) => {
-            const stage = stageFromProgress(self.progress);
+            const stage = stageFromProgress(self.progress, self.direction);
             if (stage !== lastStageRef.current) {
               const prev = lastStageRef.current;
               lastStageRef.current = stage;
@@ -596,29 +708,40 @@ export default function SplitRowAnimated({
 
           animation: tl,
 
-          onEnter: () => {
+          onEnter: (self) => {
+            setEffectsEnabledSafe(true);
+            if (lastStageRef.current >= 0) {
+              const stage = stageFromProgress(self.progress, self.direction);
+              syncCardsToStageMobile(stage);
+              tl.progress(self.progress);
+              return;
+            }
             showOnlyFirstCardMobile();
             tl.progress(0);
           },
 
           onEnterBack: (self) => {
-            const stage = stageFromProgress(self.progress);
-            setStage(stage);
+            setEffectsEnabledSafe(true);
+            const stage = stageFromProgress(self.progress, self.direction);
+            syncCardsToStageMobile(stage);
             tl.progress(self.progress);
           },
 
           onUpdate: (self) => {
-            const stage = stageFromProgress(self.progress);
+            const stage = stageFromProgress(self.progress, self.direction);
             if (stage !== activeIndexRef.current) setStage(stage);
           },
 
           onRefresh: (self) => {
-            const stage = stageFromProgress(self.progress);
+            const stage = stageFromProgress(self.progress, self.direction);
             setStage(stage);
             tl.progress(self.progress);
           },
 
-          onLeaveBack: () => showOnlyFirstCardMobile(),
+          onLeaveBack: () => {
+            showOnlyFirstCardMobile();
+            setEffectsEnabledSafe(false);
+          },
         });
 
         requestAnimationFrame(() => ScrollTrigger.refresh());
@@ -766,6 +889,7 @@ export default function SplitRowAnimated({
                         <SplitImageAnimate
                           {...(column as any)}
                           imageStage={imageStage}
+                          effectsEnabled={effectsEnabled}
                         />
                       </div>
                     );
