@@ -41,6 +41,8 @@ export default async function MainLayout({
                         </TransitionShell>
                     </main>
 
+                    <Footer />
+
                     <SanityLive />
 
                     {draft.isEnabled && (

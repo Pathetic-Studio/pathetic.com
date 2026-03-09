@@ -1,7 +1,7 @@
 //components/meme-booth/panel/camera-panel-core.tsx
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ScrollTrigger from "gsap/ScrollTrigger";
 import { gsap } from "gsap";
 
@@ -15,9 +15,10 @@ import StarterPackResultView from "@/components/meme-booth/starter-pack-result-v
 import UploadedImagePreview from "./ui/uploaded-image-preview";
 import LoaderOverlay from "./ui/loader-overlay";
 
+import { applyWatermark } from "@/lib/apply-watermark";
 import { useUserMedia } from "./hooks/use-user-media";
 import { captureCanvasToPngBlob } from "./hooks/use-capture-canvas-blob";
-import { useStarterPack } from "./hooks/use-starter-pack";
+import { useBoothGeneration } from "./hooks/use-booth-generation";
 
 const USE_SPRITE_MODE = true as const;
 const USE_YOLO_SPLITTER = true as const;
@@ -60,7 +61,7 @@ const handleStyleModeChange = (newMode: StyleMode) => {
     resetState();
     setStyleMode(newMode);
 };
-const { loading, error: apiError, setError: setApiError, generate } = useStarterPack(styleMode);
+const { loading, error: apiError, setError: setApiError, generate } = useBoothGeneration(styleMode);
 
     const [blob, setBlob] = useState<Blob | null>(null);
 
@@ -78,7 +79,17 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
         facingMode,
         canFlip,
         flipCamera,
+        stop: stopCamera,
     } = useUserMedia({ active: cameraActive });
+
+    // Fully release camera when a result is displayed.
+    // pause() alone keeps the stream alive, which causes mobile browsers
+    // to show the camera permission popup over the result.
+    useEffect(() => {
+        if (generatedImage) {
+            stopCamera();
+        }
+    }, [generatedImage, stopCamera]);
 
     const error = apiError || cameraError;
 
@@ -87,7 +98,7 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
         typeof error === "string" &&
         /daily meme limit reached|try again tomorrow|quota|rate limit|resource_exhausted|too many requests/i.test(error);
 
-    const errorBoxClass = isQuotaError ? "bg-[##e1ff04]" : "bg-red-500";
+    const errorBoxClass = isQuotaError ? "bg-[#e1ff04]" : "bg-red-500";
     const errorTextClass = isQuotaError ? "text-black" : "text-white";
 
     const loadingMessages = useMemo(
@@ -158,7 +169,8 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
         const res = await generate(b);
         if (!res.ok || !res.image) return;
 
-        setPendingImage(res.image as string);
+        const watermarked = await applyWatermark(res.image as string);
+        setPendingImage(watermarked);
     };
 
     const handleCaptureAndGenerate = async () => {
@@ -170,6 +182,10 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
 
         const b = await captureCanvasToPngBlob(out, snap);
         if (!b) return;
+
+        // Immediately release camera after capture — prevents mobile
+        // browsers from showing the permission popup during generation.
+        stopCamera();
 
         setBlob(b);
         setSprites(null);
@@ -213,7 +229,8 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
                     </div>
                 )}
 
-                <ModeToggle mode={mode} onChange={switchMode} />
+                {/* Hide mode toggle when showing result — prevents accidental meme loss */}
+                {!generatedImage && <ModeToggle mode={mode} onChange={switchMode} />}
 
                 <div ref={activeSpaceRef} className="relative w-full">
                     {generatedImage ? (
@@ -241,10 +258,6 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
                     ) : (
                         <ImageUploadPanel disabled={loading} onImageLoaded={handleUploadedImage} />
                     )}
-{/* Style toggle - shown when camera is active or image uploaded */}
-                    {(mode === "camera" || blob) && !generatedImage && (
-                        <StyleToggle mode={styleMode} onChange={handleStyleModeChange} />
-                    )}
                     <LoaderOverlay
                         active={loading}
                         messages={loadingMessages}
@@ -256,10 +269,16 @@ const { loading, error: apiError, setError: setApiError, generate } = useStarter
                     />
                 </div>
 
+                {/* Style toggle - shown when no generated image yet, not during loading */}
+                {!generatedImage && !loading && (
+                    <StyleToggle mode={styleMode} onChange={handleStyleModeChange} />
+                )}
+
                 <BottomActions
                     mode={mode}
                     hasBlob={!!blob}
                     hasGenerated={!!generatedImage}
+                    generatedImage={generatedImage}
                     loading={loading}
                     onChangeImage={handleChangeImage}
                     onGenerateUpload={() => {
