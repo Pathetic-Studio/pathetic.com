@@ -382,6 +382,46 @@ export default function SplitRowAnimated({
         setStage(-1);
       };
 
+      const exitFirstCardDesktop = () => {
+        if (!totalStages) return;
+
+        gsap.killTweensOf(cardItemEls);
+        const w = getCardWidth();
+
+        cardItemEls.forEach((el, i) => {
+          const o = getCardOffsets(i);
+          if (i === 0) return;
+
+          gsap.set(el, {
+            force3D: true,
+            autoAlpha: 0,
+            x: o.x + enterDistDesktop,
+            y: o.y,
+            width: w,
+          });
+        });
+
+        const o0 = getCardOffsets(0);
+        firstCardShownRef.current = false;
+        lastStageRef.current = -1;
+
+        gsap.to(cardItemEls[0], {
+          autoAlpha: 0,
+          x: o0.x + enterDistDesktop,
+          y: o0.y,
+          width: w,
+          duration: 0.55,
+          ease: "power2.inOut",
+          overwrite: "auto",
+          force3D: true,
+          onComplete: () => {
+            if (lastStageRef.current !== -1) return;
+            setStage(-1);
+            setEffectsEnabledSafe(false);
+          },
+        });
+      };
+
       const syncCardsToStageDesktop = (stage: number) => {
         if (!totalStages) return;
         const clamped = stage < 0 ? -1 : clampStageIndex(stage);
@@ -562,9 +602,12 @@ export default function SplitRowAnimated({
           else showOnlyFirstCardMobile(true);
         },
         onLeaveBack: () => {
-          if (isDesktopNow()) hideAllCardsDesktop();
-          else hideAllCardsMobile();
-          setEffectsEnabledSafe(false);
+          if (isDesktopNow()) {
+            exitFirstCardDesktop();
+          } else {
+            hideAllCardsMobile();
+            setEffectsEnabledSafe(false);
+          }
         },
       });
 
@@ -621,7 +664,9 @@ export default function SplitRowAnimated({
             }
           },
 
-          onLeaveBack: () => hideAllCardsDesktop(),
+          onLeaveBack: () => {
+            showOnlyFirstCardDesktop();
+          },
         });
 
         requestAnimationFrame(() => ScrollTrigger.refresh());

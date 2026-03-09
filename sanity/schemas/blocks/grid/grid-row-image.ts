@@ -144,13 +144,7 @@ export default defineType({
       of: [{ type: "object-detect-image" }, { type: "image-card" }],
       options: {
         insertMenu: {
-          views: [
-            {
-              name: "grid",
-              previewImageUrl: (block) => `/sanity/preview/${block}.jpg`,
-            },
-            { name: "list" },
-          ],
+          views: [{ name: "list" }],
         },
       },
     }),

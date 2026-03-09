@@ -41,13 +41,12 @@ export default defineType({
   preview: {
     select: {
       title: "title",
-      media: "image",
     },
-    prepare({ title, media }) {
+    prepare({ title }) {
       return {
         title: "Grid Card",
         subtitle: title || "No title",
-        media,
+        media: LayoutGrid,
       };
     },
   },

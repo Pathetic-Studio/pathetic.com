@@ -64,13 +64,12 @@ export default defineType({
   preview: {
     select: {
       title: "title",
-      media: "image",
     },
-    prepare({ title, media }) {
+    prepare({ title }) {
       return {
         title: title || "Image Card",
         subtitle: "Image card",
-        media,
+        media: ImageIcon,
       };
     },
   },

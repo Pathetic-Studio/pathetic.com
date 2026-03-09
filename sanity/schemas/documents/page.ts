@@ -115,13 +115,7 @@ export default defineType({
               of: ["all-posts"],
             },
           ],
-          views: [
-            {
-              name: "grid",
-              previewImageUrl: (block) => `/sanity/preview/${block}.jpg`,
-            },
-            { name: "list" },
-          ],
+          views: [{ name: "list" }],
         },
       },
     }),

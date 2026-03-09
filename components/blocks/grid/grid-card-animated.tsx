@@ -77,7 +77,7 @@ export default function GridCardAnimated({
         )}
 
         {title && (
-          <div className="mb-4">
+          <div className="mb-2">
             <h3 className="font-bold text-2xl uppercase"
               data-speed={titleSpeed ?? undefined}>{title}</h3>
           </div>

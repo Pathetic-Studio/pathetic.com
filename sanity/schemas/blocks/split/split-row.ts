@@ -86,13 +86,7 @@ export default defineType({
       validation: (rule) => rule.max(2),
       options: {
         insertMenu: {
-          views: [
-            {
-              name: "grid",
-              previewImageUrl: (block) => `/sanity/preview/${block}.jpg`,
-            },
-            { name: "list" },
-          ],
+          views: [{ name: "list" }],
         },
       },
     }),

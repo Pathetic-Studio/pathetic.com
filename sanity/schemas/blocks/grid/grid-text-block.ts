@@ -262,16 +262,15 @@ export default defineType({
   ],
   preview: {
     select: {
-      media: "image",
       effectStyle: "effectStyle",
     },
-    prepare({ media, effectStyle }) {
+    prepare({ effectStyle }) {
       return {
         title: "Grid Text Block",
         subtitle: effectStyle
           ? `Effect: ${effectStyle}`
           : "Portable text title & body",
-        media,
+        media: LayoutGrid,
       };
     },
   },

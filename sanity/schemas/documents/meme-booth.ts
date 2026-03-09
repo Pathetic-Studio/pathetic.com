@@ -39,6 +39,97 @@ export default defineType({
       description:
         "If enabled, the Meme Booth newsletter modal will open when this page comes into view.",
     }),
+    defineField({
+      name: "blocks",
+      title: "Blocks Below Meme Booth",
+      type: "array",
+      group: "content",
+      of: [
+        { type: "hero-1" },
+        { type: "hero-2" },
+        { type: "section-header" },
+        { type: "split-row" },
+        { type: "split-row-animated" },
+        { type: "grid-row" },
+        { type: "grid-row-image" },
+        { type: "grid-row-animated" },
+        { type: "grid-row-grab" },
+        { type: "carousel-1" },
+        { type: "carousel-2" },
+        { type: "timeline-row" },
+        { type: "cta-1" },
+        { type: "logo-cloud-1" },
+        { type: "faqs" },
+        { type: "all-posts" },
+        { type: "section-spacer" },
+        { type: "page-header" },
+        { type: "central-text-block" },
+        { type: "footer" },
+      ],
+      options: {
+        insertMenu: {
+          groups: [
+            {
+              name: "hero",
+              title: "Hero",
+              of: ["hero-1", "hero-2"],
+            },
+            {
+              name: "logo-cloud",
+              title: "Logo Cloud",
+              of: ["logo-cloud-1"],
+            },
+            {
+              name: "section-header",
+              title: "Section Header",
+              of: ["section-header"],
+            },
+            {
+              name: "grid",
+              title: "Grid",
+              of: ["grid-row"],
+            },
+            {
+              name: "split",
+              title: "Split",
+              of: ["split-row"],
+            },
+            {
+              name: "carousel",
+              title: "Carousel",
+              of: ["carousel-1", "carousel-2"],
+            },
+            {
+              name: "timeline",
+              title: "Timeline",
+              of: ["timeline-row"],
+            },
+            {
+              name: "cta",
+              title: "CTA",
+              of: ["cta-1"],
+            },
+            {
+              name: "faqs",
+              title: "FAQs",
+              of: ["faqs"],
+            },
+            {
+              name: "all-posts",
+              title: "All Posts",
+              of: ["all-posts"],
+            },
+          ],
+          views: [
+            {
+              name: "grid",
+              previewImageUrl: (block) => `/sanity/preview/${block}.jpg`,
+            },
+            { name: "list" },
+          ],
+        },
+      },
+    }),
 
     // -----------------------------
     // NAV OVERRIDES

@@ -1,5 +1,6 @@
 //app/(main)/meme-booth/page.tsx
 import type { Metadata } from "next";
+import Blocks from "@/components/blocks";
 import MemeBoothShell from "@/components/meme-booth/meme-booth-shell";
 import TitleText from "@/components/ui/title-text";
 import BoothProviders from "@/components/meme-booth/booth-providers";
@@ -16,6 +17,7 @@ const defaultPageData = {
     title: "MEME BOOTH",
     subtitle: "Generate your starter pack",
     showNewsletterModalOnView: false,
+    blocks: [],
 };
 
 async function getPageData() {
@@ -66,35 +68,39 @@ export default async function MemeBoothPage() {
 
     return (
         <BoothProviders>
-            <main className="relative mx-auto max-w-4xl py-32 px-4">
-                <header className="mb-8 text-center">
-                    {page?.title && (
-                        <TitleText
-                            as="h1"
-                            variant="stretched"
-                            size="lg"
-                            align="center"
-                            maxChars={32}
-                            animation="typeOn"
-                            animationSpeed={1.2}
-                        >
-                            {page.title}
-                        </TitleText>
-                    )}
+            <>
+                <main className="relative mx-auto max-w-4xl px-4 py-32">
+                    <header className="mb-8 text-center">
+                        {page?.title && (
+                            <TitleText
+                                as="h1"
+                                variant="stretched"
+                                size="lg"
+                                align="center"
+                                maxChars={32}
+                                animation="typeOn"
+                                animationSpeed={1.2}
+                            >
+                                {page.title}
+                            </TitleText>
+                        )}
 
-                    {page?.subtitle && (
-                        <p className="mt-1 text-2xl text-muted-foreground">
-                            {page.subtitle}
-                        </p>
-                    )}
-                </header>
+                        {page?.subtitle && (
+                            <p className="mt-1 text-2xl text-muted-foreground">
+                                {page.subtitle}
+                            </p>
+                        )}
+                    </header>
 
-                <MemeBoothShell showNewsletterModalOnView={showNewsletterModalOnView} />
+                    <MemeBoothShell showNewsletterModalOnView={showNewsletterModalOnView} />
 
-                <div className="mt-6 flex justify-center">
-                    <CreditBalance />
-                </div>
-            </main>
+                    <div className="mt-6 flex justify-center">
+                        <CreditBalance />
+                    </div>
+                </main>
+
+                <Blocks blocks={page?.blocks ?? []} />
+            </>
         </BoothProviders>
     );
 }

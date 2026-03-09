@@ -170,13 +170,7 @@ export default defineType({
       ],
       options: {
         insertMenu: {
-          views: [
-            {
-              name: "grid",
-              previewImageUrl: (block) => `/sanity/preview/${block}.jpg`,
-            },
-            { name: "list" },
-          ],
+          views: [{ name: "list" }],
         },
       },
     }),
