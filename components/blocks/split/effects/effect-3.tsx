@@ -45,7 +45,7 @@ export function Effect3({
 
             <motion.div
                 className="absolute inset-0 z-10"
-                style={{ transformOrigin: "center center" }}
+                style={{ transformOrigin: "center center", willChange: "opacity, transform" }}
                 initial={false}
                 animate={active ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.985 }}
                 transition={{ duration: 0.75, ease: "easeInOut" }}

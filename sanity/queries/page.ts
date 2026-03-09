@@ -20,6 +20,7 @@ import { splitRowAnimatedQuery } from "./split/split-row-animated";
 import { gridRowGrabQuery } from "./grid/grid-row-grab";
 import { pageHeaderQuery } from "./hero/page-header";
 import { centralTextBlockQuery } from "./central-text-block";
+import { footerQuery } from "./footer";
 
 export const PAGE_QUERY = groq`
   *[_type == "page" && slug.current == $slug][0]{
@@ -43,6 +44,7 @@ export const PAGE_QUERY = groq`
       ${gridRowGrabQuery},
       ${pageHeaderQuery},
       ${centralTextBlockQuery},
+      ${footerQuery},
 
     },
     meta_title,

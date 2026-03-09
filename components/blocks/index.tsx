@@ -18,8 +18,11 @@ import SplitRowAnimated from "@/components/blocks/split/split-row-animated";
 import GridRowGrab from "@/components/blocks/grid/grid-row-grab";
 import PageHeader from "@/components/blocks/page-header/page-header";
 import CentralTextBlock from "@/components/blocks/central-text-block";
+import FooterBlock, { type FooterBlock as FooterBlockType } from "@/components/blocks/footer";
 
-type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
+type Block =
+  | NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number]
+  | FooterBlockType;
 
 const componentMap: {
   [K in Block["_type"]]: React.ComponentType<Extract<Block, { _type: K }>>;
@@ -43,6 +46,7 @@ const componentMap: {
   "grid-row-grab": GridRowGrab,
   "page-header": PageHeader,
   "central-text-block": CentralTextBlock,
+  footer: FooterBlock,
 };
 
 export default function Blocks({ blocks }: { blocks: Block[] }) {

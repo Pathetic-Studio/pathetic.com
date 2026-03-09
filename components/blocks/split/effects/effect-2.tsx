@@ -74,7 +74,7 @@ export function Effect2({
     return (
         <motion.div
             className="absolute inset-0"
-            style={{ transformOrigin: "center center" }}
+            style={{ transformOrigin: "center center", willChange: "opacity, transform" }}
             initial={false}
             animate={isActive ? { scale: 1 } : { scale: 0.985 }}
             transition={{ duration: 0.7, ease: "easeInOut" }}

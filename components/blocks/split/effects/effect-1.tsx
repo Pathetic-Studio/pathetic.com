@@ -29,6 +29,7 @@ export function Effect1({
             style={{
                 mixBlendMode: "soft-light",
                 transformOrigin: "center center",
+                willChange: "opacity, transform",
             }}
             initial={false}
             animate={{ opacity: isActive ? 1 : 0 }}

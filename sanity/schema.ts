@@ -58,6 +58,7 @@ import sectionAnchor from "./schemas/blocks/shared/section-anchor";
 import pageHeader from "./schemas/blocks/page-header";
 import pageLoader from "./schemas/blocks/page-loader";
 import centralTextBlock from "./schemas/blocks/central-text-block";
+import footer from "./schemas/blocks/footer";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -118,5 +119,6 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     pageHeader,
     pageLoader,
     centralTextBlock,
+    footer,
   ],
 };

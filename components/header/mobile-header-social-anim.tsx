@@ -1,3 +1,4 @@
+//components/header/mobile-header-social-anim.tsx
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";

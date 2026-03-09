@@ -1,15 +1,15 @@
 import { groq } from "next-sanity";
 import { linkQuery } from "./shared/link";
 
-export const NAVIGATION_QUERY = groq`
-  *[_type == "navigation"]{
+// @sanity-typegen-ignore
+export const footerQuery = groq`
+  _type == "footer" => {
     _type,
     _key,
-    instagram,
-    leftLinks[]{
+    footerLeftLinks[]{
       ${linkQuery}
     },
-    rightLinks[]{
+    footerRightLinks[]{
       ${linkQuery}
     }
   }
