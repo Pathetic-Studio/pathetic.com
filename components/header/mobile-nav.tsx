@@ -25,6 +25,8 @@ import {
   useHeaderNavOverrides,
   type NavLinkLite,
 } from "@/components/header/nav-overrides";
+import { useIntroHandoffPending } from "@/components/header/intro-handoff";
+import { useInitialHashEntryPending } from "@/components/header/initial-hash-entry";
 import { registerMobileNavController } from "@/components/header/nav-anim-registry";
 
 type NavigationDoc = NAVIGATION_QUERYResult[0];
@@ -96,6 +98,9 @@ export default function MobileNav({
 
   const isMemeBoothRoute = !!pathname?.startsWith("/booth");
   const { overrides } = useHeaderNavOverrides();
+  const introHandoffPending = useIntroHandoffPending();
+  const initialHashEntryPending = useInitialHashEntryPending();
+  const headerEntryPending = introHandoffPending || initialHashEntryPending;
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
 
   const navDoc: NavigationDoc | undefined = navigation?.[0];
@@ -286,34 +291,14 @@ export default function MobileNav({
   useEffect(() => {
     if (!mounted) return;
 
-    const sync = (playing: boolean) => {
-      if (playing) {
-        setTriggerOpenImmediate(false);
-        return;
-      }
+    if (headerEntryPending) {
+      setTriggerOpenImmediate(false);
+      return;
+    }
 
-      if (triggerOpenRef.current) return;
-      void openTrigger();
-    };
-
-    const playingNow =
-      typeof document !== "undefined" &&
-      document.documentElement.hasAttribute("data-loader-playing");
-    sync(!!playingNow);
-
-    const handleLoaderChange = (event: Event) => {
-      const on = (event as CustomEvent<{ on?: boolean }>).detail?.on;
-      const playing =
-        typeof on === "boolean"
-          ? on
-          : document.documentElement.hasAttribute("data-loader-playing");
-
-      sync(playing);
-    };
-
-    window.addEventListener("loader-playing-change", handleLoaderChange as EventListener);
-    return () => window.removeEventListener("loader-playing-change", handleLoaderChange as EventListener);
-  }, [mounted, openTrigger, setTriggerOpenImmediate]);
+    if (triggerOpenRef.current) return;
+    void openTrigger();
+  }, [mounted, headerEntryPending, openTrigger, setTriggerOpenImmediate]);
 
   useEffect(() => {
     const proxy = {

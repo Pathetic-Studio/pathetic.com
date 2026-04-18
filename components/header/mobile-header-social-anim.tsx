@@ -5,6 +5,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import gsap from "gsap";
 import { cn } from "@/lib/utils";
+import { useIntroHandoffPending } from "@/components/header/intro-handoff";
+import { useInitialHashEntryPending } from "@/components/header/initial-hash-entry";
 import { registerMobileSocialNavController } from "@/components/header/nav-anim-registry";
 
 type Props = {
@@ -22,6 +24,9 @@ export default function MobileHeaderSocialAnim({ children, className }: Props) {
   const rootRef = useRef<HTMLSpanElement | null>(null);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
   const openRef = useRef(false);
+  const introHandoffPending = useIntroHandoffPending();
+  const initialHashEntryPending = useInitialHashEntryPending();
+  const headerEntryPending = introHandoffPending || initialHashEntryPending;
 
   const setOpenImmediate = useCallback((open: boolean) => {
     const el = rootRef.current;
@@ -102,34 +107,14 @@ export default function MobileHeaderSocialAnim({ children, className }: Props) {
   }, [setOpenImmediate]);
 
   useEffect(() => {
-    const sync = (playing: boolean) => {
-      if (playing) {
-        setOpenImmediate(false);
-        return;
-      }
+    if (headerEntryPending) {
+      setOpenImmediate(false);
+      return;
+    }
 
-      if (openRef.current) return;
-      void open();
-    };
-
-    const playingNow =
-      typeof document !== "undefined" &&
-      document.documentElement.hasAttribute("data-loader-playing");
-    sync(!!playingNow);
-
-    const handleLoaderChange = (event: Event) => {
-      const on = (event as CustomEvent<{ on?: boolean }>).detail?.on;
-      const playing =
-        typeof on === "boolean"
-          ? on
-          : document.documentElement.hasAttribute("data-loader-playing");
-
-      sync(playing);
-    };
-
-    window.addEventListener("loader-playing-change", handleLoaderChange as EventListener);
-    return () => window.removeEventListener("loader-playing-change", handleLoaderChange as EventListener);
-  }, [open, setOpenImmediate]);
+    if (openRef.current) return;
+    void open();
+  }, [headerEntryPending, open, setOpenImmediate]);
 
   useEffect(() => {
     const proxy = {

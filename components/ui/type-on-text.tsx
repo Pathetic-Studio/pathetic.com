@@ -94,7 +94,7 @@ export default function TypeOnText({
     let raf = 0;
 
     if (trigger === "immediate") {
-      raf = requestAnimationFrame(startTyping);
+      startTyping();
 
       const onLoaderChange = () => startTyping();
       window.addEventListener(LOADER_EVENT, onLoaderChange as any);

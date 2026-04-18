@@ -127,6 +127,15 @@
   pointer-events: none;
 }
 
+html[data-initial-hash-pending="true"] #page-transition-root {
+  opacity: 0;
+}
+
+html[data-initial-hash-pending="true"]:not([data-initial-hash-ready="true"]) #site-header-root {
+  opacity: 0;
+  pointer-events: none;
+}
+
 
 
 /* ===== Scrollbar (Chrome / Edge / Safari) ===== */

@@ -21,6 +21,9 @@ declare global {
 
 const LOADER_FLAG_ATTR = "data-loader-playing";
 const LOADER_EVENT = "loader-playing-change";
+const INITIAL_HASH_PENDING_ATTR = "data-initial-hash-pending";
+const INITIAL_HASH_READY_ATTR = "data-initial-hash-ready";
+const INITIAL_HASH_READY_EVENT = "initial-hash-ready";
 
 function markClientNav() {
     try {
@@ -63,11 +66,66 @@ export default function TransitionShell({ children }: { children: React.ReactNod
 
     const skipNextEnterScrollResetRef = useRef(false);
     const anchorTlRef = useRef<gsap.core.Timeline | null>(null);
+    const initialHashRevealPendingRef = useRef(
+        typeof document !== "undefined" &&
+        document.documentElement.hasAttribute(INITIAL_HASH_PENDING_ATTR)
+    );
 
     // IMPORTANT:
     // Prevent "initial mount" enter animation. This is the #1 cause of flashes
     // when combined with a home loader.
     const isFirstEnterRef = useRef(true);
+
+    useEffect(() => {
+        const el = pageRef.current;
+        if (!el) return;
+        if (!initialHashRevealPendingRef.current) return;
+
+        let timeoutId: number | null = null;
+
+        const reveal = () => {
+            if (!initialHashRevealPendingRef.current) return;
+
+            initialHashRevealPendingRef.current = false;
+
+            if (timeoutId !== null) {
+                window.clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+
+            gsap.killTweensOf(el);
+            document.documentElement.removeAttribute(INITIAL_HASH_PENDING_ATTR);
+            gsap.set(el, { opacity: 0 });
+            gsap.to(el, {
+                opacity: 1,
+                duration: 0.55,
+                ease: "none",
+                overwrite: "auto",
+            });
+        };
+
+        if (document.documentElement.hasAttribute(INITIAL_HASH_READY_ATTR)) {
+            reveal();
+            return;
+        }
+
+        const onReady = (ev: Event) => {
+            const e = ev as CustomEvent<{ ready?: boolean }>;
+            if (e.detail?.ready === false) return;
+            reveal();
+        };
+
+        window.addEventListener(INITIAL_HASH_READY_EVENT, onReady as EventListener);
+
+        timeoutId = window.setTimeout(() => {
+            reveal();
+        }, 1800);
+
+        return () => {
+            window.removeEventListener(INITIAL_HASH_READY_EVENT, onReady as EventListener);
+            if (timeoutId !== null) window.clearTimeout(timeoutId);
+        };
+    }, []);
 
     // If loader starts while a transition tween is running, force wrapper visible.
     useEffect(() => {
@@ -177,6 +235,12 @@ export default function TransitionShell({ children }: { children: React.ReactNod
                 // HARD STOP: never animate the initial mount.
                 if (isFirstEnterRef.current) {
                     isFirstEnterRef.current = false;
+
+                    if (initialHashRevealPendingRef.current && !isLoaderPlayingNow()) {
+                        gsap.set(el, { opacity: 0 });
+                        return next();
+                    }
+
                     gsap.set(el, { opacity: 1 });
                     return next();
                 }

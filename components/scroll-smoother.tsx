@@ -14,6 +14,24 @@ if (typeof window !== "undefined") {
 
 const LOADER_FLAG_ATTR = "data-loader-playing";
 const LOADER_EVENT = "loader-playing-change";
+const INITIAL_HASH_PENDING_ATTR = "data-initial-hash-pending";
+const INITIAL_HASH_READY_ATTR = "data-initial-hash-ready";
+const INITIAL_HASH_READY_EVENT = "initial-hash-ready";
+
+function setInitialHashReady(ready: boolean) {
+  if (typeof document === "undefined") return;
+
+  if (ready) {
+    document.documentElement.setAttribute(INITIAL_HASH_READY_ATTR, "true");
+  } else {
+    document.documentElement.removeAttribute(INITIAL_HASH_READY_ATTR);
+    document.documentElement.setAttribute(INITIAL_HASH_PENDING_ATTR, "true");
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(INITIAL_HASH_READY_EVENT, { detail: { ready } }));
+  }
+}
 
 export default function SmoothScroller({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,6 +42,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
   const contentRef = useRef<HTMLDivElement>(null);
 
   const savedTabScrollRef = useRef<number>(0);
+  const isFirstPathMountRef = useRef(true);
 
   // NEW: we always run ScrollSmoother (so pins can share the same scroller on mobile),
   // but we disable smoothing on touch via smoothTouch: 0 and near-zero smooth on < lg.
@@ -87,10 +106,10 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
           const current = smoother.scrollTop();
           const rectTop = target.getBoundingClientRect().top;
           const y = current + rectTop;
-          smoother.scrollTo(y, true);
+          smoother.scrollTo(y, false);
         } else {
           try {
-            target.scrollIntoView({ behavior: "smooth", block: "start" });
+            target.scrollIntoView({ behavior: "auto", block: "start" });
           } catch {
             const rect = target.getBoundingClientRect();
             window.scrollTo({ top: rect.top + window.scrollY });
@@ -102,6 +121,78 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
         } catch { }
       });
     });
+  }, []);
+
+  const stabilizeHashIfPresent = useCallback((durationMs = 900) => {
+    if (typeof window === "undefined") return () => { };
+
+    const hash = window.location.hash;
+    if (!hash || hash === "#") return () => { };
+
+    setInitialHashReady(false);
+
+    let cancelled = false;
+    let rafId = 0;
+    let steadyFrames = 0;
+    let startedAt = performance.now();
+
+    const align = () => {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      if (!id) return false;
+
+      const target = document.getElementById(id);
+      if (!target) return false;
+
+      const rectTop = target.getBoundingClientRect().top;
+      if (Math.abs(rectTop) <= 1) return true;
+
+      const smoother = ScrollSmoother.get();
+      if (smoother) {
+        const current = smoother.scrollTop();
+        smoother.scrollTo(current + rectTop, false);
+      } else {
+        window.scrollTo(0, window.scrollY + rectTop);
+      }
+
+      return false;
+    };
+
+    const tick = () => {
+      if (cancelled) return;
+      rafId = 0;
+
+      const aligned = align();
+      steadyFrames = aligned ? steadyFrames + 1 : 0;
+
+      const elapsed = performance.now() - startedAt;
+      if (elapsed < durationMs || steadyFrames < 4) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+
+      try {
+        ScrollTrigger.refresh();
+      } catch { }
+
+      setInitialHashReady(true);
+    };
+
+    rafId = requestAnimationFrame(tick);
+
+    const fonts = (document as any).fonts;
+    const fontReady =
+      fonts?.ready?.then?.(() => {
+        if (cancelled) return;
+        startedAt = performance.now();
+        steadyFrames = 0;
+        if (!rafId) rafId = requestAnimationFrame(tick);
+      }) ?? null;
+
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      void fontReady;
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -169,6 +260,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     } catch { }
 
     let smoother: ScrollSmoother | null = null;
+    let cleanupHashStabilizer: (() => void) | null = null;
 
     const pinTriggers: ScrollTrigger[] = [];
     let ro: ResizeObserver | null = null;
@@ -344,8 +436,26 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       setupPinning();
 
       requestAnimationFrame(() => {
-        if (window.location.hash) scrollToHashIfPresent();
-        else setScrollY(0);
+        const hasHash = !!window.location.hash;
+        const nativeHashScrollY =
+          window.scrollY ||
+          window.pageYOffset ||
+          document.documentElement.scrollTop ||
+          0;
+        const skipInitialHashSync =
+          isFirstPathMountRef.current && hasHash && nativeHashScrollY > 0;
+
+        if (hasHash) {
+          if (!skipInitialHashSync) scrollToHashIfPresent();
+          if (isFirstPathMountRef.current) {
+            cleanupHashStabilizer = stabilizeHashIfPresent();
+          }
+        } else {
+          setInitialHashReady(true);
+          setScrollY(0);
+        }
+
+        isFirstPathMountRef.current = false;
 
         requestAnimationFrame(() => ScrollTrigger.refresh());
       });
@@ -357,9 +467,11 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       setupPinning();
       ScrollTrigger.refresh();
       scrollToHashIfPresent();
+      cleanupHashStabilizer = stabilizeHashIfPresent();
     }
 
     return () => {
+      cleanupHashStabilizer?.();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pageshow", onPageShow);
 
@@ -369,12 +481,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
       wrapper.setAttribute("data-smooth-active", "false");
     };
-  }, [pathname, isDesktop, isTouch, suppressForLoader, scrollToHashIfPresent]);
-
-  useEffect(() => {
-    // even when smoother is running, still honor hash jumps after nav
-    scrollToHashIfPresent();
-  }, [pathname, scrollToHashIfPresent]);
+  }, [pathname, isDesktop, isTouch, suppressForLoader, scrollToHashIfPresent, stabilizeHashIfPresent]);
 
   // Keep DOM structure stable; toggle styles only.
   // With smoother always on (unless loader/reduced), wrapper is always the scroll container.

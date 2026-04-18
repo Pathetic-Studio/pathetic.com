@@ -42,7 +42,14 @@ const arialNarrow = localFont({
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <link rel="icon" href="/favicon.ico" />
+      <head>
+        <link rel="icon" href="/favicon.ico" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var root=document.documentElement;var pending=!!window.location.hash&&!window.__APP_CAME_VIA_CLIENT_NAV__;if(pending){root.setAttribute('data-initial-hash-pending','true');root.removeAttribute('data-initial-hash-ready');}else{root.setAttribute('data-initial-hash-ready','true');root.removeAttribute('data-initial-hash-pending');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased overscroll-none",

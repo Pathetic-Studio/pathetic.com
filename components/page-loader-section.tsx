@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import TitleText from "@/components/ui/title-text";
 import LogoAnimated from "@/components/logo-animated";
 import { cn } from "@/lib/utils";
+import { setIntroHandoffPending } from "@/components/header/intro-handoff";
 
 import ImageExplodeLoader from "@/components/effects/image-explode-loader";
 import {
@@ -178,12 +179,6 @@ function getVisibleHeaderLogoTarget(): HTMLElement | null {
   return els[0] ?? null;
 }
 
-function estimateTitleTypeDuration(text?: string | null) {
-  const t = (text ?? "").trim();
-  if (!t) return 0.6;
-  return Math.max(0.8, Math.min(2.0, 0.8 + t.length * 0.045));
-}
-
 export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const pathname = usePathname();
 
@@ -208,7 +203,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
   const [explodeReady, setExplodeReady] = useState(false);
   const [pin, setPin] = useState(false);
-  const prevLoaderStateRef = useRef<LoaderState | null>(null);
 
   const sectionRef = useRef<HTMLElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -229,6 +223,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
     setLoaderState(play ? "playing" : "skipped");
     setTitleActive(!play);
+    setIntroHandoffPending(play);
 
     if (play) {
       setLogoFlipDoneFlag(false);
@@ -243,19 +238,17 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   useEffect(() => {
     if (!hydrated) return;
     if (!shouldRender) return;
+    if (loaderState !== "playing") return;
 
-    const prev = prevLoaderStateRef.current;
-
-    if (loaderState === "playing") {
-      getMobileNavController()?.setOpenImmediate(false);
-      getMobileSocialNavController()?.setOpenImmediate(false);
-    } else if (prev === "playing" && loaderState === "skipped") {
-      void getMobileNavController()?.open();
-      void getMobileSocialNavController()?.open();
-    }
-
-    prevLoaderStateRef.current = loaderState;
+    getMobileNavController()?.setOpenImmediate(false);
+    getMobileSocialNavController()?.setOpenImmediate(false);
   }, [hydrated, shouldRender, loaderState]);
+
+  useEffect(() => {
+    return () => {
+      setIntroHandoffPending(false);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!hydrated) return;
@@ -364,17 +357,8 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       const paths = gsap.utils.toArray<SVGPathElement>(svgEl?.querySelectorAll("path") ?? []);
       if (paths.length) gsap.set(paths, { autoAlpha: 0 });
 
-      const titleTypeDur = estimateTitleTypeDuration(title);
-
       const tl = gsap.timeline({
         defaults: { ease: "power2.out" },
-        onComplete: () => {
-          if (oncePerSession) {
-            try {
-              window.sessionStorage.setItem(SESSION_KEY, "true");
-            } catch { }
-          }
-        },
         onInterrupt: () => {
           if (siteHeader) {
             siteHeader.style.zIndex = prevHeaderZ;
@@ -423,47 +407,23 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         if (headerNative) gsap.set(headerNative, { autoAlpha: 1 });
       });
 
-      // content in
-      tl.add(() => setTitleActive(true), "<");
-      tl.to(contentEl, { autoAlpha: 1, y: 0, duration: 0.5 }, "<");
-
-      // wait for title typing
-      tl.to({}, { duration: titleTypeDur });
-
-      // open nav + socials (kept behind loader by z-index push above)
       tl.add(() => {
-        void getLeftNavController()?.open();
-        void getRightNavController()?.open();
-        void getSocialNavController()?.open();
-      });
-
-      if (btns.length) {
-        tl.to(
-          btns,
-          {
-            scale: 1,
-            duration: 0.1,
-            ease: "elastic.out(1, 1)",
-            stagger: { each: 0.06, from: "start" },
-            clearProps: "transform",
-          },
-          "<"
-        );
-      }
-
-      tl.to({}, { duration: 0.25 });
-
-      tl.add(() => {
-        // restore header after loader ends
         if (siteHeader) {
           siteHeader.style.zIndex = prevHeaderZ;
           siteHeader.style.pointerEvents = prevHeaderPE;
         }
 
+        if (oncePerSession) {
+          try {
+            window.sessionStorage.setItem(SESSION_KEY, "true");
+          } catch { }
+        }
+
+        setTitleActive(true);
+        setIntroHandoffPending(false);
         setPin(false);
         setLoaderState("skipped");
-
-      });
+      }, "<");
     }, sectionRef);
 
     return () => {

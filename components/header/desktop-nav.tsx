@@ -8,10 +8,10 @@ import React, {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import gsap from "gsap";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { NAVIGATION_QUERYResult } from "@/sanity.types";
@@ -22,6 +22,8 @@ import DesktopNavRightAnim, { DesktopNavRightAnimHandle } from "./desktop-nav-ri
 import DesktopNavLeftAnim, { DesktopNavLeftAnimHandle } from "./desktop-nav-left-anim";
 import DesktopNavSocialAnim, { DesktopNavSocialAnimHandle } from "./desktop-nav-social-anim";
 import { useHeaderNavOverrides, type NavLinkLite } from "./nav-overrides";
+import { useIntroHandoffPending } from "./intro-handoff";
+import { useInitialHashEntryPending } from "./initial-hash-entry";
 import {
   registerLeftNavController,
   registerRightNavController,
@@ -59,20 +61,6 @@ function dispatchAnchorNavigate(anchorId: string, offsetPercent?: number | null)
   } catch { }
 }
 
-function useLoaderPlaying(): boolean {
-  const getSnapshot = () =>
-    typeof document !== "undefined" &&
-    document.documentElement.hasAttribute("data-loader-playing");
-
-  const subscribe = (onStoreChange: () => void) => {
-    const handler = () => onStoreChange();
-    window.addEventListener("loader-playing-change", handler as any);
-    return () => window.removeEventListener("loader-playing-change", handler as any);
-  };
-
-  return useSyncExternalStore(subscribe, getSnapshot, () => false);
-}
-
 export default function DesktopNav({
   navigation,
   settings,
@@ -90,10 +78,15 @@ export default function DesktopNav({
   const isMemeBoothRoute = !!pathname?.startsWith("/booth");
 
   const { overrides } = useHeaderNavOverrides();
-  const loaderPlaying = useLoaderPlaying();
+  const introHandoffPending = useIntroHandoffPending();
+  const initialHashEntryPending = useInitialHashEntryPending();
+  const headerEntryPending = introHandoffPending || initialHashEntryPending;
 
   const [hydrated, setHydrated] = useState(false);
   useLayoutEffect(() => setHydrated(true), []);
+
+  const logoLinkRef = useRef<HTMLAnchorElement | null>(null);
+  const shouldAnimateInitialHashLogoRef = useRef(initialHashEntryPending);
 
   const [cachedReplaceLinks, setCachedReplaceLinks] = useState<NavLinkLite[]>([]);
   useEffect(() => {
@@ -127,7 +120,7 @@ export default function DesktopNav({
 
   useEffect(() => {
     // Loader always forces closed
-    if (!hydrated || loaderPlaying) return;
+    if (!hydrated || headerEntryPending) return;
 
     // Home: always open
     if (!isMemeBoothRoute) {
@@ -139,9 +132,9 @@ export default function DesktopNav({
     if (overrides === null) return;
 
     setLatchedRightOpen(desiredRightOpen);
-  }, [hydrated, loaderPlaying, isMemeBoothRoute, overrides, desiredRightOpen]);
+  }, [hydrated, headerEntryPending, isMemeBoothRoute, overrides, desiredRightOpen]);
 
-  const rightOpenEffective = hydrated && !loaderPlaying ? latchedRightOpen : false;
+  const rightOpenEffective = hydrated && !headerEntryPending ? latchedRightOpen : false;
 
   // "ready" is purely for left slot swapping now.
   const readyToInitialize = !isMemeBoothRoute || overrides !== null;
@@ -190,12 +183,80 @@ export default function DesktopNav({
   useEffect(() => {
     if (!socialRef.current) return;
 
-    // keep existing behavior
-    socialRef.current.setOpenImmediate(hydrated && !loaderPlaying);
-
     registerSocialNavController(socialRef.current);
     return () => registerSocialNavController(null);
-  }, [loaderPlaying, hydrated]);
+  }, []);
+
+  useEffect(() => {
+    if (!socialRef.current) return;
+
+    if (!hydrated || headerEntryPending) {
+      socialRef.current.setOpenImmediate(false);
+      return;
+    }
+
+    void socialRef.current.open();
+  }, [hydrated, headerEntryPending]);
+
+  useEffect(() => {
+    if (!rightRef.current) return;
+
+    if (!hydrated || headerEntryPending) {
+      rightRef.current.setOpenImmediate(false);
+      return;
+    }
+
+    if (rightOpenEffective) {
+      void rightRef.current.open();
+      return;
+    }
+
+    void rightRef.current.close();
+  }, [hydrated, headerEntryPending, rightOpenEffective]);
+
+  useLayoutEffect(() => {
+    const el = logoLinkRef.current;
+    if (!el) return;
+
+    gsap.killTweensOf(el);
+
+    if (!hydrated || introHandoffPending) {
+      gsap.set(el, {
+        autoAlpha: 0,
+        scale: 1,
+        transformOrigin: "50% 50%",
+      });
+      return;
+    }
+
+    if (initialHashEntryPending) {
+      gsap.set(el, {
+        autoAlpha: 0,
+        scale: 0.42,
+        transformOrigin: "50% 50%",
+      });
+      return;
+    }
+
+    if (shouldAnimateInitialHashLogoRef.current) {
+      shouldAnimateInitialHashLogoRef.current = false;
+
+      gsap.fromTo(
+        el,
+        { autoAlpha: 0, scale: 0.42, transformOrigin: "50% 50%" },
+        {
+          autoAlpha: 1,
+          scale: 1,
+          duration: 0.68,
+          ease: "elastic.out(1, 1)",
+          overwrite: "auto",
+        }
+      );
+      return;
+    }
+
+    gsap.set(el, { autoAlpha: 1, scale: 1, transformOrigin: "50% 50%" });
+  }, [hydrated, introHandoffPending, initialHashEntryPending]);
 
   const renderLeftLinks = (links: NavLinkLite[]) => (
     <>
@@ -356,7 +417,7 @@ export default function DesktopNav({
   useEffect(() => {
     if (!leftDefaultRef.current || !leftReplaceRef.current) return;
 
-    if (loaderPlaying || !hydrated) {
+    if (headerEntryPending || !hydrated) {
       leftDefaultRef.current.setOpenImmediate(false);
       leftReplaceRef.current.setOpenImmediate(false);
       return;
@@ -411,9 +472,12 @@ export default function DesktopNav({
     };
 
     void run();
-  }, [loaderPlaying, hydrated, readyToInitialize, targetLeftSlot, replaceLinks.length]);
+  }, [headerEntryPending, hydrated, readyToInitialize, targetLeftSlot, replaceLinks.length]);
 
-  const headerLogoStyle = !hydrated ? { opacity: 0, visibility: "hidden" as const } : undefined;
+  const headerLogoStyle =
+    !hydrated || introHandoffPending
+      ? { opacity: 0, visibility: "hidden" as const }
+      : undefined;
 
   return (
     <div className="hidden xl:flex w-full h-16 items-center justify-between text-primary">
@@ -437,14 +501,18 @@ export default function DesktopNav({
 
       <div className="flex h-16 items-center justify-center">
         <Link
+          ref={logoLinkRef}
           href="/"
           aria-label="Home page"
           id="header-logo-main-desktop"
           data-header-logo-main="true"
-          className="relative flex h-8 items-center justify-center"
+          className="relative flex h-8 items-center justify-center will-change-transform"
           style={headerLogoStyle}
         >
-          <span data-header-logo-native="true" className="flex h-8 items-center justify-center">
+          <span
+            data-header-logo-native="true"
+            className="flex h-8 items-center justify-center"
+          >
             <LogoAnimated className="h-8 w-auto" />
           </span>
         </Link>
@@ -453,7 +521,7 @@ export default function DesktopNav({
       <div className="flex flex-1 h-16 justify-end gap-2 items-center">
         <DesktopNavRightAnim
           ref={rightRef}
-          isOpen={rightOpenEffective}
+          isOpen={false}
         >
           {renderRightLinks(rightLinks as unknown as NavLinkLite[])}
         </DesktopNavRightAnim>

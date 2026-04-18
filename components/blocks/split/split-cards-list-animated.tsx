@@ -138,6 +138,8 @@ export default function SplitCardsListAnimated({
             key={index}
             data-card-item
             className={cn(
+              // Prevent hash-load flashes before GSAP applies the initial state.
+              "invisible opacity-0",
               // Mobile: overlap, but DON'T use inset-0 (it forces right:0 and blocks width shrinking)
               "absolute top-0 left-0 w-full",
               // Desktop: normal flow
