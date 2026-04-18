@@ -15,7 +15,10 @@ export default async function Header() {
 
   return (
     <header id="site-header-root" className="fixed inset-x-0 top-0 z-[70]">
-      <div className="w-full px-4 flex items-center justify-between py-4">
+      <div
+        className="w-full px-4 flex items-center justify-between py-4"
+        data-deploy-marker="live-push-test-2026-04-18"
+      >
         {/* Mobile layout */}
         <div className="flex flex-1 items-center xl:hidden">
           {instagramUrl && (
