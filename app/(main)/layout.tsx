@@ -16,6 +16,14 @@ import PageLoaderSection from "@/components/page-loader-section";
 import TransitionShell from "@/components/layout/transition-shell";
 import { HeaderNavOverridesProvider } from "@/components/header/nav-overrides";
 
+const HOME_LOADER_SESSION_KEY = "pageLoaderPlayed";
+const HOME_LOADER_PENDING_ATTR = "data-home-loader-pending";
+const LOADER_PLAYING_ATTR = "data-loader-playing";
+
+function getHomeLoaderGateScript(oncePerSession: boolean) {
+    return `(function(){try{var root=document.documentElement;var path=window.location.pathname.replace(/\\/+$/,"")||"/";var isHome=path==="/";var hasHash=!!window.location.hash;var cameViaClientNav=!!window.__APP_CAME_VIA_CLIENT_NAV__;var once=${oncePerSession ? "true" : "false"};var played=false;if(once){try{played=window.sessionStorage.getItem("${HOME_LOADER_SESSION_KEY}")==="true";}catch(e){}}var navType=null;try{var nav=performance.getEntriesByType("navigation")[0];navType=nav&&nav.type;}catch(e){}var navAllows=once?true:navType!=="back_forward";var shouldPlay=isHome&&!hasHash&&!cameViaClientNav&&!played&&navAllows;if(shouldPlay){root.setAttribute("${HOME_LOADER_PENDING_ATTR}","true");root.setAttribute("${LOADER_PLAYING_ATTR}","true");}else{root.removeAttribute("${HOME_LOADER_PENDING_ATTR}");root.removeAttribute("${LOADER_PLAYING_ATTR}");}}catch(e){}})();`;
+}
+
 export default async function MainLayout({
     children,
 }: {
@@ -29,6 +37,13 @@ export default async function MainLayout({
     return (
         <HeaderNavOverridesProvider>
             <ContactModalProvider>
+                {loaderEnabled && loaderDoc && (
+                    <script
+                        dangerouslySetInnerHTML={{
+                            __html: getHomeLoaderGateScript(!!loaderDoc.oncePerSession),
+                        }}
+                    />
+                )}
                 <Header />
                 <ContactModal />
                 <NewsletterModal />
@@ -37,7 +52,7 @@ export default async function MainLayout({
                     <main className="overflow-x-hidden md:overflow-visible">
                         <TransitionShell>
                             {loaderEnabled && loaderDoc && <PageLoaderSection data={loaderDoc} />}
-                            {children}
+                            <div id="page-content-root">{children}</div>
                         </TransitionShell>
                     </main>
 

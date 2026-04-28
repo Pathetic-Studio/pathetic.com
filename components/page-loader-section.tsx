@@ -63,6 +63,8 @@ const SESSION_KEY = "pageLoaderPlayed";
 
 const LOADER_FLAG_ATTR = "data-loader-playing";
 const LOADER_EVENT = "loader-playing-change";
+const HOME_LOADER_PENDING_ATTR = "data-home-loader-pending";
+const HOME_LOADER_PENDING_EVENT = "home-loader-pending-change";
 
 const LOGO_FLIP_DONE_ATTR = "data-logo-flip-done";
 const LOGO_FLIP_EVENT = "logo-flip-done-change";
@@ -81,6 +83,19 @@ function setLoaderPlayingFlag(on: boolean) {
 
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(LOADER_EVENT, { detail: { on } }));
+  }
+}
+
+function setHomeLoaderPendingFlag(on: boolean) {
+  if (typeof document === "undefined") return;
+
+  if (on) document.documentElement.setAttribute(HOME_LOADER_PENDING_ATTR, "true");
+  else document.documentElement.removeAttribute(HOME_LOADER_PENDING_ATTR);
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(HOME_LOADER_PENDING_EVENT, { detail: { on } }),
+    );
   }
 }
 
@@ -217,10 +232,14 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   // IMPORTANT: decide "playing vs skipped" in a layout effect to avoid FOUC.
   useLayoutEffect(() => {
     if (!hydrated) return;
-    if (!shouldRender) return;
+    if (!shouldRender) {
+      setHomeLoaderPendingFlag(false);
+      return;
+    }
 
     const play = shouldPlayLoader(enabled, oncePerSession);
 
+    setHomeLoaderPendingFlag(play);
     setLoaderState(play ? "playing" : "skipped");
     setTitleActive(!play);
     setIntroHandoffPending(play);
@@ -247,6 +266,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   useEffect(() => {
     return () => {
       setIntroHandoffPending(false);
+      setHomeLoaderPendingFlag(false);
     };
   }, []);
 
@@ -421,6 +441,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
         setTitleActive(true);
         setIntroHandoffPending(false);
+        setHomeLoaderPendingFlag(false);
         setPin(false);
         setLoaderState("skipped");
       }, "<");
