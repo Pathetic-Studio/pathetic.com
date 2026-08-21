@@ -1,7 +1,7 @@
 // components/effects/eye-follow.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 
 type EyeConfig = {
@@ -21,6 +21,11 @@ type EyeFollowProps = {
     enableClickToAdd?: boolean;
     minSpawnScale?: number;
     maxSpawnScale?: number;
+    avoidSpawnOverlap?: boolean;
+    rollOnExistingClick?: boolean;
+    spawnGap?: number;
+    edgePadding?: number;
+    staggerOnEnter?: boolean;
 };
 
 type MousePos = { x: number; y: number } | null;
@@ -34,22 +39,63 @@ type EyePhysics = {
     radius: number;
 };
 
+function getEyeMetrics(
+    eye: EyeConfig,
+    isMobile: boolean,
+    rect: Rect,
+    edgePadding: number,
+) {
+    const baseX = typeof eye.x === "number" ? eye.x : 50;
+    const baseY = typeof eye.y === "number" ? eye.y : 50;
+    const baseSize = eye.size ?? 72;
+    const rawX =
+        isMobile && typeof eye.xMobile === "number" ? eye.xMobile : baseX;
+    const rawY =
+        isMobile && typeof eye.yMobile === "number" ? eye.yMobile : baseY;
+    const size =
+        isMobile && typeof eye.sizeMobile === "number"
+            ? eye.sizeMobile
+            : baseSize;
+
+    if (!rect?.width || !rect.height) {
+        return { xPercent: rawX, yPercent: rawY, size };
+    }
+
+    const xInset = Math.min(50, ((size * 0.5 + edgePadding) / rect.width) * 100);
+    const yInset = Math.min(50, ((size * 0.5 + edgePadding) / rect.height) * 100);
+
+    return {
+        xPercent: Math.min(100 - xInset, Math.max(xInset, rawX)),
+        yPercent: Math.min(100 - yInset, Math.max(yInset, rawY)),
+        size,
+    };
+}
+
 export default function EyeFollow({
     containerId,
     eyes,
     enableClickToAdd,
     minSpawnScale,
     maxSpawnScale,
+    avoidSpawnOverlap = false,
+    rollOnExistingClick = false,
+    spawnGap = 8,
+    edgePadding = 0,
+    staggerOnEnter = false,
 }: EyeFollowProps) {
     const [mouse, setMouse] = useState<MousePos>(null);
     const [rect, setRect] = useState<Rect>(null);
     const [pupilOffsets, setPupilOffsets] = useState<Record<string, Offset>>({});
     const [internalEyes, setInternalEyes] = useState<EyeConfig[]>(() => eyes ?? []);
     const [isMobile, setIsMobile] = useState(false);
+    const [eyeRolls, setEyeRolls] = useState<Record<string, number>>({});
+    const [activeEyeRolls, setActiveEyeRolls] = useState<Record<string, boolean>>({});
+    const [eyesVisible, setEyesVisible] = useState(!staggerOnEnter);
 
     const mouseRef = useRef<MousePos>(null);
     const rectRef = useRef<Rect>(null);
     const physicsRef = useRef<Record<string, EyePhysics>>({});
+    const rollTimersRef = useRef<Record<string, number>>({});
 
     const baseSpawnSize = 72;
     const rawMin = minSpawnScale ?? 0.3;
@@ -93,6 +139,54 @@ export default function EyeFollow({
     useEffect(() => {
         rectRef.current = rect;
     }, [rect]);
+
+    useEffect(() => {
+        const timers = rollTimersRef.current;
+        return () => {
+            Object.values(timers).forEach((timer) => window.clearTimeout(timer));
+        };
+    }, []);
+
+    // Measure immediately so CMS-authored eyes are kept fully inside the area,
+    // even before the pointer first enters it.
+    useEffect(() => {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+
+        const updateRect = () => {
+            const nextRect = el.getBoundingClientRect();
+            setRect({ width: nextRect.width, height: nextRect.height });
+        };
+
+        updateRect();
+        const observer = new ResizeObserver(updateRect);
+        observer.observe(el);
+
+        return () => observer.disconnect();
+    }, [containerId]);
+
+    useEffect(() => {
+        if (!staggerOnEnter) {
+            setEyesVisible(true);
+            return;
+        }
+
+        const el = document.getElementById(containerId);
+        if (!el) return;
+
+        setEyesVisible(false);
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (!entry?.isIntersecting) return;
+                setEyesVisible(true);
+                observer.disconnect();
+            },
+            { threshold: 0.18 },
+        );
+
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [containerId, staggerOnEnter]);
 
     // Pointer tracking and click-to-add
     useEffect(() => {
@@ -140,10 +234,64 @@ export default function EyeFollow({
 
             const size = baseSpawnSize * scale;
 
+            const occupiedEye = internalEyes.find((eye) => {
+                const metrics = getEyeMetrics(eye, isMobile, rectRef.current, edgePadding);
+                const centerX = (metrics.xPercent / 100) * r.width;
+                const centerY = (metrics.yPercent / 100) * r.height;
+                const distance = Math.hypot(localX - centerX, localY - centerY);
+
+                return distance <= metrics.size * 0.5;
+            });
+
+            if (occupiedEye) {
+                if (rollOnExistingClick) {
+                    const metrics = getEyeMetrics(
+                        occupiedEye,
+                        isMobile,
+                        rectRef.current,
+                        edgePadding,
+                    );
+                    const key =
+                        occupiedEye._key ??
+                        `${metrics.xPercent}-${metrics.yPercent}-${metrics.size}-${isMobile ? "m" : "d"}`;
+
+                    setEyeRolls((current) => ({
+                        ...current,
+                        [key]: (current[key] ?? 0) + 1,
+                    }));
+                    setActiveEyeRolls((current) => ({ ...current, [key]: true }));
+                    window.clearTimeout(rollTimersRef.current[key]);
+                    rollTimersRef.current[key] = window.setTimeout(() => {
+                        setActiveEyeRolls((current) => ({
+                            ...current,
+                            [key]: false,
+                        }));
+                    }, 780);
+                }
+                return;
+            }
+
+            if (avoidSpawnOverlap) {
+                const wouldOverlap = internalEyes.some((eye) => {
+                    const metrics = getEyeMetrics(eye, isMobile, rectRef.current, edgePadding);
+                    const centerX = (metrics.xPercent / 100) * r.width;
+                    const centerY = (metrics.yPercent / 100) * r.height;
+                    const distance = Math.hypot(localX - centerX, localY - centerY);
+                    const minimumDistance =
+                        metrics.size * 0.5 + size * 0.5 + Math.max(0, spawnGap);
+
+                    return distance < minimumDistance;
+                });
+
+                if (wouldOverlap) return;
+            }
+
+            const xInset = Math.min(50, ((size * 0.5 + edgePadding) / r.width) * 100);
+            const yInset = Math.min(50, ((size * 0.5 + edgePadding) / r.height) * 100);
             const newEye: EyeConfig = {
                 _key: `spawn-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                x: xPercent,
-                y: yPercent,
+                x: Math.min(100 - xInset, Math.max(xInset, xPercent)),
+                y: Math.min(100 - yInset, Math.max(yInset, yPercent)),
                 size,
             };
 
@@ -160,33 +308,32 @@ export default function EyeFollow({
             el.removeEventListener("pointerdown", handleDown);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [containerId, internalEyes.length, enableClickToAdd, spawnMin, spawnMax]);
+    }, [
+        avoidSpawnOverlap,
+        containerId,
+        edgePadding,
+        enableClickToAdd,
+        internalEyes,
+        isMobile,
+        rollOnExistingClick,
+        spawnGap,
+        spawnMax,
+        spawnMin,
+    ]);
 
     // Physics loop
     useEffect(() => {
         if (!internalEyes || internalEyes.length === 0) return;
 
-        const getMetrics = (eye: EyeConfig) => {
-            const baseX = typeof eye.x === "number" ? eye.x : 50;
-            const baseY = typeof eye.y === "number" ? eye.y : 50;
-            const baseSize = eye.size ?? 72;
-
-            const xPercent =
-                isMobile && typeof eye.xMobile === "number" ? eye.xMobile : baseX;
-            const yPercent =
-                isMobile && typeof eye.yMobile === "number" ? eye.yMobile : baseY;
-            const size =
-                isMobile && typeof eye.sizeMobile === "number"
-                    ? eye.sizeMobile
-                    : baseSize;
-
-            return { xPercent, yPercent, size };
-        };
-
         const nextPhysics: Record<string, EyePhysics> = { ...physicsRef.current };
 
         for (const eye of internalEyes) {
-            const { xPercent, yPercent, size } = getMetrics(eye);
+            const { xPercent, yPercent, size } = getEyeMetrics(
+                eye,
+                isMobile,
+                rectRef.current,
+                edgePadding,
+            );
             const radius = size * 0.2;
             const key =
                 eye._key ?? `${xPercent}-${yPercent}-${size}-${isMobile ? "m" : "d"}`;
@@ -222,7 +369,12 @@ export default function EyeFollow({
             const newOffsets: Record<string, Offset> = {};
 
             for (const eye of internalEyes) {
-                const { xPercent, yPercent, size } = getMetrics(eye);
+                const { xPercent, yPercent, size } = getEyeMetrics(
+                    eye,
+                    isMobile,
+                    rectRef.current,
+                    edgePadding,
+                );
                 const key =
                     eye._key ?? `${xPercent}-${yPercent}-${size}-${isMobile ? "m" : "d"}`;
 
@@ -292,47 +444,47 @@ export default function EyeFollow({
         return () => {
             cancelAnimationFrame(rafId);
         };
-    }, [internalEyes, isMobile]);
+    }, [edgePadding, internalEyes, isMobile]);
 
     if (!internalEyes || internalEyes.length === 0) return null;
 
     return (
         <div
-            className="pointer-events-none absolute inset-0 z-10"
+            className={`pointer-events-none absolute inset-0 z-10 ${eyesVisible ? "eyes-visible" : ""}`}
             aria-hidden="true"
         >
-            {internalEyes.map((eye) => {
-                const baseX = typeof eye.x === "number" ? eye.x : 50;
-                const baseY = typeof eye.y === "number" ? eye.y : 50;
-                const baseSize = eye.size ?? 72;
-
-                const xPercent =
-                    isMobile && typeof eye.xMobile === "number" ? eye.xMobile : baseX;
-                const yPercent =
-                    isMobile && typeof eye.yMobile === "number" ? eye.yMobile : baseY;
-                const size =
-                    isMobile && typeof eye.sizeMobile === "number"
-                        ? eye.sizeMobile
-                        : baseSize;
+            {internalEyes.map((eye, index) => {
+                const { xPercent, yPercent, size } = getEyeMetrics(
+                    eye,
+                    isMobile,
+                    rect,
+                    edgePadding,
+                );
 
                 const pupilMaxOffset = size * 0.2;
                 const key =
                     eye._key ?? `${xPercent}-${yPercent}-${size}-${isMobile ? "m" : "d"}`;
+                const isSpawnedEye = key.startsWith("spawn-");
                 const offset = pupilOffsets[key] ?? {
                     x: 0,
                     y: pupilMaxOffset,
                 };
+                const rollCount = eyeRolls[key] ?? 0;
+                const isRolling = activeEyeRolls[key] === true;
+                const rollStartAngle =
+                    (Math.atan2(offset.y, offset.x) * 180) / Math.PI + 90;
 
                 return (
                     <div
                         key={key}
-                        className="absolute"
+                        className="eye-entry absolute"
                         style={{
                             left: `${xPercent}%`,
                             top: `${yPercent}%`,
                             width: size,
                             height: size,
-                            transform: "translate(-50%, -50%)",
+                            animationDelay: isSpawnedEye ? "0ms" : `${index * 95}ms`,
+                            animationDuration: isSpawnedEye ? "240ms" : "560ms",
                         }}
                     >
                         <div
@@ -355,19 +507,33 @@ export default function EyeFollow({
                             />
 
                             <div
-                                style={{
-                                    position: "absolute",
-                                    left: "50%",
-                                    top: "50%",
-                                    width: size * 0.45,
-                                    height: size * 0.45,
-                                    transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
-                                    borderRadius: "9999px",
-                                    background: "black",
-                                    boxShadow:
-                                        "0 0 0 2px rgba(0,0,0,0.7), 0 0 10px rgba(0,0,0,0.5) inset",
-                                }}
-                            />
+                                key={`${key}-roll-${rollCount}`}
+                                className={isRolling ? "eye-roll" : undefined}
+                                style={
+                                    {
+                                        position: "absolute",
+                                        inset: 0,
+                                        "--eye-roll-start-angle": `${rollStartAngle}deg`,
+                                    } as CSSProperties
+                                }
+                            >
+                                <div
+                                    style={{
+                                        position: "absolute",
+                                        left: "50%",
+                                        top: "50%",
+                                        width: size * 0.45,
+                                        height: size * 0.45,
+                                        transform: isRolling
+                                            ? `translate(-50%, -50%) translateY(-${pupilMaxOffset}px)`
+                                            : `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+                                        borderRadius: "9999px",
+                                        background: "black",
+                                        boxShadow:
+                                            "0 0 0 2px rgba(0,0,0,0.7), 0 0 10px rgba(0,0,0,0.5) inset",
+                                    }}
+                                />
+                            </div>
 
                             <Image
                                 src="/eye/highlight.png"
@@ -385,6 +551,52 @@ export default function EyeFollow({
                     </div>
                 );
             })}
+            <style jsx>{`
+                .eye-entry {
+                    opacity: 0;
+                    transform: translate(-50%, -50%) scale(0.25);
+                }
+
+                .eyes-visible .eye-entry {
+                    animation: eye-pop 560ms cubic-bezier(0.2, 1.5, 0.42, 1) both;
+                }
+
+                .eye-roll {
+                    animation: eye-roll 760ms cubic-bezier(0.45, 0, 0.2, 1);
+                    transform-origin: center;
+                }
+
+                @keyframes eye-pop {
+                    0% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) scale(0.25);
+                    }
+                    68% {
+                        opacity: 1;
+                        transform: translate(-50%, -50%) scale(1.12);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: translate(-50%, -50%) scale(1);
+                    }
+                }
+
+                @keyframes eye-roll {
+                    from {
+                        transform: rotate(var(--eye-roll-start-angle));
+                    }
+                    to {
+                        transform: rotate(calc(var(--eye-roll-start-angle) + 360deg));
+                    }
+                }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .eyes-visible .eye-entry,
+                    .eye-roll {
+                        animation-duration: 1ms;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

@@ -19,6 +19,14 @@ import GridRowGrab from "@/components/blocks/grid/grid-row-grab";
 import PageHeader from "@/components/blocks/page-header/page-header";
 import CentralTextBlock from "@/components/blocks/central-text-block";
 import FooterBlock, { type FooterBlock as FooterBlockType } from "@/components/blocks/footer";
+import LifecycleSlideshow from "@/components/blocks/lifecycle/lifecycle-slideshow";
+import CredibilitySection from "@/components/blocks/credibility/credibility-section";
+import WhatWeDoSection from "@/components/blocks/what-we-do/what-we-do-section";
+import WhatWeDoGridSection from "@/components/blocks/what-we-do-grid/what-we-do-grid-section";
+import TalentMatrixSection from "@/components/blocks/talent-matrix/talent-matrix-section";
+import WhatWeDoTalentSequence from "@/components/blocks/talent-matrix/what-we-do-talent-sequence";
+import NetworkReachSection from "@/components/blocks/network-reach/network-reach-section";
+import BeliefSection from "@/components/blocks/belief/belief-section";
 
 type Block =
   | NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number]
@@ -47,21 +55,45 @@ const componentMap: {
   "page-header": PageHeader,
   "central-text-block": CentralTextBlock,
   footer: FooterBlock,
+  "lifecycle-slideshow": LifecycleSlideshow,
+  "credibility-section": CredibilitySection,
+  "what-we-do-section": WhatWeDoSection,
+  "what-we-do-grid-section": WhatWeDoGridSection,
+  "talent-matrix-section": TalentMatrixSection,
+  "network-reach-section": NetworkReachSection,
+  "belief-section": BeliefSection,
 };
 
 export default function Blocks({ blocks }: { blocks: Block[] }) {
-  return (
-    <>
-      {blocks?.map((block) => {
-        const Component = componentMap[block._type];
-        if (!Component) {
-          console.warn(
-            `No component implemented for block type: ${block._type}`
-          );
-          return <div data-type={block._type} key={block._key} />;
-        }
-        return <Component {...(block as any)} key={block._key} />;
-      })}
-    </>
-  );
+  const rendered: React.ReactNode[] = [];
+
+  for (let index = 0; index < (blocks?.length || 0); index += 1) {
+    const block = blocks[index];
+    const nextBlock = blocks[index + 1];
+
+    if (
+      block?._type === "what-we-do-grid-section" &&
+      nextBlock?._type === "talent-matrix-section"
+    ) {
+      rendered.push(
+        <WhatWeDoTalentSequence
+          key={`${block._key}-${nextBlock._key}`}
+          whatWeDo={block}
+          talent={nextBlock}
+        />,
+      );
+      index += 1;
+      continue;
+    }
+
+    const Component = componentMap[block._type];
+    if (!Component) {
+      console.warn(`No component implemented for block type: ${block._type}`);
+      rendered.push(<div data-type={block._type} key={block._key} />);
+      continue;
+    }
+    rendered.push(<Component {...(block as any)} key={block._key} />);
+  }
+
+  return <>{rendered}</>;
 }

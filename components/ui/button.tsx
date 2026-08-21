@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Slot } from "@radix-ui/react-slot";
 
 import { cn } from "@/lib/utils";
@@ -164,7 +163,11 @@ function Button({
   children,
   ...props
 }: ButtonProps) {
-  const pathname = usePathname();
+  const [hydrated, setHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const cmsLink = link;
 
@@ -438,7 +441,7 @@ function Button({
   }
 
   // ✅ Anchor links: if same page, DO NOT use Next <Link> navigation at all.
-  if (url && isAnchorLink && typeof window !== "undefined") {
+  if (url && isAnchorLink && hydrated) {
     const u = new URL(url, window.location.origin);
     const samePath = u.pathname === window.location.pathname;
     const hash = u.hash || "";

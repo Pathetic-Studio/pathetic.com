@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { urlFor } from "@/sanity/lib/image";
 
 export type BackgroundSettings = {
-  enabled?: boolean;
+  enabled?: boolean | null;
   layout?: "inset" | "full" | null;
   border?: boolean | null;
 
@@ -108,4 +108,3 @@ export function BackgroundPanel({
     />
   );
 }
-

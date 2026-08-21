@@ -27,7 +27,10 @@ if (typeof window !== "undefined") {
 }
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
-type GridRowAnimated = Extract<Block, { _type: "grid-row-animated" }>;
+type GridRowAnimated = Extract<
+  Block,
+  { _type: "grid-row-animated" } | { _type: "belief-section" }
+>;
 
 const introPaddingClasses: Record<
   NonNullable<GridRowAnimated["introPadding"]>,
@@ -84,6 +87,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   } = props;
 
   const color = stegaClean(colorVariant);
+  const isBeliefSection = props._type === "belief-section";
   const gridColsValue = stegaClean(gridColumns);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -232,7 +236,14 @@ export default function GridRowAnimated(props: GridRowAnimated) {
 
           <div className="relative z-20">
             {introHasContent && (
-              <div className={cn("container text-center", introPaddingClass)}>
+              <div
+                className={cn(
+                  "container text-center",
+                  isBeliefSection
+                    ? "pt-[clamp(10.5rem,19.25vw,17.35rem)] pb-[clamp(5rem,9vw,8rem)]"
+                    : introPaddingClass,
+                )}
+              >
                 {tagLine && (
                   <h1 className="leading-[0] uppercase italic font-sans">
                     <span className="text-base font-semibold opacity-50">
@@ -245,11 +256,23 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                   <TitleText
                     variant="stretched"
                     as="h2"
-                    size="xxl"
+                    size={isBeliefSection ? "belief" : "xxl"}
                     align="center"
-                    maxChars={21}
+                    maxChars={isBeliefSection ? 0 : 21}
                     animation={"typeOn"}
                     animationSpeed={1.2}
+                    textColor={isBeliefSection ? "#ffffff" : undefined}
+                    textOutline={isBeliefSection}
+                    outlineColor="#050505"
+                    outlineWidth={1.5}
+                    outlinePosition="outside"
+                    fontWeight="bold"
+                    singleLine={isBeliefSection}
+                    className={
+                      isBeliefSection
+                        ? "!w-full [&_h2]:leading-[.76] [&_h2]:tracking-[-.01em]"
+                        : undefined
+                    }
                   >
                     {title}
                   </TitleText>

@@ -59,6 +59,14 @@ import pageHeader from "./schemas/blocks/page-header";
 import pageLoader from "./schemas/blocks/page-loader";
 import centralTextBlock from "./schemas/blocks/central-text-block";
 import footer from "./schemas/blocks/footer";
+import lifecycleSlideshow from "./schemas/blocks/lifecycle-slideshow";
+import credibilitySection from "./schemas/blocks/credibility-section";
+import whatWeDoSection from "./schemas/blocks/what-we-do-section";
+import displayTextStyle from "./schemas/blocks/shared/display-text-style";
+import whatWeDoGridSection from "./schemas/blocks/what-we-do-grid-section";
+import talentMatrixSection from "./schemas/blocks/talent-matrix-section";
+import networkReachSection from "./schemas/blocks/network-reach-section";
+import beliefSection from "./schemas/blocks/belief-section";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -120,5 +128,13 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     pageLoader,
     centralTextBlock,
     footer,
+    lifecycleSlideshow,
+    credibilitySection,
+    whatWeDoSection,
+    displayTextStyle,
+    whatWeDoGridSection,
+    talentMatrixSection,
+    networkReachSection,
+    beliefSection,
   ],
 };

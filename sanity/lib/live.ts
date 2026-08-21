@@ -9,4 +9,7 @@ export const { sanityFetch, SanityLive } = defineLive({
   serverToken: token,
   // Required for stand-alone live previews, the token is only shared to the brwoser if it's a valid Next.js Draft Mode session
   browserToken: token,
+  // Keep local draft previews lightweight. Deployed previews retain Sanity's
+  // click-to-edit metadata, while localhost only receives the draft content.
+  stega: process.env.NODE_ENV === "production",
 });

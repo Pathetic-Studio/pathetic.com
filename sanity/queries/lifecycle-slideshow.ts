@@ -1,0 +1,77 @@
+import { groq } from "next-sanity";
+import { imageQuery } from "./shared/image";
+import { anchorQuery } from "./shared/anchor";
+
+// @sanity-typegen-ignore
+export const lifecycleSlideshowQuery = groq`
+  _type == "lifecycle-slideshow" => {
+    _type,
+    _key,
+    ${anchorQuery},
+    colorVariant,
+    background{
+      enabled,
+      layout,
+      border,
+      style,
+      color,
+      fromColor,
+      toColor,
+      angle,
+      image,
+      customHeight,
+      verticalOffsetPercent
+    },
+    displayTextStyle{
+      fillColor{hex},
+      fontWeight,
+      outline,
+      outlineColor{hex},
+      outlineWidth,
+      outlinePosition
+    },
+    pinDuration,
+    memeSlide{
+      topText,
+      centerText,
+      memes[]{
+        _key,
+        title,
+        images[]{
+          _key,
+          ${imageQuery}
+        }
+      }
+    },
+    orbitSlide{
+      topText,
+      centerText,
+      centerImage{
+        ${imageQuery}
+      },
+      orbitImages[]{
+        _key,
+        ${imageQuery}
+      },
+      orbitDuration
+    },
+    objectSlide{
+      topText,
+      centerText,
+      model{
+        asset->{
+          _id,
+          url,
+          mimeType,
+          originalFilename
+        }
+      },
+      fallbackImage{
+        ${imageQuery}
+      },
+      modelScale,
+      rotationSpeed,
+      buttonLabel
+    }
+  }
+`;

@@ -60,6 +60,13 @@ export default defineType({
         { type: "page-header" },
         { type: "central-text-block" },
         { type: "footer" },
+        { type: "lifecycle-slideshow" },
+        { type: "credibility-section" },
+        { type: "what-we-do-section" },
+        { type: "what-we-do-grid-section" },
+        { type: "talent-matrix-section" },
+        { type: "network-reach-section" },
+        { type: "belief-section" },
       ],
       options: {
         insertMenu: {
@@ -113,6 +120,19 @@ export default defineType({
               name: "all-posts",
               title: "All Posts",
               of: ["all-posts"],
+            },
+            {
+              name: "storytelling",
+              title: "Storytelling",
+              of: [
+                "lifecycle-slideshow",
+                "credibility-section",
+                "what-we-do-section",
+                "what-we-do-grid-section",
+                "talent-matrix-section",
+                "network-reach-section",
+                "belief-section",
+              ],
             },
           ],
           views: [{ name: "list" }],

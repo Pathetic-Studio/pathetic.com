@@ -12,7 +12,7 @@ type TypeOnTextProps = {
   speed?: number; // higher = faster
   className?: string;
   start?: string; // trigger start, e.g. "top 80%"
-  trigger?: "scroll" | "immediate";
+  trigger?: "scroll" | "immediate" | "hover";
 };
 
 const LOADER_FLAG_ATTR = "data-loader-playing";
@@ -79,9 +79,12 @@ export default function TypeOnText({
 
     const staggerPerChar = Math.max(0.01, 0.04 / Math.max(0.1, speed));
 
-    const startTyping = () => {
-      if (startedRef.current) return;
+    const startTyping = (restart = false) => {
+      if (startedRef.current && !restart) return;
       if (!canStartNow()) return;
+
+      tweenRef.current?.kill();
+      if (restart) gsap.set(chars, { opacity: 0 });
       startedRef.current = true;
       tweenRef.current = gsap.to(chars, {
         opacity: 1,
@@ -102,6 +105,40 @@ export default function TypeOnText({
       return () => {
         if (raf) cancelAnimationFrame(raf);
         window.removeEventListener(LOADER_EVENT, onLoaderChange as any);
+        cleanupSplit();
+      };
+    }
+
+    if (trigger === "hover") {
+      const hoverTarget =
+        (el.closest?.('[data-typeon-hover="true"]') as HTMLElement | null) ??
+        el;
+
+      const show = () => startTyping(true);
+      const hide = (event?: FocusEvent) => {
+        if (
+          event?.relatedTarget instanceof Node &&
+          hoverTarget.contains(event.relatedTarget)
+        ) {
+          return;
+        }
+
+        tweenRef.current?.kill();
+        tweenRef.current = null;
+        startedRef.current = false;
+        gsap.set(chars, { opacity: 0 });
+      };
+
+      hoverTarget.addEventListener("pointerenter", show);
+      hoverTarget.addEventListener("pointerleave", hide);
+      hoverTarget.addEventListener("focusin", show);
+      hoverTarget.addEventListener("focusout", hide);
+
+      return () => {
+        hoverTarget.removeEventListener("pointerenter", show);
+        hoverTarget.removeEventListener("pointerleave", hide);
+        hoverTarget.removeEventListener("focusin", show);
+        hoverTarget.removeEventListener("focusout", hide);
         cleanupSplit();
       };
     }

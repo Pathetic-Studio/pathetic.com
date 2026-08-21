@@ -338,7 +338,11 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
         if (suppressRefresh) return;
         requestAnimationFrame(() => ScrollTrigger.refresh());
       });
-      pinnedSections.forEach((el) => ro?.observe(el));
+      pinnedSections.forEach((el) => {
+        if (el.getAttribute("data-pin-resize-refresh") !== "false") {
+          ro?.observe(el);
+        }
+      });
 
       pinnedSections.forEach((section) => {
         const startAttr = section.getAttribute("data-pin-start");

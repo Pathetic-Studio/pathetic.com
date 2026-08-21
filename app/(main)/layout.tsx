@@ -15,6 +15,7 @@ import PageLoaderSection from "@/components/page-loader-section";
 
 import TransitionShell from "@/components/layout/transition-shell";
 import { HeaderNavOverridesProvider } from "@/components/header/nav-overrides";
+import DevFpsCounter from "@/components/dev-fps-counter";
 
 const HOME_LOADER_SESSION_KEY = "pageLoaderPlayed";
 const HOME_LOADER_PENDING_ATTR = "data-home-loader-pending";
@@ -47,6 +48,7 @@ export default async function MainLayout({
                 <Header />
                 <ContactModal />
                 <NewsletterModal />
+                {process.env.NODE_ENV === "development" && <DevFpsCounter />}
 
                 <MainLayoutShell>
                     <main className="overflow-x-hidden md:overflow-visible">
@@ -60,12 +62,9 @@ export default async function MainLayout({
 
                     <SanityLive />
 
-                    {draft.isEnabled && (
-                        <>
-                            <DisableDraftMode />
-                            <VisualEditing />
-                            <DisableDraftMode />
-                        </>
+                    {draft.isEnabled && <DisableDraftMode />}
+                    {draft.isEnabled && process.env.NODE_ENV === "production" && (
+                        <VisualEditing />
                     )}
 
 

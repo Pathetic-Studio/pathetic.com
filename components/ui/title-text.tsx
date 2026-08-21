@@ -7,7 +7,26 @@ import TypeOnText from "@/components/ui/type-on-text";
 
 type TitleTextVariant = "normal" | "stretched";
 type TitleTextAnimation = "none" | "typeOn";
-type TitleTextSize = "xxl" | "xl" | "lg" | "md";
+type TitleTextWeight = "regular" | "medium" | "semibold" | "bold" | "black";
+type TitleTextOutlinePosition = "center" | "outside";
+type TitleTextSize =
+  | "xxl"
+  | "xl"
+  | "lg"
+  | "md"
+  | "display"
+  | "display-compact"
+  | "what-we-do"
+  | "matrix-eyebrow"
+  | "matrix-accent"
+  | "matrix-talent"
+  | "matrix-matrix"
+  | "network-eyebrow"
+  | "network-lead"
+  | "network-main"
+  | "network-reach"
+  | "network-friends"
+  | "belief";
 
 type Breakpoint = "mobile" | "tablet" | "desktop";
 
@@ -37,18 +56,47 @@ interface TitleTextProps {
   // Outline thickness (px)
   outlineWidth?: number;
 
+  // Outside strokes are painted behind the fill so they do not eat into it.
+  outlinePosition?: TitleTextOutlinePosition;
+
+  fontWeight?: TitleTextWeight;
+
+  // Keep animated and non-animated titles on one line when the design requires it.
+  singleLine?: boolean;
+
   // TypeOnText config (only used when animation="typeOn")
   typeOnStart?: string;
   typeOnTrigger?: "scroll" | "immediate";
 }
 
-const BASE_TEXT_CLASSES = "font-bold leading-[1.1] uppercase mx-auto";
+const BASE_TEXT_CLASSES = "leading-[1.1] uppercase mx-auto";
+
+const WEIGHT_CLASSES: Record<TitleTextWeight, string> = {
+  regular: "font-normal",
+  medium: "font-medium",
+  semibold: "font-semibold",
+  bold: "font-bold",
+  black: "font-black",
+};
 
 const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   md: "text-3xl",
   lg: "text-5xl",
   xl: "text-6xl",
   xxl: "text-5xl lg:text-8xl",
+  display: "text-[2rem] sm:text-[2.5rem] lg:text-[3.5rem]",
+  "display-compact": "text-[1.65rem] sm:text-[2.4rem] lg:text-[2.9rem]",
+  "what-we-do": "text-[clamp(3.25rem,6.6vw,7.2rem)]",
+  "matrix-eyebrow": "text-[clamp(1.3rem,2vw,2.15rem)]",
+  "matrix-accent": "text-[clamp(2.6rem,4vw,4.5rem)]",
+  "matrix-talent": "text-[clamp(4.4rem,7.2vw,7.25rem)]",
+  "matrix-matrix": "text-[clamp(5rem,8vw,8rem)]",
+  "network-eyebrow": "text-[clamp(1.15rem,1.55vw,1.7rem)]",
+  "network-lead": "text-[clamp(2.5rem,4.6vw,4.8rem)]",
+  "network-main": "text-[clamp(5.5rem,10vw,10.5rem)]",
+  "network-reach": "text-[2.1rem] sm:text-[3rem] lg:text-[4rem]",
+  "network-friends": "text-[3rem] sm:text-[4.5rem] lg:text-[6.4rem]",
+  belief: "text-[clamp(4.75rem,13.9vw,12.5rem)]",
 };
 
 const SCALE_CONFIG: Record<
@@ -75,6 +123,71 @@ const SCALE_CONFIG: Record<
     tablet: { stretchScaleX: 0.55, overallScale: 1.5 },
     desktop: { stretchScaleX: 0.55, overallScale: 1.5 },
   },
+  display: {
+    mobile: { stretchScaleX: 0.68, overallScale: 1 },
+    tablet: { stretchScaleX: 0.65, overallScale: 1.08 },
+    desktop: { stretchScaleX: 0.62, overallScale: 1.15 },
+  },
+  "display-compact": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "what-we-do": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "matrix-eyebrow": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "matrix-accent": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "matrix-talent": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "matrix-matrix": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "network-eyebrow": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "network-lead": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "network-main": {
+    mobile: { stretchScaleX: 0.78, overallScale: 1 },
+    tablet: { stretchScaleX: 0.78, overallScale: 1 },
+    desktop: { stretchScaleX: 0.78, overallScale: 1 },
+  },
+  "network-reach": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "network-friends": {
+    mobile: { stretchScaleX: 0.8, overallScale: 1 },
+    tablet: { stretchScaleX: 0.8, overallScale: 1 },
+    desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  belief: {
+    mobile: { stretchScaleX: 0.68, overallScale: 1 },
+    tablet: { stretchScaleX: 0.65, overallScale: 1 },
+    desktop: { stretchScaleX: 0.62, overallScale: 1 },
+  },
 };
 
 function getBreakpoint(width: number): Breakpoint {
@@ -99,6 +212,9 @@ export default function TitleText({
   textColor,
   outlineColor = "white",
   outlineWidth = 1.5,
+  outlinePosition = "center",
+  fontWeight = "bold",
+  singleLine = false,
   typeOnStart,
   typeOnTrigger,
 }: TitleTextProps) {
@@ -177,13 +293,18 @@ export default function TitleText({
     : {};
 
   const safeOutlineWidth = Math.max(0, outlineWidth);
+  const renderedOutlineWidth =
+    outlinePosition === "outside" ? safeOutlineWidth * 2 : safeOutlineWidth;
 
   // CSS vars (avoid passing style into TypeOnText)
   const varsStyle: React.CSSProperties = {
     ...(textColor ? ({ ["--tt-fill" as any]: textColor } as React.CSSProperties) : {}),
     ...(textOutline ? ({ ["--tt-stroke" as any]: outlineColor } as React.CSSProperties) : {}),
     ...(textOutline
-      ? ({ ["--tt-stroke-w" as any]: `${safeOutlineWidth}px` } as React.CSSProperties)
+      ? ({
+          ["--tt-stroke-w" as any]: `${renderedOutlineWidth}px`,
+          paintOrder: outlinePosition === "outside" ? "stroke fill" : "normal",
+        } as React.CSSProperties)
       : {}),
   };
 
@@ -200,7 +321,11 @@ export default function TitleText({
     <TypeOnText
       text={String(children)}
       speed={animationSpeed}
-      className={cn(fillClass, typeOnOutlineClasses)}
+      className={cn(
+        fillClass,
+        typeOnOutlineClasses,
+        singleLine && "!whitespace-nowrap",
+      )}
       start={typeOnStart}
       trigger={typeOnTrigger}
     />
@@ -214,6 +339,8 @@ export default function TitleText({
         className={cn(
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],
+          WEIGHT_CLASSES[fontWeight],
+          singleLine && "whitespace-nowrap",
           alignClass,
           fillClass,
           tagOutlineClasses,
@@ -243,6 +370,8 @@ export default function TitleText({
         className={cn(
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],
+          WEIGHT_CLASSES[fontWeight],
+          singleLine && "whitespace-nowrap",
           alignClass,
           fillClass,
           tagOutlineClasses,

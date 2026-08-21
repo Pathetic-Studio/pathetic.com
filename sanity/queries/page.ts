@@ -21,6 +21,13 @@ import { gridRowGrabQuery } from "./grid/grid-row-grab";
 import { pageHeaderQuery } from "./hero/page-header";
 import { centralTextBlockQuery } from "./central-text-block";
 import { footerQuery } from "./footer";
+import { lifecycleSlideshowQuery } from "./lifecycle-slideshow";
+import { credibilitySectionQuery } from "./credibility-section";
+import { whatWeDoSectionQuery } from "./what-we-do-section";
+import { whatWeDoGridSectionQuery } from "./what-we-do-grid-section";
+import { talentMatrixSectionQuery } from "./talent-matrix-section";
+import { networkReachSectionQuery } from "./network-reach-section";
+import { beliefSectionQuery } from "./belief-section";
 
 export const PAGE_QUERY = groq`
   *[_type == "page" && slug.current == $slug][0]{
@@ -45,6 +52,13 @@ export const PAGE_QUERY = groq`
       ${pageHeaderQuery},
       ${centralTextBlockQuery},
       ${footerQuery},
+      ${lifecycleSlideshowQuery},
+      ${credibilitySectionQuery},
+      ${whatWeDoSectionQuery},
+      ${whatWeDoGridSectionQuery},
+      ${talentMatrixSectionQuery},
+      ${networkReachSectionQuery},
+      ${beliefSectionQuery},
 
     },
     meta_title,
