@@ -23,6 +23,14 @@ export default defineType({
       description:
         "If enabled, the loader will play at most once per browser session.",
     }),
+    defineField({
+      name: "usePatheticIntroPreset",
+      title: "Use Pathetic intro preset",
+      type: "boolean",
+      initialValue: true,
+      description:
+        "Uses the current ‘Who controls the Memes controls the Universe’ copy and bundled cropped artwork. Turn this off to use the editable title and feature images below.",
+    }),
 
     // Same core content fields as hero-2
     defineField({

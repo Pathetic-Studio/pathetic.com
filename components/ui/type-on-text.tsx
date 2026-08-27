@@ -1,7 +1,7 @@
 // components/ui/type-on-text.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
 
@@ -10,9 +10,11 @@ gsap.registerPlugin(SplitText);
 type TypeOnTextProps = {
   text: string;
   speed?: number; // higher = faster
+  delay?: number; // seconds before the first character appears
   className?: string;
   start?: string; // trigger start, e.g. "top 80%"
   trigger?: "scroll" | "immediate" | "hover";
+  hoverTargetRef?: RefObject<HTMLElement | null>;
 };
 
 const LOADER_FLAG_ATTR = "data-loader-playing";
@@ -29,9 +31,11 @@ function parseStartThresholdPx(start: string): number {
 export default function TypeOnText({
   text,
   speed = 1,
+  delay = 0,
   className,
   start = "top 80%",
   trigger = "scroll",
+  hoverTargetRef,
 }: TypeOnTextProps) {
   const wrapperRef = useRef<HTMLSpanElement | null>(null);
   const splitRef = useRef<SplitText | null>(null);
@@ -89,6 +93,7 @@ export default function TypeOnText({
       tweenRef.current = gsap.to(chars, {
         opacity: 1,
         duration: 0,
+        delay: Math.max(0, delay),
         ease: "none",
         stagger: staggerPerChar,
       });
@@ -111,6 +116,7 @@ export default function TypeOnText({
 
     if (trigger === "hover") {
       const hoverTarget =
+        hoverTargetRef?.current ??
         (el.closest?.('[data-typeon-hover="true"]') as HTMLElement | null) ??
         el;
 
@@ -173,7 +179,7 @@ export default function TypeOnText({
       window.removeEventListener(LOADER_EVENT, onScroll as any);
       cleanupSplit();
     };
-  }, [text, speed, start, trigger]);
+  }, [delay, hoverTargetRef, text, speed, start, trigger]);
 
   return (
     <span

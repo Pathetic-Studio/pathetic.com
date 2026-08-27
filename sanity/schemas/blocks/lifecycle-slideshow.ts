@@ -45,8 +45,8 @@ export default defineType({
       title: "Desktop scroll length (screens)",
       type: "number",
       description: "How many viewport heights the three-slide sequence occupies.",
-      initialValue: 3.2,
-      validation: (rule) => rule.min(2).max(6),
+      initialValue: 7,
+      validation: (rule) => rule.min(2).max(10),
     }),
     defineField({
       name: "memeSlide",
@@ -57,7 +57,7 @@ export default defineType({
           name: "topText",
           title: "Top text",
           type: "string",
-          initialValue: "The lifecycle of Pathetic",
+          initialValue: "Becoming Pathetic",
         }),
         defineField({
           name: "centerText",
@@ -67,6 +67,14 @@ export default defineType({
           initialValue:
             "@Pathetic started as an Instagram page documenting culture with memes.",
           validation: (rule) => rule.required().max(220),
+        }),
+        defineField({
+          name: "useSanityArtwork",
+          title: "Use uploaded artwork",
+          type: "boolean",
+          initialValue: false,
+          description:
+            "Off uses the supplied Pathetic slide-two artwork bundled with the site. Turn this on to use the central and orbiting images uploaded below.",
         }),
         defineField({
           name: "memes",
@@ -217,6 +225,34 @@ export default defineType({
           title: "Fun button label",
           type: "string",
           initialValue: "Hold to spin",
+        }),
+        defineField({
+          name: "headerEffect",
+          title: "Header electrical effect",
+          type: "object",
+          description:
+            "Controls the electrical treatment applied to the feature star and Pathetic logo only while Fun mode is held.",
+          fields: [
+            defineField({
+              name: "enabled",
+              title: "Enabled",
+              type: "boolean",
+              initialValue: true,
+            }),
+            defineField({
+              name: "accentColor",
+              title: "Lightning colour",
+              type: "color",
+              initialValue: { hex: "#7ed7ff" },
+            }),
+            defineField({
+              name: "idleIntensity",
+              title: "Fun mode intensity",
+              type: "number",
+              initialValue: 1,
+              validation: (rule) => rule.min(0.15).max(1),
+            }),
+          ],
         }),
       ],
     }),

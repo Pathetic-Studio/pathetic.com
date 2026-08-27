@@ -28,6 +28,9 @@ import { whatWeDoGridSectionQuery } from "./what-we-do-grid-section";
 import { talentMatrixSectionQuery } from "./talent-matrix-section";
 import { networkReachSectionQuery } from "./network-reach-section";
 import { beliefSectionQuery } from "./belief-section";
+import { projectCtaSectionQuery } from "./project-cta-section";
+import { basketLinksSectionQuery } from "./basket-links-section";
+import { bingoFooterQuery } from "./bingo-footer";
 
 export const PAGE_QUERY = groq`
   *[_type == "page" && slug.current == $slug][0]{
@@ -59,6 +62,9 @@ export const PAGE_QUERY = groq`
       ${talentMatrixSectionQuery},
       ${networkReachSectionQuery},
       ${beliefSectionQuery},
+      ${projectCtaSectionQuery},
+      ${basketLinksSectionQuery},
+      ${bingoFooterQuery},
 
     },
     meta_title,

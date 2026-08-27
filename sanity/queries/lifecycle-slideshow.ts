@@ -46,6 +46,7 @@ export const lifecycleSlideshowQuery = groq`
     orbitSlide{
       topText,
       centerText,
+      useSanityArtwork,
       centerImage{
         ${imageQuery}
       },
@@ -71,7 +72,12 @@ export const lifecycleSlideshowQuery = groq`
       },
       modelScale,
       rotationSpeed,
-      buttonLabel
+      buttonLabel,
+      headerEffect{
+        enabled,
+        accentColor,
+        idleIntensity
+      }
     }
   }
 `;

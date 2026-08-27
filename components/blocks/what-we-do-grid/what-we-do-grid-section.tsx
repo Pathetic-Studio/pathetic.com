@@ -3,12 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { stegaClean } from "next-sanity";
-import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import TypeOnText from "@/components/ui/type-on-text";
 import { urlFor } from "@/sanity/lib/image";
 import TitleText from "@/components/ui/title-text";
 import { splitTextAtWordRatio } from "@/components/blocks/shared/text-lines";
+import FlyingPigeonScene from "@/components/blocks/what-we-do-grid/flying-pigeon-scene";
+import PizzaRatScene from "@/components/blocks/what-we-do-grid/pizza-rat-scene";
 
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 export type WhatWeDoGridBlock = Extract<
@@ -49,17 +51,6 @@ const CITY_BUILDINGS = [
 
 const REFERENCE_SCENE_OBJECTS = [
   {
-    src: "/images/what-we-do/pigeon.png",
-    alt: "",
-    className:
-      "left-[5.5%] top-[7%] w-[clamp(3.25rem,5.5vw,5rem)]",
-    depth: 0.18,
-    endScale: 1.055,
-    zIndex: 13,
-    width: 106,
-    height: 106,
-  },
-  {
     src: "/images/what-we-do/cloud.png",
     alt: "",
     className:
@@ -69,17 +60,6 @@ const REFERENCE_SCENE_OBJECTS = [
     zIndex: 11,
     width: 428,
     height: 278,
-  },
-  {
-    src: "/images/what-we-do/pizza-rat.png",
-    alt: "",
-    className:
-      "bottom-[-2.5%] left-[17%] w-[clamp(5rem,8.5vw,8.5rem)]",
-    depth: 0.86,
-    endScale: 1.18,
-    zIndex: 24,
-    width: 204,
-    height: 204,
   },
   {
     src: "/images/what-we-do/trash-pile.png",
@@ -311,6 +291,7 @@ function ServiceCard({
 }) {
   const detectorRef = useRef<HTMLDivElement | null>(null);
   const coordinatesRef = useRef<HTMLDivElement | null>(null);
+  const [pantsActive, setPantsActive] = useState(false);
   const href = stegaClean(service.link?.href) || "";
   const imageScale = safeNumber(service.imageScale, 1);
   const verticalOffset = safeNumber(service.verticalOffset, 0);
@@ -344,12 +325,21 @@ function ServiceCard({
   const content = (
     <article
       data-what-service
-      data-typeon-hover="true"
-      onPointerMove={updateDetector}
-      className="group relative flex h-full min-w-0 flex-col items-start justify-end text-left will-change-transform lg:justify-start"
+      className={`relative flex h-full min-w-0 flex-col items-start justify-end text-left will-change-transform lg:justify-start ${pantsActive ? "z-[60]" : "z-40"}`}
     >
       <div
         ref={detectorRef}
+        data-typeon-hover="true"
+        onPointerEnter={() => {
+          setPantsActive(true);
+        }}
+        onPointerLeave={() => {
+          setPantsActive(false);
+        }}
+        onPointerCancel={() => {
+          setPantsActive(false);
+        }}
+        onPointerMove={updateDetector}
         className="relative h-[clamp(7.25rem,18svh,9.5rem)] w-full origin-bottom overflow-hidden lg:h-[var(--service-image-height)] lg:w-[var(--service-image-width)] lg:max-w-none"
         style={{
           "--service-image-width": `${imageFrame.width}px`,
@@ -375,7 +365,7 @@ function ServiceCard({
         )}
 
         {objectDetectHover && service.hoverImage?.asset?.url && (
-          <div className="pointer-events-none absolute inset-0 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <div className={`pointer-events-none absolute inset-0 z-10 transition-opacity duration-200 ${pantsActive ? "opacity-100" : "opacity-0"}`}>
             <div
               className="absolute bottom-0 left-1/2 h-full w-full -translate-x-1/2 lg:w-[var(--service-source-width)]"
               style={{ "--service-source-width": `${imageFrame.sourceWidth}px` } as CSSProperties}
@@ -393,7 +383,7 @@ function ServiceCard({
         )}
 
         {objectDetectHover && (
-          <div className="pointer-events-none absolute inset-0 z-20 hidden opacity-0 transition-opacity duration-150 group-hover:opacity-100 lg:block">
+          <div className={`pointer-events-none absolute inset-0 z-20 hidden transition-opacity duration-150 lg:block ${pantsActive ? "opacity-100" : "opacity-0"}`}>
             <div
               className="absolute inset-y-0 w-px bg-[var(--service-accent)] shadow-[0_0_8px_var(--service-accent),0_0_18px_var(--service-accent)]"
               style={{ left: "var(--detect-x, 50%)", "--service-accent": accent } as CSSProperties}
@@ -435,13 +425,14 @@ function ServiceCard({
           >
             <div className="invisible whitespace-pre-wrap px-3 py-2">{stegaClean(service.description)}</div>
             <div
-              className="pointer-events-none absolute inset-0 origin-top-left scale-80 whitespace-pre-wrap px-3 py-2 opacity-0 transition-all duration-200 ease-in group-hover:scale-100 group-hover:opacity-100 group-hover:ease-out"
+              className={`pointer-events-none absolute inset-0 origin-top-left whitespace-pre-wrap px-3 py-2 transition-all duration-200 ${pantsActive ? "scale-100 opacity-100 ease-out" : "scale-80 opacity-0 ease-in"}`}
               style={{ backgroundColor: accent, color: textColor }}
             >
               <TypeOnText
                 text={stegaClean(service.description) || ""}
                 trigger="hover"
                 speed={1.8}
+                hoverTargetRef={detectorRef}
               />
             </div>
           </div>
@@ -478,6 +469,8 @@ export function WhatWeDoGridView({
       style={{ backgroundColor: background }}
     >
       <LayeredBackground block={block} />
+      <FlyingPigeonScene />
+      <PizzaRatScene />
 
       <div
         data-what-heading
@@ -514,7 +507,7 @@ export function WhatWeDoGridView({
         )}
       </div>
 
-      <div className="absolute inset-x-[3.5%] bottom-[3.5%] z-40 grid h-[61%] grid-cols-2 gap-x-3 gap-y-1 lg:inset-x-auto lg:left-1/2 lg:top-[43%] lg:h-auto lg:w-[calc(100%_-_4rem)] lg:max-w-7xl lg:-translate-x-1/2 lg:grid-cols-4 lg:gap-0">
+      <div className="absolute inset-x-[3.5%] bottom-[3.5%] grid h-[61%] grid-cols-2 gap-x-3 gap-y-1 lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:top-[43%] lg:h-auto lg:grid-cols-4 lg:gap-0">
         {services.map((service) => (
           <ServiceCard key={service._key} service={service} accent={accent} />
         ))}

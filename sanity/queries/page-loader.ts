@@ -7,6 +7,7 @@ export const PAGE_LOADER_QUERY = groq`
   *[_type == "pageLoader" && _id == "pageLoader"][0]{
     enabled,
     oncePerSession,
+    usePatheticIntroPreset,
     tagLine,
     title,
     sectionHeightMobile,

@@ -8,6 +8,7 @@ import faq from "./schemas/documents/faq";
 import testimonial from "./schemas/documents/testimonial";
 import navigation from "./schemas/documents/navigation";
 import settings from "./schemas/documents/settings";
+import caseStudy from "./schemas/documents/case-study";
 // Schema UI shared objects
 import blockContent from "./schemas/blocks/shared/block-content";
 import link from "./schemas/blocks/shared/link";
@@ -67,6 +68,9 @@ import whatWeDoGridSection from "./schemas/blocks/what-we-do-grid-section";
 import talentMatrixSection from "./schemas/blocks/talent-matrix-section";
 import networkReachSection from "./schemas/blocks/network-reach-section";
 import beliefSection from "./schemas/blocks/belief-section";
+import projectCtaSection from "./schemas/blocks/project-cta-section";
+import basketLinksSection from "./schemas/blocks/basket-links-section";
+import bingoFooter from "./schemas/blocks/bingo-footer";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -79,6 +83,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     testimonial,
     navigation,
     settings,
+    caseStudy,
     memeBooth,
     // shared objects
     blockContent,
@@ -136,5 +141,8 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     talentMatrixSection,
     networkReachSection,
     beliefSection,
+    projectCtaSection,
+    basketLinksSection,
+    bingoFooter,
   ],
 };

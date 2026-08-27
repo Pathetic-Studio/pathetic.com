@@ -292,6 +292,14 @@ export default defineType({
           initialValue: 0.13,
           validation: (rule) => rule.min(0.03).max(0.35),
         }),
+        defineField({
+          name: "headerEffectEnabled",
+          title: "Transform the header during the reveal",
+          type: "boolean",
+          initialValue: true,
+          description:
+            "Uses the Matrix colour above and the Talent Matrix scene background for the fixed navigation treatment.",
+        }),
       ],
     }),
   ],

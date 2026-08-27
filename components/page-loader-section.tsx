@@ -1,7 +1,14 @@
 // components/page-loader-section.tsx
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { usePathname } from "next/navigation";
 import { stegaClean } from "next-sanity";
 import gsap from "gsap";
@@ -35,6 +42,7 @@ type PageLoaderSectionProps = {
   data: {
     enabled?: boolean | null;
     oncePerSession?: boolean | null;
+    usePatheticIntroPreset?: boolean | null;
     tagLine?: string | null;
     title?: string | null;
     body?: any;
@@ -70,6 +78,17 @@ const LOGO_FLIP_DONE_ATTR = "data-logo-flip-done";
 const LOGO_FLIP_EVENT = "logo-flip-done-change";
 
 const HEADER_LOGO_NATIVE_SELECTOR = '[data-header-logo-native="true"]';
+
+const PATHETIC_INTRO_TITLE = "Who controls the Memes controls the Universe";
+const PATHETIC_INTRO_SPRITES: SpriteImage[] = [
+  { _key: "intro-red-boot", url: "/images/page-loader/red-boot.webp" },
+  { _key: "intro-silver-ring", url: "/images/page-loader/silver-ring.webp" },
+  { _key: "intro-phone-case", url: "/images/page-loader/phone-case.webp" },
+  { _key: "intro-silver-ipod", url: "/images/page-loader/silver-ipod.webp" },
+  { _key: "intro-city-bike", url: "/images/page-loader/city-bike.webp" },
+  { _key: "intro-coffee-brick", url: "/images/page-loader/coffee-brick.webp" },
+  { _key: "intro-flowers", url: "/images/page-loader/flowers.webp" },
+];
 
 // Put loader safely above *anything* in header/nav while playing.
 const LOADER_Z = 20000;
@@ -151,6 +170,7 @@ function lockScroll(lock: boolean) {
   const html = document.documentElement;
 
   if (lock) {
+    if (body.dataset.loaderScrollLock === "true") return;
     body.dataset.loaderScrollLock = "true";
     const scrollY = window.scrollY || window.pageYOffset || 0;
     body.dataset.loaderScrollY = `${scrollY}`;
@@ -165,6 +185,7 @@ function lockScroll(lock: boolean) {
     html.style.overflowY = "scroll";
     html.style.height = "100%";
   } else {
+    if (body.dataset.loaderScrollLock !== "true") return;
     if (body.dataset.loaderScrollLock) delete body.dataset.loaderScrollLock;
     const scrollY = Number.parseInt(body.dataset.loaderScrollY ?? "0", 10) || 0;
 
@@ -199,13 +220,18 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
   const enabled = !!data.enabled;
   const oncePerSession = !!data.oncePerSession;
-  const { tagLine, title, body, links, feature } = data;
+  const usePatheticIntroPreset = data.usePatheticIntroPreset !== false;
+  const { tagLine, body, links, feature } = data;
+  const title = usePatheticIntroPreset ? PATHETIC_INTRO_TITLE : data.title;
 
   const shouldRender = pathname === "/" && enabled;
 
   const sprites = useMemo(
-    () => ((feature?.images || []).filter((i) => i?.url) as SpriteImage[]),
-    [feature?.images]
+    () =>
+      usePatheticIntroPreset
+        ? PATHETIC_INTRO_SPRITES
+        : ((feature?.images || []).filter((i) => i?.url) as SpriteImage[]),
+    [feature?.images, usePatheticIntroPreset]
   );
 
   type LoaderState = "playing" | "skipped";
@@ -228,6 +254,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
   const titleMeasureRef = useRef<HTMLDivElement | null>(null);
   const [titleMinH, setTitleMinH] = useState<number | undefined>(undefined);
+  const handleExplodeReady = useCallback(() => setExplodeReady(true), []);
 
   // IMPORTANT: decide "playing vs skipped" in a layout effect to avoid FOUC.
   useLayoutEffect(() => {
@@ -300,6 +327,38 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
   const isPlaying = hydrated && shouldRender && loaderState === "playing";
   const fixedPinned = hydrated && shouldRender && (isPlaying || pin);
+
+  // Never let a failed image load or interrupted physics callback leave the
+  // document pinned. The first timer advances the normal sequence; the second
+  // is a final release valve for any unexpected animation interruption.
+  useEffect(() => {
+    if (!isPlaying || explodeReady) return;
+    const timer = window.setTimeout(() => setExplodeReady(true), 4500);
+    return () => window.clearTimeout(timer);
+  }, [explodeReady, isPlaying]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const timer = window.setTimeout(() => {
+      if (oncePerSession) {
+        try {
+          window.sessionStorage.setItem(SESSION_KEY, "true");
+        } catch { }
+      }
+      setTitleActive(true);
+      setIntroHandoffPending(false);
+      setHomeLoaderPendingFlag(false);
+      setPin(false);
+      setLoaderState("skipped");
+    }, 8500);
+
+    return () => window.clearTimeout(timer);
+  }, [isPlaying, oncePerSession]);
+
+  useEffect(() => {
+    if (!hydrated || isPlaying) return;
+    if (document.body.dataset.loaderScrollLock === "true") lockScroll(false);
+  }, [hydrated, isPlaying]);
 
   useLayoutEffect(() => {
     if (!hydrated) return;
@@ -481,7 +540,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         <ImageExplodeLoader
           containerId={EXPLODE_STAGE_ID}
           images={sprites as any}
-          onAllItemsAnimatedIn={() => setExplodeReady(true)}
+          onAllItemsAnimatedIn={handleExplodeReady}
           appearStaggerEach={0.14}
           appearDuration={1.1}
         />
@@ -500,16 +559,24 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
           {/* hidden measurer */}
           {title && (
             <div className="pointer-events-none opacity-0 absolute left-0 right-0 top-0 -z-10" aria-hidden="true">
-              <div ref={titleMeasureRef} className="mx-auto">
+              <div
+                ref={titleMeasureRef}
+                className="relative left-1/2 w-full -translate-x-1/2 lg:w-[min(92vw,80rem)]"
+              >
                 <TitleText
                   variant="stretched"
                   as="h2"
                   size="xl"
                   align="center"
-                  maxChars={26}
+                  maxChars={34}
                   animation="none"
                   animationSpeed={1.2}
                   textOutline
+                  outlineColor="#ffffff"
+                  outlineWidth={1.5}
+                  outlinePosition="outside"
+                  fontWeight="bold"
+                  className="[&_h2]:tracking-[-.035em]"
                 >
                   {title}
                 </TitleText>
@@ -525,18 +592,26 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
             )}
 
             {title && (
-              <div className="mx-auto w-full" style={titleMinH ? { minHeight: titleMinH } : undefined}>
+              <div
+                className="relative left-1/2 w-full -translate-x-1/2 lg:w-[min(92vw,80rem)]"
+                style={titleMinH ? { minHeight: titleMinH } : undefined}
+              >
                 {titleActive && (
                   <TitleText
                     variant="stretched"
                     as="h2"
                     size="xl"
                     align="center"
-                    maxChars={26}
+                    maxChars={34}
                     animation="typeOn"
                     animationSpeed={1.2}
                     typeOnTrigger="immediate"
                     textOutline
+                    outlineColor="#ffffff"
+                    outlineWidth={1.5}
+                    outlinePosition="outside"
+                    fontWeight="bold"
+                    className="[&_h2]:tracking-[-.035em]"
                   >
                     {title}
                   </TitleText>

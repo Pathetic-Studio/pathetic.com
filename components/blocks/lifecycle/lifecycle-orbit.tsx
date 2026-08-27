@@ -3,15 +3,11 @@
 import Image from "next/image";
 import { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
-import type { PAGE_QUERYResult } from "@/sanity.types";
-
-type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
-type LifecycleBlock = Extract<PageBlock, { _type: "lifecycle-slideshow" }>;
-type OrbitSlide = NonNullable<LifecycleBlock["orbitSlide"]>;
+import type { LifecycleSlideTwoAsset } from "./lifecycle-slide-two-assets";
 
 type LifecycleOrbitProps = {
-  centerImage?: OrbitSlide["centerImage"];
-  images?: OrbitSlide["orbitImages"];
+  centerImage: LifecycleSlideTwoAsset;
+  images: LifecycleSlideTwoAsset[];
   duration?: number | null;
 };
 
@@ -21,7 +17,7 @@ export default function LifecycleOrbit({
   duration = 18,
 }: LifecycleOrbitProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const orbitImages = (images ?? []).filter((image) => image.asset?.url);
+  const orbitImages = images.filter((image) => image.src);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -78,37 +74,46 @@ export default function LifecycleOrbit({
   return (
     <div
       ref={rootRef}
+      data-lifecycle-orbit-stage
       className="pointer-events-none absolute inset-0 [perspective:1000px]"
       aria-hidden="true"
     >
-      <div className="absolute left-1/2 top-1/2 z-20 h-[44%] w-[34%] min-w-32 max-w-[360px] -translate-x-1/2 -translate-y-1/2 lg:h-[56%] lg:w-[28%]">
-        {centerImage?.asset?.url ? (
+      <div
+        data-lifecycle-orbit-center
+        className="absolute left-1/2 top-1/2 z-20 h-[44%] w-[34%] min-w-32 max-w-[360px] -translate-x-1/2 -translate-y-1/2 lg:h-[56%] lg:w-[28%]"
+      >
+        {centerImage.src ? (
           <Image
-            src={centerImage.asset.url}
-            alt={centerImage.alt || ""}
+            src={centerImage.src}
+            alt={centerImage.alt}
             fill
             sizes="(min-width: 1024px) 360px, 42vw"
-            className="object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.16)]"
+            className="object-contain"
           />
         ) : (
-          <div className="absolute inset-[12%] rounded-full border border-foreground/25 bg-foreground/5 shadow-[0_30px_80px_rgba(0,0,0,0.16)]" />
+          <div className="absolute inset-[12%] rounded-full border border-foreground/25 bg-foreground/5" />
         )}
       </div>
 
       {orbitImages.map((image, index) => (
         <div
-          key={image._key}
+          key={image.key}
           data-lifecycle-orbit-image
           className="absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 transform-gpu will-change-transform sm:h-20 sm:w-20 lg:h-24 lg:w-24"
         >
-          <Image
-            src={image.asset!.url!}
-            alt={image.alt || ""}
-            fill
-            sizes="(min-width: 1024px) 110px, 80px"
-            className="object-contain drop-shadow-[0_16px_18px_rgba(0,0,0,0.16)]"
-            priority={index < 3}
-          />
+          <div
+            data-lifecycle-orbit-reveal
+            className="absolute inset-0 will-change-transform lg:opacity-0"
+          >
+            <Image
+              src={image.src}
+              alt={image.alt}
+              fill
+              sizes="(min-width: 1024px) 110px, 80px"
+              className="object-contain"
+              priority={index < 3}
+            />
+          </div>
         </div>
       ))}
     </div>

@@ -19,6 +19,18 @@ type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type CredibilityBlock = Extract<PageBlock, { _type: "credibility-section" }>;
 type CredibilityLogo = NonNullable<CredibilityBlock["leftLogos"]>[number];
 
+const CREDIBILITY_HEADLINE =
+  "FROM STARTUPS\nDISRUPTING\nINCUMBENTS\nTO\nCATEGORY LEADERS\nDISRUPTING\nTHEMSELVES.";
+
+function resolveCredibilityHeadline(value?: string | null) {
+  const cleanValue = value ? stegaClean(value).trim() : "";
+  const isLegacyHeadline =
+    /from startups/i.test(cleanValue) &&
+    /(big guys|not to get disrupted|trying to disrupt)/i.test(cleanValue);
+
+  return !cleanValue || isLegacyHeadline ? CREDIBILITY_HEADLINE : cleanValue;
+}
+
 function getLogoCoordinate(index: number, total: number, direction: 1 | -1) {
   const progress = total <= 1 ? 0.5 : (index + 0.5) / total;
   const y = 1 - progress * 2;
@@ -109,6 +121,7 @@ export default function CredibilitySection(props: CredibilityBlock) {
   const cleanColor = (stegaClean(colorVariant) || "background") as ColorVariant;
   const cleanAnchor = stegaClean(anchor?.anchorId) || undefined;
   const duration = Math.min(90, Math.max(10, rotationDuration || 32));
+  const resolvedTitle = resolveCredibilityHeadline(title);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -235,7 +248,7 @@ export default function CredibilitySection(props: CredibilityBlock) {
         </svg>
 
         <div className="relative z-30 mx-auto w-full max-w-[960px] text-center">
-          {title && (
+          {resolvedTitle && (
             <TitleText
               variant="stretched"
               as="h2"
@@ -251,7 +264,7 @@ export default function CredibilitySection(props: CredibilityBlock) {
               outlinePosition={displayTextStyle?.outlinePosition ?? undefined}
               fontWeight={displayTextStyle?.fontWeight ?? undefined}
             >
-              {stegaClean(title)}
+              {resolvedTitle}
             </TitleText>
           )}
         </div>

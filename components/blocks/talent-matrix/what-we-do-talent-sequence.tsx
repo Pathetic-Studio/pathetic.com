@@ -14,6 +14,7 @@ import {
 } from "./talent-matrix-section";
 import MatrixRevealCanvas from "./matrix-reveal-canvas";
 import { matrixRevealSoftMask } from "./matrix-reveal-edge";
+import { useHeaderVisualTheme } from "@/components/header/visual-theme";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -22,6 +23,14 @@ if (typeof window !== "undefined") {
 function safeNumber(value: number | null | undefined, fallback: number) {
   const clean = stegaClean(value);
   return typeof clean === "number" && Number.isFinite(clean) ? clean : fallback;
+}
+
+function smoothstep(start: number, end: number, value: number) {
+  const progress = Math.max(
+    0,
+    Math.min(1, (value - start) / Math.max(0.0001, end - start)),
+  );
+  return progress * progress * (3 - 2 * progress);
 }
 
 const REVEAL_START_TIME = 0.82;
@@ -38,6 +47,8 @@ export default function WhatWeDoTalentSequence({
   const transitionProgress = useRef({ value: 0 });
   const cameraScrollProgress = useRef({ value: 0 });
   const [viewportMode, setViewportMode] = useState<"desktop" | "mobile" | null>(null);
+  const { setHeaderVisualTheme, clearHeaderVisualTheme } =
+    useHeaderVisualTheme();
   const duration = Math.max(
     3.3,
     Math.min(9, safeNumber(whatWeDo.pinDuration, 4.2) + 1.8),
@@ -46,6 +57,15 @@ export default function WhatWeDoTalentSequence({
   const density = safeNumber(whatWeDo.transition?.density, 96);
   const changeSpeed = safeNumber(whatWeDo.transition?.speed, 1);
   const softness = safeNumber(whatWeDo.transition?.softness, 0.13);
+  const transitionWithHeader = whatWeDo.transition as
+    | (typeof whatWeDo.transition & { headerEffectEnabled?: boolean | null })
+    | null
+    | undefined;
+  const matrixHeaderEnabled =
+    stegaClean(transitionWithHeader?.headerEffectEnabled) !== false;
+  const matrixSurface =
+    stegaClean(talent.backgroundColor?.hex) || "#000600";
+  const headerThemeSource = `matrix:${stegaClean(whatWeDo._key) || whatWeDo._key}:${stegaClean(talent._key) || talent._key}`;
   const sequenceBackground =
     stegaClean(whatWeDo.backgroundColor?.hex) || "#e7e7e2";
   const whatWeDoId = stegaClean(whatWeDo.anchor?.anchorId) || `_what-we-do-grid-${whatWeDo._key}`;
@@ -90,6 +110,31 @@ export default function WhatWeDoTalentSequence({
             const mask = matrixRevealSoftMask(reveal, softness);
             whatScene.style.maskImage = mask;
             whatScene.style.webkitMaskImage = mask;
+          };
+          const applyHeaderProgress = (
+            progressValue: number,
+            boundary = 0,
+          ) => {
+            const progress = Math.max(0, Math.min(1, progressValue));
+            if (!matrixHeaderEnabled || progress <= 0.001) {
+              clearHeaderVisualTheme(headerThemeSource);
+              return;
+            }
+
+            setHeaderVisualTheme(headerThemeSource, {
+              mode: "matrix",
+              accent,
+              surface: matrixSurface,
+              intensity: 0.72,
+              progress,
+              boundary,
+              priority: 20,
+            });
+          };
+          const applyHeaderReveal = (reveal: number) => {
+            // The Matrix edge begins at the top of the scene. Hold the default
+            // header a little longer, then let the code progressively take it.
+            applyHeaderProgress(smoothstep(0.28, 0.52, reveal));
           };
           transitionProgress.current.value = 0;
           cameraScrollProgress.current.value = 0;
@@ -142,6 +187,11 @@ export default function WhatWeDoTalentSequence({
               end: () => `+=${window.innerHeight * duration}`,
               scrub: 0.72,
               invalidateOnRefresh: true,
+              onEnter: () => clearHeaderVisualTheme(headerThemeSource),
+              onEnterBack: () =>
+                applyHeaderReveal(transitionProgress.current.value),
+              onLeave: () => applyHeaderProgress(1),
+              onLeaveBack: () => clearHeaderVisualTheme(headerThemeSource),
             },
           });
 
@@ -180,6 +230,7 @@ export default function WhatWeDoTalentSequence({
                     Math.min(1, transitionProgress.current.value),
                   );
                   applyRevealMask(reveal);
+                  applyHeaderReveal(reveal);
                 },
               },
               0.82,
@@ -188,6 +239,24 @@ export default function WhatWeDoTalentSequence({
             .to({}, { duration: 0.76 });
 
           const fullCameraDistance = duration + 1;
+          const exitStartProgress = duration / fullCameraDistance;
+          let headerBoundaryWindow = Math.max(
+            0.08,
+            Math.min(
+              0.22,
+              (document.getElementById("site-header-root")?.offsetHeight || 96) /
+                Math.max(1, window.innerHeight),
+            ),
+          );
+          const boundaryForExit = (exitProgress: number) =>
+            Math.max(
+              0,
+              Math.min(
+                1,
+                (exitProgress - (1 - headerBoundaryWindow)) /
+                  headerBoundaryWindow,
+              ),
+            );
           const cameraStartProgress =
             (duration * (REVEAL_START_TIME / SEQUENCE_TIMELINE_DURATION)) /
             fullCameraDistance;
@@ -199,6 +268,42 @@ export default function WhatWeDoTalentSequence({
                 end: () => `+=${window.innerHeight * fullCameraDistance}`,
                 scrub: true,
                 invalidateOnRefresh: true,
+                onRefresh: () => {
+                  headerBoundaryWindow = Math.max(
+                    0.08,
+                    Math.min(
+                      0.22,
+                      (document.getElementById("site-header-root")
+                        ?.offsetHeight || 96) / Math.max(1, window.innerHeight),
+                    ),
+                  );
+                },
+                onUpdate: (self) => {
+                  if (self.progress < exitStartProgress) return;
+                  const exitProgress = Math.max(
+                    0,
+                    Math.min(
+                      1,
+                      (self.progress - exitStartProgress) /
+                        Math.max(0.0001, 1 - exitStartProgress),
+                    ),
+                  );
+                  const boundaryProgress = boundaryForExit(exitProgress);
+                  applyHeaderProgress(1, boundaryProgress);
+                },
+                onEnterBack: (self) => {
+                  const exitProgress = Math.max(
+                    0,
+                    Math.min(
+                      1,
+                      (self.progress - exitStartProgress) /
+                        Math.max(0.0001, 1 - exitStartProgress),
+                    ),
+                  );
+                  const boundaryProgress = boundaryForExit(exitProgress);
+                  applyHeaderProgress(1, boundaryProgress);
+                },
+                onLeave: () => clearHeaderVisualTheme(headerThemeSource),
               },
             })
             .to(cameraScrollProgress.current, {
@@ -221,11 +326,13 @@ export default function WhatWeDoTalentSequence({
         () => {
           transitionProgress.current.value = 0;
           cameraScrollProgress.current.value = 0;
+          clearHeaderVisualTheme(headerThemeSource);
         },
       );
     }, root);
 
     return () => {
+      clearHeaderVisualTheme(headerThemeSource);
       media.revert();
       context.revert();
       transitionProgress.current.value = 0;
@@ -236,7 +343,17 @@ export default function WhatWeDoTalentSequence({
         whatScene.style.webkitMaskImage = "";
       }
     };
-  }, [duration, softness, viewportMode]);
+  }, [
+    accent,
+    clearHeaderVisualTheme,
+    duration,
+    headerThemeSource,
+    matrixHeaderEnabled,
+    matrixSurface,
+    setHeaderVisualTheme,
+    softness,
+    viewportMode,
+  ]);
 
   return (
     <section

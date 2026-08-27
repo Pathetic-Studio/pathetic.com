@@ -142,6 +142,235 @@ html[data-home-loader-pending="true"] #page-content-root {
   pointer-events: none;
 }
 
+/* ===== Section-aware fixed header ===== */
+
+#site-header-root {
+  --header-theme-progress: 0;
+  --header-effect-intensity: 0;
+  --header-effect-accent: #7ed7ff;
+  --header-effect-surface: #000000;
+  --header-effect-accent-rgb: 126 215 255;
+  --header-effect-surface-rgb: 0 0 0;
+  --header-matrix-foreground: #000000;
+  --header-boundary-icon-color: #000000;
+  --header-electric-opacity: 0;
+  --header-matrix-glow: 0px;
+  --header-matrix-shadow-alpha: 0;
+  --header-matrix-boundary: 0;
+  --header-matrix-edge: 100%;
+  --header-native-opacity: 1;
+}
+
+@keyframes header-feature-idle-y {
+  from {
+    transform: rotateY(0deg);
+  }
+
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+@keyframes header-matrix-row-change {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translate3d(0, 0, 0);
+  }
+
+  33% {
+    opacity: 1;
+    transform: translate3d(-3px, 0, 0);
+  }
+
+  66% {
+    opacity: 0.64;
+    transform: translate3d(2px, 0, 0);
+  }
+}
+
+@keyframes header-matrix-scan {
+  from {
+    transform: translateY(-115%);
+  }
+
+  to {
+    transform: translateY(115%);
+  }
+}
+
+[data-header-feature-image-rotator] {
+  animation: header-feature-idle-y 18s linear infinite;
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+[data-header-logo-electric-aura],
+[data-header-logo-matrix],
+[data-header-feature-matrix-texture],
+[data-header-feature-matrix-streams] {
+  opacity: 0;
+}
+
+[data-header-logo-native],
+[data-header-feature-image-native] {
+  transition:
+    color 180ms ease-out,
+    filter 180ms ease-out,
+    opacity 90ms linear;
+}
+
+[data-header-logo-electric-aura] {
+  color: #ffffff;
+  filter:
+    blur(0.35px)
+    drop-shadow(0 0 3px #ffffff)
+    drop-shadow(0 0 9px var(--header-effect-accent))
+    drop-shadow(0 0 18px var(--header-effect-accent));
+  transition: opacity 180ms ease-out;
+}
+
+#site-header-root[data-header-visual-mode="electric"] [data-header-logo-native],
+#site-header-root[data-header-visual-mode="electric"] [data-header-feature-image-native] {
+  filter:
+    drop-shadow(0 0 2px #ffffff)
+    drop-shadow(0 0 7px var(--header-effect-accent))
+    drop-shadow(0 0 15px var(--header-effect-accent));
+}
+
+#site-header-root[data-header-visual-mode="electric"] [data-header-logo-native] {
+  color: #ffffff;
+}
+
+#site-header-root[data-header-visual-mode="electric"] [data-header-logo-electric-aura] {
+  opacity: var(--header-electric-opacity);
+}
+
+[data-header-logo-matrix] {
+  filter:
+    drop-shadow(0 0 2px var(--header-effect-accent))
+    drop-shadow(0 0 8px var(--header-effect-accent));
+}
+
+[data-header-logo-matrix-scan] {
+  overflow: hidden;
+  mix-blend-mode: screen;
+}
+
+[data-header-logo-matrix-scan]::before {
+  position: absolute;
+  inset: 0;
+  content: "010101 110010 001101";
+  color: #d8ffe0;
+  font-family: monospace;
+  font-size: 6px;
+  line-height: 0.8;
+  opacity: 0.8;
+  animation: header-matrix-scan 1.25s steps(7, end) infinite;
+  animation-play-state: paused;
+}
+
+[data-header-feature-matrix-texture],
+[data-header-feature-matrix-streams] {
+  filter: drop-shadow(0 0 5px var(--header-effect-accent));
+  transition: opacity 80ms linear;
+}
+
+[data-header-matrix-row],
+[data-header-feature-matrix-streams] > span {
+  animation: header-matrix-row-change 520ms steps(2, end) infinite;
+  animation-play-state: paused;
+}
+
+#site-header-root[data-header-visual-mode="matrix"] [data-header-logo-native],
+#site-header-root[data-header-visual-mode="matrix"] [data-header-feature-image-native] {
+  opacity: var(--header-native-opacity);
+}
+
+#site-header-root[data-header-visual-mode="matrix"] [data-header-logo-matrix],
+#site-header-root[data-header-visual-mode="matrix"] [data-header-feature-matrix-texture],
+#site-header-root[data-header-visual-mode="matrix"] [data-header-feature-matrix-streams] {
+  opacity: var(--header-theme-progress);
+  clip-path: inset(
+    0 0 calc(100% - var(--header-matrix-edge)) 0
+  );
+}
+
+#site-header-root[data-header-visual-mode="matrix"] [data-header-logo-matrix-scan]::before,
+#site-header-root[data-header-visual-mode="matrix"] [data-header-matrix-row],
+#site-header-root[data-header-visual-mode="matrix"] [data-header-feature-matrix-streams] > span {
+  animation-play-state: running;
+}
+
+#site-header-root [data-header-right-box] {
+  position: relative;
+  isolation: isolate;
+}
+
+#site-header-root [data-header-right-box]::before {
+  position: absolute;
+  z-index: 0;
+  inset: -1px;
+  content: "";
+  pointer-events: none;
+  background: rgb(
+    var(--header-effect-surface-rgb) / var(--header-theme-progress)
+  );
+  border: 1px solid var(--header-matrix-foreground);
+  box-shadow: 0 0 var(--header-matrix-glow)
+    rgb(var(--header-effect-accent-rgb) / var(--header-matrix-shadow-alpha));
+  opacity: 0;
+  clip-path: inset(
+    0 0 calc(100% - var(--header-matrix-edge)) 0
+  );
+}
+
+#site-header-root [data-header-right-box] > * {
+  position: relative;
+  z-index: 1;
+}
+
+#site-header-root[data-header-visual-mode="matrix"] [data-header-right-box]::before {
+  opacity: 1;
+}
+
+#site-header-root[data-header-visual-mode="matrix"] [data-right-nav-item],
+#site-header-root[data-header-visual-mode="matrix"] [data-header-feature-root] button,
+#site-header-root[data-header-visual-mode="matrix"] [data-header-feature-root] a {
+  color: transparent !important;
+  background-image: linear-gradient(
+    to bottom,
+    var(--header-matrix-foreground) 0,
+    var(--header-matrix-foreground) var(--header-matrix-edge),
+    #000000 var(--header-matrix-edge),
+    #000000 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  text-shadow: 0 0 var(--header-matrix-glow) var(--header-effect-accent);
+}
+
+#site-header-root[data-header-visual-mode="matrix"] [data-social-nav-item],
+#site-header-root[data-header-visual-mode="matrix"] [data-social-nav-item] *,
+#site-header-root[data-header-visual-mode="matrix"] [data-mobile-header-item],
+#site-header-root[data-header-visual-mode="matrix"] [data-mobile-header-item] * {
+  color: var(--header-boundary-icon-color) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-header-feature-image-rotator],
+  [data-header-logo-matrix-scan]::before,
+  [data-header-matrix-row],
+  [data-header-feature-matrix-streams] > span {
+    animation: none !important;
+  }
+
+  [data-header-logo-electric-aura] {
+    display: none;
+  }
+}
+
 
 
 /* ===== Scrollbar (Chrome / Edge / Safari) ===== */
@@ -195,6 +424,137 @@ html[data-home-loader-pending="true"] #page-content-root {
 
 html {
   scrollbar-gutter: stable;
+}
+
+@keyframes what-pigeon-flap {
+  0%,
+  11.11% {
+    background-position: 0 0;
+  }
+
+  11.111%,
+  22.221% {
+    background-position: 50% 0;
+  }
+
+  22.222%,
+  33.332% {
+    background-position: 100% 0;
+  }
+
+  33.333%,
+  44.443% {
+    background-position: 0 50%;
+  }
+
+  44.444%,
+  55.554% {
+    background-position: 50% 50%;
+  }
+
+  55.555%,
+  66.665% {
+    background-position: 100% 50%;
+  }
+
+  66.666%,
+  77.776% {
+    background-position: 0 100%;
+  }
+
+  77.777%,
+  88.887% {
+    background-position: 50% 100%;
+  }
+
+  88.888%,
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+.what-pigeon-flight-frame {
+  animation: what-pigeon-flap 810ms steps(1, end) infinite;
+}
+
+@keyframes what-rat-pull {
+  0%,
+  33.332% {
+    background-position: 0 0;
+  }
+
+  33.333%,
+  66.665% {
+    background-position: 50% 0;
+  }
+
+  66.666%,
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+@keyframes what-rat-nibble {
+  0%,
+  33.332% {
+    background-position: 0 50%;
+  }
+
+  33.333%,
+  66.665% {
+    background-position: 50% 50%;
+  }
+
+  66.666%,
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes what-rat-flee {
+  0%,
+  33.332% {
+    background-position: 6.25% 93.75%;
+  }
+
+  33.333%,
+  66.665% {
+    background-position: 50% 93.75%;
+  }
+
+  66.666%,
+  100% {
+    background-position: 93.75% 93.75%;
+  }
+}
+
+.what-rat-pull-frame {
+  animation: what-rat-pull 480ms steps(1, end) infinite;
+}
+
+.what-rat-nibble-frame {
+  animation: what-rat-nibble 540ms steps(1, end) infinite;
+}
+
+.what-rat-flee-frame {
+  animation: what-rat-flee 240ms steps(1, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .what-pigeon-flight-frame,
+  .what-rat-pull-frame,
+  .what-rat-nibble-frame,
+  .what-rat-flee-frame {
+    animation: none;
+  }
+
+  .what-rat-nibble-frame {
+    background-position: 0 50%;
+  }
+
+  .what-rat-flee-frame {
+    background-position: 6.25% 93.75%;
+  }
 }
 
 

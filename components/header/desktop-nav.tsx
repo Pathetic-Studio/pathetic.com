@@ -25,6 +25,11 @@ import { useHeaderNavOverrides, type NavLinkLite } from "./nav-overrides";
 import { useIntroHandoffPending } from "./intro-handoff";
 import { useInitialHashEntryPending } from "./initial-hash-entry";
 import {
+  HeaderFeatureVisualEffects,
+  HeaderLogoVisualEffects,
+} from "./visual-effects";
+import { stegaClean } from "next-sanity";
+import {
   registerLeftNavController,
   registerRightNavController,
   registerSocialNavController,
@@ -260,16 +265,40 @@ export default function DesktopNav({
 
   const renderLeftLinks = (links: NavLinkLite[]) => (
     <>
-      {links.map((navItem) => {
+      {links.map((navItem, index) => {
         const key = navItem._key;
+        const explicitPreset = stegaClean(
+          (navItem as NavLinkLite & { headerVisualPreset?: string | null })
+            .headerVisualPreset,
+        );
+        const isLegacyFeatureStar =
+          explicitPreset == null &&
+          index === 0 &&
+          !!(navItem as any).backgroundImageEnabled &&
+          ((navItem as any).backgroundImages?.length ?? 0) > 0;
+        const isFeatureStar =
+          explicitPreset === "feature-star" || isLegacyFeatureStar;
+        const resolvedNavItem = isFeatureStar
+          ? ({ ...navItem, headerVisualPreset: "feature-star" } as NavLinkLite)
+          : navItem;
+
+        const wrapLeftItem = (child: React.ReactNode) => (
+          <span
+            key={key}
+            data-left-nav-item
+            data-header-feature-root={isFeatureStar ? "true" : undefined}
+            className="relative inline-flex [perspective:700px]"
+          >
+            {isFeatureStar && <HeaderFeatureVisualEffects />}
+            <span className="relative z-10 inline-flex">{child}</span>
+          </span>
+        );
 
         if (navItem.linkType === "contact") {
-          return (
-            <span key={key} data-left-nav-item className="inline-flex">
+          return wrapLeftItem(
               <ContactFormTrigger className={cn(buttonVariants({ variant: "menu", size: "sm" }))}>
                 {navItem.title}
               </ContactFormTrigger>
-            </span>
           );
         }
 
@@ -278,8 +307,7 @@ export default function DesktopNav({
           const anchorId = anchor?.anchorId ?? null;
 
           if (pathname === "/" && anchorId) {
-            return (
-              <span key={key} data-left-nav-item className="inline-flex">
+            return wrapLeftItem(
                 <button
                   type="button"
                   onClick={(e) => handleSamePageAnchor(e, navItem)}
@@ -290,14 +318,12 @@ export default function DesktopNav({
                 >
                   {navItem.title}
                 </button>
-              </span>
             );
           }
 
           const href = anchorId ? `/#${anchorId}` : "/";
 
-          return (
-            <span key={key} data-left-nav-item className="inline-flex">
+          return wrapLeftItem(
               <Link
                 href={href}
                 scroll={false}
@@ -308,21 +334,18 @@ export default function DesktopNav({
               >
                 {navItem.title}
               </Link>
-            </span>
           );
         }
 
-        return (
-          <span key={key} data-left-nav-item className="inline-flex">
+        return wrapLeftItem(
             <Button
-              link={navItem as any}
+              link={resolvedNavItem as any}
               variant="menu"
               size="sm"
               className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0")}
             >
               {navItem.title}
             </Button>
-          </span>
         );
       })}
     </>
@@ -480,7 +503,7 @@ export default function DesktopNav({
       : undefined;
 
   return (
-    <div className="hidden xl:flex w-full h-16 items-center justify-between text-primary">
+    <div data-header-desktop-nav className="hidden xl:flex w-full h-16 items-center justify-between text-primary">
       <div className="flex flex-1 h-16 items-center justify-start">
         <div className="grid h-8 items-center">
           <DesktopNavLeftAnim
@@ -511,10 +534,11 @@ export default function DesktopNav({
         >
           <span
             data-header-logo-native="true"
-            className="flex h-8 items-center justify-center"
+            className="relative z-10 flex h-8 items-center justify-center"
           >
             <LogoAnimated className="h-8 w-auto" />
           </span>
+          <HeaderLogoVisualEffects />
         </Link>
       </div>
 

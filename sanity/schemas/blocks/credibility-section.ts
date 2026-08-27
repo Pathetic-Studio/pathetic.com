@@ -55,7 +55,9 @@ export default defineType({
       name: "title",
       title: "Central title",
       type: "text",
-      rows: 4,
+      rows: 7,
+      initialValue:
+        "FROM STARTUPS\nDISRUPTING\nINCUMBENTS\nTO\nCATEGORY LEADERS\nDISRUPTING\nTHEMSELVES.",
       validation: (rule) => rule.required().max(260),
     }),
     logoArray("leftLogos", "Left logo blob"),

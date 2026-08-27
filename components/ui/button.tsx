@@ -13,6 +13,7 @@ import {
 
 import gsap from "gsap";
 import { Physics2DPlugin } from "gsap/Physics2DPlugin";
+import { HeaderFeatureMatrixTexture } from "@/components/header/visual-effects";
 
 let physicsRegistered = false;
 
@@ -43,6 +44,8 @@ type CMSLink = {
 
   backgroundImageAnimateEnabled?: boolean | null;
   backgroundImageHoverEffect?: "squeeze" | "bloat" | "spin" | null;
+
+  headerVisualPreset?: "standard" | "feature-star" | null;
 
   // optional (if present in your query)
   anchorId?: string | null;
@@ -198,6 +201,7 @@ function Button({
   const backgroundImageHoverEffect = backgroundImageAnimateEnabled
     ? cmsLink?.backgroundImageHoverEffect
     : null;
+  const isHeaderFeatureStar = cmsLink?.headerVisualPreset === "feature-star";
 
   let url = cmsLink?.href ?? href ?? undefined;
 
@@ -390,18 +394,42 @@ function Button({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-visible"
         >
-          <span
-            ref={bgImageRef}
-            className="block will-change-transform"
-            style={{
-              backgroundImage: `url(${backgroundImageUrl})`,
-              backgroundSize: "contain",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
-              width: "clamp(220px, 100%, 520px)",
-              height: "250px",
-            }}
-          />
+          {isHeaderFeatureStar ? (
+            <span
+              data-header-feature-image-rotator
+              className="relative block [transform-style:preserve-3d]"
+              style={{
+                width: "clamp(220px, 100%, 520px)",
+                height: "250px",
+              }}
+            >
+              <span
+                ref={bgImageRef}
+                data-header-feature-image-native
+                className="absolute inset-0 block will-change-transform"
+                style={{
+                  backgroundImage: `url(${backgroundImageUrl})`,
+                  backgroundSize: "contain",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                }}
+              />
+              <HeaderFeatureMatrixTexture imageUrl={backgroundImageUrl} />
+            </span>
+          ) : (
+            <span
+              ref={bgImageRef}
+              className="block will-change-transform"
+              style={{
+                backgroundImage: `url(${backgroundImageUrl})`,
+                backgroundSize: "contain",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                width: "clamp(220px, 100%, 520px)",
+                height: "250px",
+              }}
+            />
+          )}
         </span>
       )}
 

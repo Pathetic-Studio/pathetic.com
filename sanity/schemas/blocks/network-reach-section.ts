@@ -252,6 +252,12 @@ export default defineType({
           fields: [
             defineField({ name: "name", title: "Name", type: "string", validation: (rule) => rule.required() }),
             defineField({
+              name: "link",
+              title: "Link",
+              type: "link",
+              description: "Optional destination opened when this friend is clicked.",
+            }),
+            defineField({
               name: "image",
               title: "Square image",
               type: "image",

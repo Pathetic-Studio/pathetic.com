@@ -15,6 +15,7 @@ import PageLoaderSection from "@/components/page-loader-section";
 
 import TransitionShell from "@/components/layout/transition-shell";
 import { HeaderNavOverridesProvider } from "@/components/header/nav-overrides";
+import { HeaderVisualThemeProvider } from "@/components/header/visual-theme";
 import DevFpsCounter from "@/components/dev-fps-counter";
 
 const HOME_LOADER_SESSION_KEY = "pageLoaderPlayed";
@@ -37,6 +38,7 @@ export default async function MainLayout({
 
     return (
         <HeaderNavOverridesProvider>
+          <HeaderVisualThemeProvider>
             <ContactModalProvider>
                 {loaderEnabled && loaderDoc && (
                     <script
@@ -70,6 +72,7 @@ export default async function MainLayout({
 
                 </MainLayoutShell>
             </ContactModalProvider>
+          </HeaderVisualThemeProvider>
         </HeaderNavOverridesProvider>
     );
 }

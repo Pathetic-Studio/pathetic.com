@@ -31,6 +31,10 @@ export const linkQuery = `
 
   "downloadFilename": coalesce(downloadFilename, downloadFile.asset->originalFilename),
 
+  // Optional header-only treatment. Keep this nullable so existing navigation
+  // links can use the legacy first-image fallback until an editor chooses one.
+  headerVisualPreset,
+
   // NEW: particles
   "particlesEnabled": coalesce(particlesEnabled, false),
   "particleImages": particleImages[]{

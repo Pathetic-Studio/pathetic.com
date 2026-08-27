@@ -67,6 +67,9 @@ export default defineType({
         { type: "talent-matrix-section" },
         { type: "network-reach-section" },
         { type: "belief-section" },
+        { type: "project-cta-section" },
+        { type: "basket-links-section" },
+        { type: "bingo-footer" },
       ],
       options: {
         insertMenu: {
@@ -132,6 +135,9 @@ export default defineType({
                 "talent-matrix-section",
                 "network-reach-section",
                 "belief-section",
+                "project-cta-section",
+                "basket-links-section",
+                "bingo-footer",
               ],
             },
           ],

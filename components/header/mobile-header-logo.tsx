@@ -8,6 +8,7 @@ import LogoAnimated from "@/components/logo-animated";
 import { cn } from "@/lib/utils";
 import { useIntroHandoffPending } from "@/components/header/intro-handoff";
 import { useInitialHashEntryPending } from "@/components/header/initial-hash-entry";
+import { HeaderLogoVisualEffects } from "@/components/header/visual-effects";
 
 function useLoaderPlaying(): boolean {
   const getSnapshot = () =>
@@ -93,15 +94,16 @@ export default function MobileHeaderLogo({ className }: { className?: string }) 
       aria-label="Home page"
       id="header-logo-main-mobile"
       data-header-logo-main="true"
-      className={cn("flex items-center justify-center will-change-transform", className)}
+      className={cn("relative flex items-center justify-center will-change-transform", className)}
     >
       <span
         data-header-logo-native="true"
-        className="flex items-center justify-center"
+        className="relative z-10 flex items-center justify-center"
         style={nativeStyle}
       >
         <LogoAnimated className="h-8 w-auto" />
       </span>
+      <HeaderLogoVisualEffects />
     </Link>
   );
 }

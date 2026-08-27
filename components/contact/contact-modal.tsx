@@ -77,7 +77,7 @@ export default function ContactModal() {
         >
             <div
                 ref={modalRef}
-                className="absolute right-4 top-16 max-h-[80vh] w-[360px] border border-border bg-neutral-50"
+                className="absolute right-4 top-[clamp(7.5rem,18svh,12rem)] max-h-[74svh] w-[min(360px,calc(100vw-2rem))] overflow-y-auto border border-border bg-neutral-50"
             >
                 {/* Title bar / drag handle */}
                 <div className="flex cursor-move items-center justify-between px-3 py-2 text-sm font-semibold uppercase">

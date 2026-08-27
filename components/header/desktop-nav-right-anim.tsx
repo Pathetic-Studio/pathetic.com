@@ -191,6 +191,7 @@ const DesktopNavRightAnim = forwardRef<DesktopNavRightAnimHandle, Props>(
       <div ref={rootRef} className={cn("flex items-stretch gsap-hidden", className)}>
         <div
           ref={boxRef}
+          data-header-right-box
           className={cn(
             "flex items-center gap-2 border border-border bg-background/100 px-3 py-0",
             boxClassName

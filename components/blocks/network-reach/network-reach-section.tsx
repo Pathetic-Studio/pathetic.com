@@ -1,17 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useLayoutEffect, useRef, type CSSProperties } from "react";
+import Link from "next/link";
+import type { CSSProperties } from "react";
+import { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import EyeFollow from "@/components/effects/eye-follow";
 import TitleText from "@/components/ui/title-text";
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
+import TypeOnText from "@/components/ui/type-on-text";
 
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type NetworkReachBlock = Extract<PageBlock, { _type: "network-reach-section" }>;
@@ -52,6 +50,10 @@ const fallbackDetailStats = [
   },
 ];
 
+const NETWORK_FLOAT_EFFECTS = {
+  intro: { speed: 0.9, lag: 0.2 },
+} as const;
+
 function cleanColor(
   color: { hex?: string | null } | null | undefined,
   fallback: string,
@@ -77,9 +79,9 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
   );
   const displayedFriends = friends.length
     ? Array.from(
-        { length: Math.max(10, friends.length) },
-        (_, index) => friends[index % friends.length],
-      )
+      { length: Math.max(10, friends.length) },
+      (_, index) => friends[index % friends.length],
+    )
     : [];
   const orbitDuration = Math.min(
     90,
@@ -96,59 +98,77 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
 
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
+    if (!root || !window.matchMedia("(pointer: fine)").matches) return;
+    const listenerCleanups: Array<() => void> = [];
 
     const context = gsap.context(() => {
-      const title = root.querySelector<HTMLElement>(
-        "[data-network-intro-title]",
-      );
-      const body = root.querySelector<HTMLElement>(
-        "[data-network-intro-body]",
-      );
-      const reduceMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-
-      if (!title || !body || reduceMotion) {
-        gsap.set([title, body].filter(Boolean), { clearProps: "transform" });
-        return;
-      }
-
-      gsap.fromTo(
-        title,
-        { y: 72 },
-        {
-          y: 0,
-          ease: "none",
-          scrollTrigger: {
-            trigger: root,
-            start: "top bottom",
-            end: "top 38%",
-            scrub: 0.65,
-            invalidateOnRefresh: true,
-          },
-        },
+      const friendItems = gsap.utils.toArray<HTMLElement>(
+        "[data-network-friend]",
+        root,
       );
 
-      gsap.fromTo(
-        body,
-        { y: 112 },
-        {
-          y: 0,
-          ease: "none",
-          scrollTrigger: {
-            trigger: root,
-            start: "top bottom",
-            end: "top 31%",
-            scrub: 1.05,
-            invalidateOnRefresh: true,
-          },
-        },
-      );
+      friendItems.forEach((item) => {
+        const tag = item.querySelector<HTMLElement>("[data-network-friend-tag]");
+        if (!tag) return;
+
+        gsap.set(tag, {
+          autoAlpha: 0,
+          scale: 0.78,
+          xPercent: -50,
+          yPercent: -118,
+          transformOrigin: "50% 100%",
+        });
+        const moveX = gsap.quickTo(tag, "x", {
+          duration: 0.42,
+          ease: "power3.out",
+        });
+        const moveY = gsap.quickTo(tag, "y", {
+          duration: 0.42,
+          ease: "power3.out",
+        });
+
+        const onMove = (event: PointerEvent) => {
+          const bounds = item.getBoundingClientRect();
+          moveX(event.clientX - bounds.left);
+          moveY(event.clientY - bounds.top);
+        };
+        const onEnter = (event: PointerEvent) => {
+          onMove(event);
+          gsap.to(tag, {
+            autoAlpha: 1,
+            scale: 1,
+            duration: 0.22,
+            ease: "back.out(1.8)",
+            overwrite: "auto",
+          });
+        };
+        const onLeave = () => {
+          gsap.to(tag, {
+            autoAlpha: 0,
+            scale: 0.82,
+            duration: 0.16,
+            ease: "power2.in",
+            overwrite: "auto",
+          });
+        };
+
+        item.addEventListener("pointerenter", onEnter);
+        item.addEventListener("pointermove", onMove);
+        item.addEventListener("pointerleave", onLeave);
+
+        listenerCleanups.push(() => {
+          item.removeEventListener("pointerenter", onEnter);
+          item.removeEventListener("pointermove", onMove);
+          item.removeEventListener("pointerleave", onLeave);
+        });
+      });
     }, root);
 
-    return () => context.revert();
-  }, []);
+    return () => {
+      listenerCleanups.forEach((cleanup) => cleanup());
+      context.revert();
+    };
+  }, [displayedFriends.length]);
 
   return (
     <section
@@ -162,7 +182,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
       >
         <div
           id={eyeAreaId}
-          className="relative min-h-[27rem] cursor-crosshair"
+          className="relative min-h-[34rem] cursor-crosshair sm:min-h-[37rem] lg:min-h-[40rem]"
         >
           <EyeFollow
             containerId={eyeAreaId}
@@ -175,10 +195,21 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
             spawnGap={12}
             edgePadding={12}
             staggerOnEnter
+            staggerEnterDelayMs={1650}
           />
 
-          <div className="pointer-events-none absolute inset-x-4 top-[5.25rem] z-20 mx-auto flex max-w-[54rem] flex-col items-center text-center sm:top-[5.75rem] lg:top-[6.25rem]">
-            <div data-network-intro-title className="flex flex-col items-center">
+          <div
+            data-network-intro
+            data-network-float="intro"
+            data-speed={NETWORK_FLOAT_EFFECTS.intro.speed}
+            data-lag={NETWORK_FLOAT_EFFECTS.intro.lag}
+            className="pointer-events-none relative z-20 mx-auto flex max-w-[54rem] flex-col items-center px-4 pb-[clamp(8rem,13vw,12rem)] pt-[clamp(7rem,12vw,10rem)] text-center will-change-transform"
+          >
+            <div
+              data-network-intro-title
+              data-typeon-trigger="true"
+              className="flex flex-col items-center"
+            >
               {props.eyebrow && (
                 <TitleText
                   variant="stretched"
@@ -188,6 +219,10 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                   fontWeight="bold"
                   stretchScaleX={0.8}
                   overallScale={1}
+                  animation="typeOn"
+                  animationSpeed={4}
+                  typeOnStart="top 90%"
+                  typeOnDelay={0}
                   className="!w-auto [&_p]:leading-[.84] [&_p]:tracking-[-.04em]"
                 >
                   {stegaClean(props.eyebrow)}
@@ -201,6 +236,10 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 fontWeight="bold"
                 stretchScaleX={0.8}
                 overallScale={1}
+                animation="typeOn"
+                animationSpeed={4}
+                typeOnStart="top 90%"
+                typeOnDelay={0.06}
                 className="!mt-3 !w-auto [&_p]:leading-[.82] [&_p]:tracking-[-.05em]"
               >
                 {stegaClean(props.headlineLead) || "OUR WORK TO"}
@@ -213,6 +252,10 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 fontWeight="bold"
                 stretchScaleX={0.8}
                 overallScale={1}
+                animation="typeOn"
+                animationSpeed={4}
+                typeOnStart="top 90%"
+                typeOnDelay={0.12}
                 className="!mt-3 !w-auto [&_h2]:leading-[.72] [&_h2]:tracking-[-.06em]"
               >
                 {stegaClean(props.headlineMain) || "MILLIONS"}
@@ -223,7 +266,12 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 data-network-intro-body
                 className="mt-6 max-w-[34rem] text-[1rem] font-medium leading-[1.1] tracking-[-.025em] sm:text-[1.15rem] lg:text-[1.3rem]"
               >
-                {stegaClean(props.description)}
+                <TypeOnText
+                  text={stegaClean(props.description) || ""}
+                  speed={4}
+                  delay={0.18}
+                  start="top 90%"
+                />
               </p>
             )}
           </div>
@@ -332,7 +380,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
           </div>
         </div>
 
-        <div className="relative mx-auto flex min-h-[27rem] max-w-[96rem] flex-col items-center justify-end px-2 pt-10 text-center sm:min-h-[28rem] sm:px-6 lg:min-h-[28rem] lg:px-8 lg:pt-12">
+        <div className="relative mx-auto flex min-h-[27rem] max-w-[96rem] flex-col items-center justify-end px-2 pb-[clamp(2rem,4vw,4rem)] pt-10 text-center sm:min-h-[28rem] sm:px-6 lg:min-h-[28rem] lg:px-8 lg:pt-12">
           <div className="mb-auto flex w-full max-w-[90rem] flex-col items-center">
             <TitleText
               variant="stretched"
@@ -359,28 +407,61 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
           </div>
 
           {displayedFriends.length > 0 && (
-            <div className="network-friends-row relative mt-3 flex h-[clamp(10rem,15vw,14.5rem)] w-full items-end justify-center overflow-hidden px-1 sm:mt-4 sm:px-3">
-              {displayedFriends.map((friend, index) => (
-                <div
-                  key={`${friend._key}-${index}`}
-                  className="network-friend-cutout relative h-full w-[clamp(5.5rem,9.5vw,9.5rem)] flex-none overflow-hidden"
-                  style={{ zIndex: index + 1 }}
-                >
-                  <Image
-                    src={friend.image!.asset!.url!}
-                    alt={
-                      index < friends.length
-                        ? stegaClean(friend.image?.alt) ||
-                          stegaClean(friend.name) ||
-                          "Network friend"
-                        : ""
-                    }
-                    fill
-                    sizes="(min-width: 1024px) 152px, 88px"
-                    className="object-cover object-top"
-                  />
-                </div>
-              ))}
+            <div className="network-friends-row relative mt-3 flex h-[clamp(10rem,15vw,14.5rem)] w-full items-end justify-center overflow-visible px-1 sm:mt-4 sm:px-3">
+              {displayedFriends.map((friend, index) => {
+                const href = stegaClean(friend.link?.href) || "";
+                const name = stegaClean(friend.name) || "Network friend";
+                const className =
+                  "network-friend-cutout relative h-full w-[clamp(5.5rem,9.5vw,9.5rem)] flex-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+                const content = (
+                  <>
+                    <div className="absolute inset-0 overflow-hidden">
+                      <Image
+                        src={friend.image!.asset!.url!}
+                        alt={
+                          index < friends.length
+                            ? stegaClean(friend.image?.alt) || name
+                            : ""
+                        }
+                        fill
+                        sizes="(min-width: 1024px) 152px, 88px"
+                        className="object-cover object-top"
+                      />
+                    </div>
+                    <span
+                      data-network-friend-tag
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-0 top-0 z-30 whitespace-nowrap border border-white bg-black px-2 py-1 text-xs font-bold uppercase leading-none text-white opacity-0 sm:text-sm"
+                    >
+                      {name}
+                    </span>
+                  </>
+                );
+
+                return href ? (
+                  <Link
+                    key={`${friend._key}-${index}`}
+                    href={href}
+                    target={friend.link?.target ? "_blank" : undefined}
+                    rel={friend.link?.target ? "noopener noreferrer" : undefined}
+                    data-network-friend
+                    className={className}
+                    style={{ zIndex: index + 1 }}
+                    aria-label={`Open ${name}`}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div
+                    key={`${friend._key}-${index}`}
+                    data-network-friend
+                    className={className}
+                    style={{ zIndex: index + 1 }}
+                  >
+                    {content}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

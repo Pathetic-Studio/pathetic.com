@@ -27,10 +27,16 @@ import TalentMatrixSection from "@/components/blocks/talent-matrix/talent-matrix
 import WhatWeDoTalentSequence from "@/components/blocks/talent-matrix/what-we-do-talent-sequence";
 import NetworkReachSection from "@/components/blocks/network-reach/network-reach-section";
 import BeliefSection from "@/components/blocks/belief/belief-section";
+import ProjectCtaSection, { type ProjectCtaSectionBlock } from "@/components/blocks/project-cta/project-cta-section";
+import BasketLinksSection, { type BasketLinksSectionBlock } from "@/components/blocks/basket-links/basket-links-section";
+import BingoFooter, { type BingoFooterBlock } from "@/components/blocks/bingo-footer/bingo-footer";
 
 type Block =
   | NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number]
-  | FooterBlockType;
+  | FooterBlockType
+  | ProjectCtaSectionBlock
+  | BasketLinksSectionBlock
+  | BingoFooterBlock;
 
 const componentMap: {
   [K in Block["_type"]]: React.ComponentType<Extract<Block, { _type: K }>>;
@@ -62,6 +68,9 @@ const componentMap: {
   "talent-matrix-section": TalentMatrixSection,
   "network-reach-section": NetworkReachSection,
   "belief-section": BeliefSection,
+  "project-cta-section": ProjectCtaSection,
+  "basket-links-section": BasketLinksSection,
+  "bingo-footer": BingoFooter,
 };
 
 export default function Blocks({ blocks }: { blocks: Block[] }) {

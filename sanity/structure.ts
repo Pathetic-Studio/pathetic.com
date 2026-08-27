@@ -8,6 +8,7 @@ import {
   Mail,
   Camera,
   Loader2,
+  GalleryVerticalEnd,
 } from "lucide-react";
 
 export const structure = (S: any, context: any) =>
@@ -50,6 +51,16 @@ export const structure = (S: any, context: any) =>
             .id("pageLoader")
             .schemaType("pageLoader")
             .documentId("pageLoader")
+        ),
+
+      S.listItem()
+        .title("Case Study")
+        .icon(GalleryVerticalEnd)
+        .child(
+          S.editor()
+            .id("caseStudy")
+            .schemaType("caseStudy")
+            .documentId("caseStudy")
         ),
 
       // Contact Submissions

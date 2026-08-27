@@ -1,6 +1,7 @@
 import { groq } from "next-sanity";
 import { imageQuery } from "./shared/image";
 import { anchorQuery } from "./shared/anchor";
+import { linkQuery } from "./shared/link";
 
 // @sanity-typegen-ignore
 export const whatWeDoSectionQuery = groq`
@@ -26,6 +27,10 @@ export const whatWeDoSectionQuery = groq`
     heading,
     items[]{
       _key,
+      interactionMode,
+      destination{
+        ${linkQuery}
+      },
       titleOverride,
       mediaType,
       image{
@@ -40,6 +45,23 @@ export const whatWeDoSectionQuery = groq`
         }
       },
       videoPoster{
+        ${imageQuery}
+      },
+      revealTitle,
+      revealDescription,
+      expandedMediaType,
+      expandedImage{
+        ${imageQuery}
+      },
+      expandedVideo{
+        asset->{
+          _id,
+          url,
+          mimeType,
+          originalFilename
+        }
+      },
+      expandedVideoPoster{
         ${imageQuery}
       },
       mediaFit,
@@ -61,7 +83,27 @@ export const whatWeDoSectionQuery = groq`
         }
       }
     },
+    sizzleReel{
+      enabled,
+      label,
+      href,
+      video{
+        asset->{
+          _id,
+          url,
+          mimeType,
+          originalFilename
+        }
+      },
+      videoPoster{
+        ${imageQuery}
+      },
+      fireGif{
+        ${imageQuery}
+      }
+    },
     figure{
+      useUploadedFigureArtwork,
       personImage{
         ${imageQuery}
       },

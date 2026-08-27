@@ -180,7 +180,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
     }, rootRef);
 
     return () => ctx.revert();
-  }, []);
+  }, [isBeliefSection]);
 
   const cleanGridPaddingTop = stegaClean(gridPaddingTop);
   const cleanGridPaddingBottom = stegaClean(gridPaddingBottom);
@@ -237,10 +237,13 @@ export default function GridRowAnimated(props: GridRowAnimated) {
           <div className="relative z-20">
             {introHasContent && (
               <div
+                data-belief-intro={isBeliefSection ? "true" : undefined}
+                data-speed={isBeliefSection ? 0.9 : undefined}
+                data-lag={isBeliefSection ? 0.2 : undefined}
                 className={cn(
-                  "container text-center",
+                  "container text-center will-change-transform",
                   isBeliefSection
-                    ? "pt-[clamp(10.5rem,19.25vw,17.35rem)] pb-[clamp(5rem,9vw,8rem)]"
+                    ? "pt-[clamp(13rem,23vw,20rem)] pb-[clamp(8rem,13vw,12rem)]"
                     : introPaddingClass,
                 )}
               >
@@ -260,7 +263,9 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                     align="center"
                     maxChars={isBeliefSection ? 0 : 21}
                     animation={"typeOn"}
-                    animationSpeed={1.2}
+                    animationSpeed={isBeliefSection ? 4 : 1.2}
+                    typeOnStart={isBeliefSection ? "top 90%" : undefined}
+                    typeOnDelay={isBeliefSection ? 0 : undefined}
                     textColor={isBeliefSection ? "#ffffff" : undefined}
                     textOutline={isBeliefSection}
                     outlineColor="#050505"

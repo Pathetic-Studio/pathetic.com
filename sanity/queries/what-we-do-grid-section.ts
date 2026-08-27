@@ -50,7 +50,8 @@ export const whatWeDoGridSectionQuery = groq`
       matrixColor,
       density,
       speed,
-      softness
+      softness,
+      headerEffectEnabled
     }
   }
 `;

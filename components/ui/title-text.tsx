@@ -26,7 +26,8 @@ type TitleTextSize =
   | "network-main"
   | "network-reach"
   | "network-friends"
-  | "belief";
+  | "belief"
+  | "contact-cta";
 
 type Breakpoint = "mobile" | "tablet" | "desktop";
 
@@ -67,6 +68,7 @@ interface TitleTextProps {
   // TypeOnText config (only used when animation="typeOn")
   typeOnStart?: string;
   typeOnTrigger?: "scroll" | "immediate";
+  typeOnDelay?: number;
 }
 
 const BASE_TEXT_CLASSES = "leading-[1.1] uppercase mx-auto";
@@ -97,6 +99,7 @@ const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   "network-reach": "text-[2.1rem] sm:text-[3rem] lg:text-[4rem]",
   "network-friends": "text-[3rem] sm:text-[4.5rem] lg:text-[6.4rem]",
   belief: "text-[clamp(4.75rem,13.9vw,12.5rem)]",
+  "contact-cta": "text-[clamp(4rem,11.8vw,11rem)]",
 };
 
 const SCALE_CONFIG: Record<
@@ -188,6 +191,11 @@ const SCALE_CONFIG: Record<
     tablet: { stretchScaleX: 0.65, overallScale: 1 },
     desktop: { stretchScaleX: 0.62, overallScale: 1 },
   },
+  "contact-cta": {
+    mobile: { stretchScaleX: 0.76, overallScale: 1 },
+    tablet: { stretchScaleX: 0.72, overallScale: 1 },
+    desktop: { stretchScaleX: 0.68, overallScale: 1 },
+  },
 };
 
 function getBreakpoint(width: number): Breakpoint {
@@ -217,6 +225,7 @@ export default function TitleText({
   singleLine = false,
   typeOnStart,
   typeOnTrigger,
+  typeOnDelay,
 }: TitleTextProps) {
   const Tag = as;
 
@@ -321,6 +330,7 @@ export default function TitleText({
     <TypeOnText
       text={String(children)}
       speed={animationSpeed}
+      delay={typeOnDelay}
       className={cn(
         fillClass,
         typeOnOutlineClasses,

@@ -56,9 +56,38 @@ export default defineType({
               name: "project",
               title: "Case study page",
               type: "reference",
-              to: [{ type: "page" }, { type: "post" }],
+              to: [
+                { type: "page" },
+                { type: "post" },
+                { type: "caseStudy" },
+              ],
               description:
                 "Add this before launch. Items without a page remain visible as local layout placeholders.",
+              hidden: ({ parent }) =>
+                parent?.interactionMode && parent.interactionMode !== "link",
+            }),
+            defineField({
+              name: "interactionMode",
+              title: "Click behaviour",
+              type: "string",
+              options: {
+                list: [
+                  { title: "Open another page", value: "link" },
+                  { title: "Reveal project information", value: "reveal" },
+                  { title: "Show image or video fullscreen", value: "fullscreen" },
+                ],
+                layout: "radio",
+              },
+              initialValue: "link",
+              validation: (rule) => rule.required(),
+            }),
+            defineField({
+              name: "destination",
+              title: "Link override",
+              type: "link",
+              description:
+                "Optional. When set, this takes priority over the referenced case-study page.",
+              hidden: ({ parent }) => parent?.interactionMode !== "link",
             }),
             defineField({
               name: "titleOverride",
@@ -88,6 +117,46 @@ export default defineType({
               hidden: ({ parent }) => parent?.mediaType !== "video",
             }),
             imageWithAlt("videoPoster", "Video poster"),
+            defineField({
+              name: "revealTitle",
+              title: "Information-card title",
+              type: "string",
+              hidden: ({ parent }) => parent?.interactionMode !== "reveal",
+            }),
+            defineField({
+              name: "revealDescription",
+              title: "Information-card copy",
+              type: "text",
+              rows: 4,
+              hidden: ({ parent }) => parent?.interactionMode !== "reveal",
+              validation: (rule) => rule.max(420),
+            }),
+            defineField({
+              name: "expandedMediaType",
+              title: "Fullscreen media type",
+              type: "string",
+              options: {
+                list: [
+                  { title: "Use the thumbnail media", value: "same" },
+                  { title: "Image", value: "image" },
+                  { title: "Video", value: "video" },
+                ],
+                layout: "radio",
+              },
+              initialValue: "same",
+              hidden: ({ parent }) => parent?.interactionMode !== "fullscreen",
+            }),
+            imageWithAlt("expandedImage", "Fullscreen image"),
+            defineField({
+              name: "expandedVideo",
+              title: "Fullscreen video",
+              type: "file",
+              options: { accept: "video/mp4,video/webm,.mp4,.webm" },
+              hidden: ({ parent }) =>
+                parent?.interactionMode !== "fullscreen" ||
+                parent?.expandedMediaType !== "video",
+            }),
+            imageWithAlt("expandedVideoPoster", "Fullscreen video poster"),
             defineField({
               name: "mediaFit",
               title: "Media fit",
@@ -171,10 +240,55 @@ export default defineType({
       ],
     }),
     defineField({
+      name: "sizzleReel",
+      title: "Sizzle Reel button",
+      type: "object",
+      fields: [
+        defineField({
+          name: "enabled",
+          title: "Show button",
+          type: "boolean",
+          initialValue: true,
+        }),
+        defineField({
+          name: "label",
+          title: "Button label",
+          type: "string",
+          initialValue: "SIZZLE REEL",
+          validation: (rule) => rule.max(40),
+        }),
+        defineField({
+          name: "href",
+          title: "Destination",
+          type: "string",
+          description:
+            "Add a relative path, anchor, or full URL when the reel destination is ready.",
+        }),
+        defineField({
+          name: "video",
+          title: "Reel video",
+          type: "file",
+          options: { accept: "video/mp4,video/webm,.mp4,.webm" },
+          description:
+            "Opens fullscreen. A bundled placeholder is used until this is uploaded.",
+        }),
+        imageWithAlt("videoPoster", "Reel poster"),
+        imageWithAlt("fireGif", "Fire GIF override"),
+      ],
+    }),
+    defineField({
       name: "figure",
       title: "Interactive pointing figure",
       type: "object",
       fields: [
+        defineField({
+          name: "useUploadedFigureArtwork",
+          title: "Use uploaded figure artwork",
+          type: "boolean",
+          initialValue: false,
+          description:
+            "Off uses the high-resolution colour body and hand bundled with the site. Turn this on to use the custom uploads below.",
+        }),
         imageWithAlt("personImage", "Person cutout"),
         imageWithAlt("armImage", "Stretching arm texture"),
         imageWithAlt("handImage", "Pointing hand cutout"),

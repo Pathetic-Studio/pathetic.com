@@ -26,6 +26,7 @@ type EyeFollowProps = {
     spawnGap?: number;
     edgePadding?: number;
     staggerOnEnter?: boolean;
+    staggerEnterDelayMs?: number;
 };
 
 type MousePos = { x: number; y: number } | null;
@@ -82,6 +83,7 @@ export default function EyeFollow({
     spawnGap = 8,
     edgePadding = 0,
     staggerOnEnter = false,
+    staggerEnterDelayMs = 0,
 }: EyeFollowProps) {
     const [mouse, setMouse] = useState<MousePos>(null);
     const [rect, setRect] = useState<Rect>(null);
@@ -96,6 +98,7 @@ export default function EyeFollow({
     const rectRef = useRef<Rect>(null);
     const physicsRef = useRef<Record<string, EyePhysics>>({});
     const rollTimersRef = useRef<Record<string, number>>({});
+    const activeEyeRollsRef = useRef<Record<string, boolean>>({});
 
     const baseSpawnSize = 72;
     const rawMin = minSpawnScale ?? 0.3;
@@ -175,18 +178,28 @@ export default function EyeFollow({
         if (!el) return;
 
         setEyesVisible(false);
+        let revealTimer = 0;
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (!entry?.isIntersecting) return;
-                setEyesVisible(true);
+                const reduceMotion = window.matchMedia(
+                    "(prefers-reduced-motion: reduce)",
+                ).matches;
+                revealTimer = window.setTimeout(
+                    () => setEyesVisible(true),
+                    reduceMotion ? 0 : Math.max(0, staggerEnterDelayMs),
+                );
                 observer.disconnect();
             },
-            { threshold: 0.18 },
+            { rootMargin: "0px 0px -22% 0px", threshold: 0.01 },
         );
 
         observer.observe(el);
-        return () => observer.disconnect();
-    }, [containerId, staggerOnEnter]);
+        return () => {
+            window.clearTimeout(revealTimer);
+            observer.disconnect();
+        };
+    }, [containerId, staggerEnterDelayMs, staggerOnEnter]);
 
     // Pointer tracking and click-to-add
     useEffect(() => {
@@ -259,9 +272,16 @@ export default function EyeFollow({
                         ...current,
                         [key]: (current[key] ?? 0) + 1,
                     }));
+                    activeEyeRollsRef.current[key] = true;
                     setActiveEyeRolls((current) => ({ ...current, [key]: true }));
                     window.clearTimeout(rollTimersRef.current[key]);
                     rollTimersRef.current[key] = window.setTimeout(() => {
+                        activeEyeRollsRef.current[key] = false;
+                        const physics = physicsRef.current[key];
+                        if (physics) {
+                            physics.vel.x = 0;
+                            physics.vel.y = 0;
+                        }
                         setActiveEyeRolls((current) => ({
                             ...current,
                             [key]: false,
@@ -384,6 +404,13 @@ export default function EyeFollow({
                 const { pos, vel } = phys;
                 const radius = phys.radius;
 
+                if (activeEyeRollsRef.current[key]) {
+                    vel.x = 0;
+                    vel.y = 0;
+                    newOffsets[key] = { x: pos.x, y: pos.y };
+                    continue;
+                }
+
                 const hasMouse = !!mouseLocal && !!rectLocal;
 
                 if (!hasMouse) {
@@ -471,6 +498,10 @@ export default function EyeFollow({
                 };
                 const rollCount = eyeRolls[key] ?? 0;
                 const isRolling = activeEyeRolls[key] === true;
+                const rollRadius = Math.min(
+                    pupilMaxOffset,
+                    Math.hypot(offset.x, offset.y),
+                );
                 const rollStartAngle =
                     (Math.atan2(offset.y, offset.x) * 180) / Math.PI + 90;
 
@@ -525,7 +556,7 @@ export default function EyeFollow({
                                         width: size * 0.45,
                                         height: size * 0.45,
                                         transform: isRolling
-                                            ? `translate(-50%, -50%) translateY(-${pupilMaxOffset}px)`
+                                            ? `translate(-50%, -50%) translateY(-${rollRadius}px)`
                                             : `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
                                         borderRadius: "9999px",
                                         background: "black",
@@ -562,7 +593,7 @@ export default function EyeFollow({
                 }
 
                 .eye-roll {
-                    animation: eye-roll 760ms cubic-bezier(0.45, 0, 0.2, 1);
+                    animation: eye-roll 760ms cubic-bezier(0.45, 0, 0.2, 1) both;
                     transform-origin: center;
                 }
 

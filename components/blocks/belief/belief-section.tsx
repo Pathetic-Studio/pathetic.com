@@ -16,21 +16,43 @@ type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type BeliefBlock = Extract<PageBlock, { _type: "belief-section" }>;
 
 const CLOUD_LAYERS = [
-  { side: "left", left: -34.38, top: 11.96, width: 86.81, height: 51.85, opacity: 0.5 },
-  { side: "right", left: 52.43, top: -9.65, width: 86.81, height: 51.85, opacity: 0.5 },
-  { side: "left", left: 22.08, top: 20.59, width: 63.47, height: 37.92, opacity: 0.3 },
-  { side: "right", left: 57.57, top: 38.55, width: 63.47, height: 37.92, opacity: 0.3 },
-  { side: "left", left: -27.71, top: 51.15, width: 59.93, height: 35.81, opacity: 0.7 },
-  { side: "right", left: 63.4, top: 14, width: 59.93, height: 35.81, opacity: 1 },
-  { side: "right", left: 84.1, top: 56.65, width: 40.42, height: 24.1, opacity: 0.6 },
-  { side: "left", left: -22.22, top: -4.8, width: 62.78, height: 37.53, opacity: 1, flip: true },
-  { side: "left", left: -18.96, top: 9.53, width: 46.94, height: 28.07, opacity: 1 },
-  { side: "left", left: 7.99, top: 24.23, width: 22.36, height: 13.36, opacity: 0.6 },
-  { side: "right", left: 65.42, top: 7.54, width: 26.81, height: 16.05, opacity: 1 },
-  { side: "right", left: 42.15, top: 6.39, width: 41.94, height: 25.06, opacity: 1 },
-  { side: "right", left: 79.17, top: 23.59, width: 22.36, height: 13.36, opacity: 1 },
-  { side: "left", left: 25.83, top: 20.84, width: 31.74, height: 18.93, opacity: 0.9 },
+  { side: "left", left: -34.38, top: 11.96, width: 86.81, height: 51.85, opacity: 0.5, floatGroup: "cloud-back-left-wide" },
+  { side: "right", left: 52.43, top: -9.65, width: 86.81, height: 51.85, opacity: 0.5, floatGroup: "cloud-back-right-wide" },
+  { side: "left", left: 22.08, top: 20.59, width: 63.47, height: 37.92, opacity: 0.3, floatGroup: "cloud-back-center" },
+  { side: "right", left: 57.57, top: 38.55, width: 63.47, height: 37.92, opacity: 0.3, floatGroup: "cloud-back-right-lower" },
+  { side: "left", left: -27.71, top: 51.15, width: 60, height: 35.81, opacity: 0.5, floatGroup: "cloud-lower-left" },
+  { side: "right", left: 63.4, top: 14, width: 59.93, height: 35.81, opacity: 1, floatGroup: "cloud-mid-right" },
+  { side: "right", left: 84.1, top: 56.65, width: 40.42, height: 24.1, opacity: 0.6, floatGroup: "cloud-lower-right-edge" },
+  { side: "left", left: -22.22, top: -4.8, width: 62.78, height: 37.53, opacity: 1, flip: true, floatGroup: "cloud-upper-left" },
+  { side: "left", left: -18.96, top: 9.53, width: 46.94, height: 28.07, opacity: 1, floatGroup: "cherub-left" },
+  { side: "left", left: 7.99, top: 24.23, width: 18.36, height: 13.36, opacity: 0.3, floatGroup: "cloud-small-left" },
+  { side: "right", left: 65.42, top: 7.54, width: 26, height: 16.05, opacity: 1, floatGroup: "cherub-right" },
+  { side: "right", left: 42.15, top: 6.39, width: 41, height: 25.06, opacity: 1, floatGroup: "cloud-center-right" },
+  { side: "right", left: 79.17, top: 23.59, width: 22.36, height: 13.36, opacity: 1, floatGroup: "hands" },
+  { side: "left", left: 28.83, top: 22.84, width: 30, height: 18.93, opacity: 0.7, floatGroup: "cloud-center-left" },
 ] as const;
+
+type BeliefFloatGroup = (typeof CLOUD_LAYERS)[number]["floatGroup"];
+type BeliefFloatEffect = { speed: number; lag: number };
+
+// A speed of 1 with zero lag leaves that named group neutral. Change either
+// value here to opt the cloud into the same ScrollSmoother effect as the figures.
+const BELIEF_FLOAT_EFFECTS: Record<BeliefFloatGroup, BeliefFloatEffect> = {
+  "cloud-back-left-wide": { speed: 1, lag: 0 },
+  "cloud-back-right-wide": { speed: 0.8, lag: 0.2 },
+  "cloud-back-center": { speed: 1, lag: 0 },
+  "cloud-back-right-lower": { speed: 1, lag: 0 },
+  "cloud-lower-left": { speed: 0.9, lag: 0.5 },
+  "cloud-mid-right": { speed: 1, lag: 0 },
+  "cloud-lower-right-edge": { speed: 1, lag: 0 },
+  "cloud-upper-left": { speed: 1, lag: 0 },
+  "cherub-right": { speed: 0.9, lag: 0.42 },
+  hands: { speed: 1.14, lag: 0.22 },
+  "cherub-left": { speed: 0.6, lag: 0.2 },
+  "cloud-small-left": { speed: 1, lag: 0 },
+  "cloud-center-right": { speed: 1, lag: 0 },
+  "cloud-center-left": { speed: 0.9, lag: 0.2 },
+};
 
 /**
  * Dedicated What We Believe section entry point. Its first version deliberately
@@ -50,48 +72,63 @@ export default function BeliefSection(props: BeliefBlock) {
   const renderClouds = (
     clouds: ReadonlyArray<(typeof CLOUD_LAYERS)[number]>,
   ) =>
-    clouds.map((cloud, index) => (
-      <div
-        key={`${cloud.side}-${cloud.left}-${cloud.top}-${index}`}
-        data-belief-cloud-side={cloud.side}
-        className="absolute origin-center will-change-transform"
-        style={{
-          left: `${cloud.left}%`,
-          top: `${cloud.top}%`,
-          width: `${cloud.width}%`,
-          height: `${cloud.height}%`,
-          opacity: cloud.opacity,
-        }}
-      >
+    clouds.map((cloud, index) => {
+      const floatGroup = cloud.floatGroup;
+      const floatEffect = BELIEF_FLOAT_EFFECTS[floatGroup];
+      const floatEnabled = floatEffect.speed !== 1 || floatEffect.lag !== 0;
+
+      return (
         <div
-          className="relative h-full w-full"
+          key={`${cloud.side}-${cloud.left}-${cloud.top}-${index}`}
+          data-belief-cloud-side={cloud.side}
+          data-belief-layer-side={cloud.side}
+          className="absolute origin-center will-change-transform"
           style={{
-            transform:
-              "flip" in cloud && cloud.flip ? "scaleX(-1)" : undefined,
+            left: `${cloud.left}%`,
+            top: `${cloud.top}%`,
+            width: `${cloud.width}%`,
+            height: `${cloud.height}%`,
+            opacity: cloud.opacity,
           }}
         >
-          <Image
-            src={cloudSrc}
-            alt=""
-            fill
-            sizes={`${Math.ceil(cloud.width)}vw`}
-            className="object-contain"
-          />
+          <div
+            data-belief-float={floatGroup}
+            data-speed={floatEnabled ? floatEffect.speed : undefined}
+            data-lag={floatEnabled ? floatEffect.lag : undefined}
+            className="relative h-full w-full will-change-transform"
+            style={{
+              transform:
+                "flip" in cloud && cloud.flip ? "scaleX(-1)" : undefined,
+            }}
+          >
+            <div
+              data-belief-idle={floatGroup}
+              className="relative h-full w-full will-change-transform"
+            >
+              <Image
+                src={cloudSrc}
+                alt=""
+                fill
+                sizes={`${Math.ceil(cloud.width)}vw`}
+                className="object-contain"
+              />
+            </div>
+          </div>
         </div>
-      </div>
-    ));
+      );
+    });
 
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || !cloudsEnabled) return;
 
     const context = gsap.context(() => {
-      const leftClouds = gsap.utils.toArray<HTMLElement>(
-        '[data-belief-cloud-side="left"]',
+      const leftLayers = gsap.utils.toArray<HTMLElement>(
+        '[data-belief-layer-side="left"]',
         root,
       );
-      const rightClouds = gsap.utils.toArray<HTMLElement>(
-        '[data-belief-cloud-side="right"]',
+      const rightLayers = gsap.utils.toArray<HTMLElement>(
+        '[data-belief-layer-side="right"]',
         root,
       );
       const glow = root.querySelector<SVGSVGElement>("[data-belief-sky-glow]");
@@ -100,7 +137,7 @@ export default function BeliefSection(props: BeliefBlock) {
       ).matches;
 
       if (reduceMotion) {
-        gsap.set([...leftClouds, ...rightClouds], {
+        gsap.set([...leftLayers, ...rightLayers], {
           xPercent: 0,
           scale: 1,
         });
@@ -108,42 +145,43 @@ export default function BeliefSection(props: BeliefBlock) {
         return;
       }
 
+      gsap.set(leftLayers, { xPercent: -72, scale: 1.04 });
+      gsap.set(rightLayers, { xPercent: 72, scale: 1.04 });
+      gsap.set(glow, { autoAlpha: 0, scale: 0.82 });
+
       const timeline = gsap.timeline({
         scrollTrigger: {
           trigger: root,
-          start: "top 82%",
+          start: "top 90%",
           once: true,
         },
         defaults: {
           duration: partDuration,
-          ease: "power3.out",
+          ease: "power2.out",
         },
       });
 
       timeline
-        .fromTo(
-          leftClouds,
-          { xPercent: 62, scale: 1.1 },
+        .to(
+          leftLayers,
           {
             xPercent: 0,
             scale: 1,
-            stagger: 0.08,
+            stagger: 0.025,
           },
           0,
         )
-        .fromTo(
-          rightClouds,
-          { xPercent: -62, scale: 1.1 },
+        .to(
+          rightLayers,
           {
             xPercent: 0,
             scale: 1,
-            stagger: 0.08,
+            stagger: 0.025,
           },
           0,
         )
-        .fromTo(
+        .to(
           glow,
-          { autoAlpha: 0, scale: 0.72 },
           {
             autoAlpha: 1,
             scale: 1,
@@ -195,16 +233,26 @@ export default function BeliefSection(props: BeliefBlock) {
 
           <div className="pointer-events-none absolute inset-0 z-[12] overflow-hidden">
             <div
+              data-belief-layer-side="right"
               className="absolute"
               style={{ left: "71.18%", top: "2.49%", width: "17.99%", height: "11.13%" }}
             >
-              <Image
-                src="/images/belief/cherub-top-right.png"
-                alt=""
-                fill
-                sizes="18vw"
-                className="object-contain"
-              />
+              <div
+                data-belief-float="cherub-right"
+                data-speed={BELIEF_FLOAT_EFFECTS["cherub-right"].speed}
+                data-lag={BELIEF_FLOAT_EFFECTS["cherub-right"].lag}
+                className="relative h-full w-full will-change-transform"
+              >
+                <div data-belief-idle="cherub-right" className="relative h-full w-full will-change-transform">
+                  <Image
+                    src="/images/belief/cherub-top-right.png"
+                    alt=""
+                    fill
+                    sizes="18vw"
+                    className="object-contain"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -214,16 +262,26 @@ export default function BeliefSection(props: BeliefBlock) {
 
           <div className="pointer-events-none absolute inset-0 z-[15] overflow-hidden">
             <div
+              data-belief-layer-side="right"
               className="absolute"
               style={{ left: "85.9%", top: "14%", width: "10.49%", height: "14.51%" }}
             >
-              <Image
-                src="/images/belief/praying-hands.png"
-                alt=""
-                fill
-                sizes="11vw"
-                className="object-contain"
-              />
+              <div
+                data-belief-float="hands"
+                data-speed={BELIEF_FLOAT_EFFECTS.hands.speed}
+                data-lag={BELIEF_FLOAT_EFFECTS.hands.lag}
+                className="relative h-full w-full will-change-transform"
+              >
+                <div data-belief-idle="hands" className="relative h-full w-full will-change-transform">
+                  <Image
+                    src="/images/belief/praying-hands.png"
+                    alt=""
+                    fill
+                    sizes="11vw"
+                    className="object-contain"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -233,16 +291,26 @@ export default function BeliefSection(props: BeliefBlock) {
 
           <div className="pointer-events-none absolute inset-0 z-[17] overflow-hidden">
             <div
+              data-belief-layer-side="left"
               className="absolute"
               style={{ left: "-0.42%", top: "10.1%", width: "20.14%", height: "17.65%" }}
             >
-              <Image
-                src="/images/belief/cherub-left.png"
-                alt=""
-                fill
-                sizes="21vw"
-                className="object-contain"
-              />
+              <div
+                data-belief-float="cherub-left"
+                data-speed={BELIEF_FLOAT_EFFECTS["cherub-left"].speed}
+                data-lag={BELIEF_FLOAT_EFFECTS["cherub-left"].lag}
+                className="relative h-full w-full will-change-transform"
+              >
+                <div data-belief-idle="cherub-left" className="relative h-full w-full will-change-transform">
+                  <Image
+                    src="/images/belief/cherub-left.png"
+                    alt=""
+                    fill
+                    sizes="21vw"
+                    className="object-contain"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -252,6 +320,40 @@ export default function BeliefSection(props: BeliefBlock) {
         </>
       )}
       <GridRowAnimated {...props} />
+      <style jsx>{`
+        [data-belief-idle="cherub-right"] {
+          animation: belief-idle-right 5.2s ease-in-out -1.1s infinite alternate;
+        }
+
+        [data-belief-idle="hands"] {
+          animation: belief-idle-hands 4.35s ease-in-out -2.4s infinite alternate;
+        }
+
+        [data-belief-idle="cherub-left"] {
+          animation: belief-idle-left 6.1s ease-in-out -3.2s infinite alternate;
+        }
+
+        @keyframes belief-idle-right {
+          from { transform: translate3d(0, -5px, 0); }
+          to { transform: translate3d(0, 7px, 0); }
+        }
+
+        @keyframes belief-idle-hands {
+          from { transform: translate3d(0, 5px, 0); }
+          to { transform: translate3d(0, -6px, 0); }
+        }
+
+        @keyframes belief-idle-left {
+          from { transform: translate3d(0, -7px, 0); }
+          to { transform: translate3d(0, 5px, 0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          [data-belief-idle] {
+            animation: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }

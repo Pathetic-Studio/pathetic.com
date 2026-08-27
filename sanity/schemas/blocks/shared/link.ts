@@ -110,6 +110,22 @@ export default defineType({
     }),
 
     defineField({
+      name: "headerVisualPreset",
+      type: "string",
+      title: "Header visual preset",
+      description:
+        "Optional treatment when this link is used in the site header. Feature star keeps the image and hover controls below, while adding the sectional header effects and idle Y rotation.",
+      initialValue: "standard",
+      options: {
+        list: [
+          { title: "Standard button", value: "standard" },
+          { title: "Feature star", value: "feature-star" },
+        ],
+        layout: "radio",
+      },
+    }),
+
+    defineField({
       name: "particlesEnabled",
       type: "boolean",
       title: "Particles (on/off)",
@@ -145,6 +161,16 @@ export default defineType({
       title: "Image (on/off)",
       initialValue: false,
       description: "If on, an image will be placed behind the button (centered).",
+      validation: (Rule) =>
+        Rule.custom((value, context) => {
+          const parent = context.parent as
+            | { headerVisualPreset?: string }
+            | undefined;
+          if (parent?.headerVisualPreset === "feature-star" && !value) {
+            return "Turn the image on when using the Feature star preset.";
+          }
+          return true;
+        }),
     }),
 
     defineField({

@@ -1,6 +1,7 @@
 import { groq } from "next-sanity";
 import { anchorQuery } from "./shared/anchor";
 import { imageQuery } from "./shared/image";
+import { linkQuery } from "./shared/link";
 
 // @sanity-typegen-ignore
 export const networkReachSectionQuery = groq`
@@ -48,6 +49,9 @@ export const networkReachSectionQuery = groq`
     friends[]{
       _key,
       name,
+      link{
+        ${linkQuery}
+      },
       image{
         ${imageQuery}
       }
