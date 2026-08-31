@@ -15,11 +15,21 @@ export function useViewportVars() {
         if (typeof window === "undefined") return;
 
         const vv = window.visualViewport;
+        let frame = 0;
+        let lastHeight = 0;
+
+        const commitVars = () => {
+            frame = 0;
+            const height = Math.round((vv?.height ?? window.innerHeight) * 10) / 10;
+            if (Math.abs(height - lastHeight) < 0.5) return;
+            lastHeight = height;
+            document.documentElement.style.setProperty("--app-height", `${height}px`);
+            document.documentElement.style.setProperty("--vh", `${height * 0.01}px`);
+        };
 
         const setVars = () => {
-            const h = vv?.height ?? window.innerHeight;
-            document.documentElement.style.setProperty("--app-height", `${h}px`);
-            document.documentElement.style.setProperty("--vh", `${h * 0.01}px`);
+            if (frame) return;
+            frame = requestAnimationFrame(commitVars);
         };
 
         setVars();
@@ -30,6 +40,7 @@ export function useViewportVars() {
         window.addEventListener("orientationchange", setVars);
 
         return () => {
+            if (frame) cancelAnimationFrame(frame);
             vv?.removeEventListener("resize", setVars);
             vv?.removeEventListener("scroll", setVars);
             window.removeEventListener("resize", setVars);

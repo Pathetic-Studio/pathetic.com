@@ -4,11 +4,14 @@ import { useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from 
 import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { Physics2DPlugin } from "gsap/Physics2DPlugin";
 import { stegaClean } from "next-sanity";
 import ContactFormTrigger from "@/components/contact/contact-form-trigger";
 import TitleText from "@/components/ui/title-text";
 
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger);
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger, Physics2DPlugin);
+}
 
 export type ProjectCtaSectionBlock = {
   _type: "project-cta-section";
@@ -28,20 +31,33 @@ export type ProjectCtaSectionBlock = {
 };
 
 const SPARKLE_COUNT = 20;
-const SPARKLE_ASSETS = [
-  "/images/project-cta/memebooth-star-1.png",
-  "/images/project-cta/memebooth-star-2.png",
-  "/images/project-cta/memebooth-star-3.png",
-] as const;
+const CANNON_STAR_COUNT = 36;
+const CANNON_STARS_PER_VOLLEY = 6;
+const CANNON_VOLLEY_INTERVAL_MS = 260;
+const CTA_STAR_COLOR = "#D8FF56";
+const CANNON_STAR_COLORS = ["#F22978", "#168CF2", "#40ED78"] as const;
+
+function GreenStarSvg({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 71 37"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      fill="none"
+    >
+      <path
+        d="M35.5 0 42 13.1 71 13.5 47.8 21.7 57.3 37 35.5 27.7 13.7 37 23.2 21.7 0 13.5l29-0.4L35.5 0Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
 
 function CtaStar({
-  color,
   delay = "0s",
-  asset = SPARKLE_ASSETS[0],
 }: {
-  color: string;
   delay?: string;
-  asset?: (typeof SPARKLE_ASSETS)[number];
 }) {
   return (
     <span
@@ -51,23 +67,10 @@ function CtaStar({
     >
       <span
         data-header-feature-image-rotator
-        className="block [transform-style:preserve-3d]"
-        style={{ animationDelay: delay }}
+        className="block text-[#D8FF56] [transform-style:preserve-3d]"
+        style={{ animationDelay: delay, color: CTA_STAR_COLOR }}
       >
-        <span
-          className="block aspect-[71/37] w-[clamp(5rem,10vw,9rem)] bg-current drop-shadow-[0_2px_0_rgba(0,0,0,.14)]"
-          style={{
-            color,
-            maskImage: `url(${asset})`,
-            WebkitMaskImage: `url(${asset})`,
-            maskPosition: "center",
-            WebkitMaskPosition: "center",
-            maskRepeat: "no-repeat",
-            WebkitMaskRepeat: "no-repeat",
-            maskSize: "contain",
-            WebkitMaskSize: "contain",
-          }}
-        />
+        <GreenStarSvg className="block aspect-[71/37] w-[clamp(5rem,10vw,9rem)] drop-shadow-[0_2px_0_rgba(0,0,0,.14)]" />
       </span>
     </span>
   );
@@ -81,7 +84,7 @@ function DefaultSky() {
         alt=""
         fill
         sizes="100vw"
-        className="z-0 object-cover object-center [filter:brightness(1.14)_saturate(1.1)_contrast(.96)]"
+        className="z-0 object-cover object-center"
       />
       <div className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(88,174,244,.03),rgba(111,186,246,.1))]" />
       <div
@@ -136,6 +139,9 @@ function DefaultSky() {
 export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
   const rootRef = useRef<HTMLElement | null>(null);
   const hoverTimelineRef = useRef<gsap.core.Timeline | null>(null);
+  const cannonIntervalRef = useRef<number | null>(null);
+  const cannonIndexRef = useRef(0);
+  const cannonPointerRef = useRef({ x: 0, y: 0 });
   const raySpinTweenRef = useRef<gsap.core.Tween | null>(null);
   const reduceMotionRef = useRef(false);
   const sparkleRefs = useRef<Array<HTMLSpanElement | null>>([]);
@@ -147,10 +153,9 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
   const panelColor = stegaClean(props.panelColor?.hex) || "#93A7FF";
   const textColor = stegaClean(props.textColor?.hex) || "#FFFFFF";
   const outlineColor = stegaClean(props.outlineColor?.hex) || "#050505";
-  const accentColor = stegaClean(props.accentColor?.hex) || "#FF241A";
   const backgroundImage = props.backgroundImage?.asset?.url || null;
   const sparklesEnabled = stegaClean(props.sparklesEnabled) !== false;
-  const sectionId = stegaClean(props.anchor?.anchorId) || undefined;
+  const sectionId = stegaClean(props.anchor?.anchorId) || "work-with-us";
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -199,10 +204,76 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
 
     return () => {
       hoverTimelineRef.current?.kill();
+      if (cannonIntervalRef.current != null) {
+        window.clearInterval(cannonIntervalRef.current);
+        cannonIntervalRef.current = null;
+      }
       raySpinTweenRef.current?.kill();
       context.revert();
     };
   }, []);
+
+  const fireCannonVolley = () => {
+    const root = rootRef.current;
+    if (!root) return;
+    const panel = root.querySelector<HTMLElement>("[data-project-cta-panel]");
+    if (!panel) return;
+
+    const panelWidth = panel.clientWidth;
+    const horizontalSpeed = gsap.utils.clamp(245, 390, panelWidth * 0.3);
+    const pointerBias = cannonPointerRef.current.x * panelWidth * 0.15;
+    const verticalBias = cannonPointerRef.current.y * 38;
+    const volleyIndex = cannonIndexRef.current;
+    cannonIndexRef.current += CANNON_STARS_PER_VOLLEY;
+
+    (["left", "right"] as const).forEach((side) => {
+      const direction = side === "left" ? 1 : -1;
+      const stars = gsap.utils.toArray<HTMLElement>(
+        `[data-project-cta-cannon-star="${side}"]`,
+        root,
+      );
+      if (!stars.length) return;
+
+      Array.from({ length: CANNON_STARS_PER_VOLLEY }, (_, offset) => {
+        const star = stars[(volleyIndex + offset) % stars.length];
+        const velocityX =
+          direction * horizontalSpeed * gsap.utils.random(0.82, 1.08) +
+          pointerBias;
+        const velocityY = -gsap.utils.random(215, 305) + verticalBias;
+        const velocity = Math.hypot(velocityX, velocityY);
+        const angle = Math.atan2(velocityY, velocityX) * (180 / Math.PI);
+        const duration = gsap.utils.random(1.22, 1.48);
+
+        gsap.killTweensOf(star);
+        gsap
+          .timeline()
+          .set(star, {
+            x: 0,
+            y: gsap.utils.random(-22, 22),
+            autoAlpha: 1,
+            scale: gsap.utils.random(0.28, 0.52),
+            rotation: gsap.utils.random(-70, 70),
+          })
+          .to(star, {
+            physics2D: {
+              velocity,
+              angle,
+              gravity: gsap.utils.random(350, 440),
+              friction: gsap.utils.random(0.005, 0.018),
+            },
+            scale: gsap.utils.random(0.8, 1.22),
+            rotation: `${gsap.utils.random(0, 1) > 0.5 ? "+" : "-"}=${gsap.utils.random(210, 430)}`,
+            duration,
+            ease: "none",
+          }, 0)
+          .to(star, {
+            autoAlpha: 0,
+            duration: 0.24,
+            ease: "power1.in",
+          }, duration - 0.24);
+      });
+    });
+  };
 
   const setProjectHover = (active: boolean) => {
     const root = rootRef.current;
@@ -213,9 +284,18 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
     const rayWheel = root.querySelector<HTMLElement>("[data-project-cta-ray-wheel]");
     if (!rainbow || !rays || !rayWheel) return;
 
+    const cannonStars = gsap.utils.toArray<HTMLElement>(
+      "[data-project-cta-cannon-star]",
+      root,
+    );
+    const cannonOrigins = gsap.utils.toArray<HTMLElement>(
+      "[data-project-cta-cannon-origin]",
+      root,
+    );
+
     hoverTimelineRef.current?.kill();
     raySpinTweenRef.current?.kill();
-    gsap.killTweensOf([rainbow, rays, rayWheel]);
+    gsap.killTweensOf([rainbow, rays, rayWheel, ...cannonStars]);
 
     if (reduceMotionRef.current) {
       gsap.set(rainbow, {
@@ -223,6 +303,8 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
         clipPath: active ? "inset(0% 0% 0% 0%)" : "inset(0% 50% 0% 50%)",
       });
       gsap.set(rays, { opacity: active ? 1 : 0 });
+      gsap.set(cannonStars, { autoAlpha: 0 });
+      gsap.set(cannonOrigins, { x: 0, y: 0, rotation: 0 });
       return;
     }
 
@@ -230,6 +312,14 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
     hoverTimelineRef.current = timeline;
 
     if (active) {
+      if (cannonIntervalRef.current == null) {
+        fireCannonVolley();
+        cannonIntervalRef.current = window.setInterval(
+          fireCannonVolley,
+          CANNON_VOLLEY_INTERVAL_MS,
+        );
+      }
+
       raySpinTweenRef.current = gsap.to(rayWheel, {
         rotation: "+=360",
         duration: 34,
@@ -255,6 +345,12 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
       return;
     }
 
+    if (cannonIntervalRef.current != null) {
+      window.clearInterval(cannonIntervalRef.current);
+      cannonIntervalRef.current = null;
+    }
+    cannonPointerRef.current = { x: 0, y: 0 };
+
     timeline
       .to(rays, { opacity: 0, duration: 0.24, ease: "power2.in" }, 0)
       .to(
@@ -267,6 +363,52 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
         },
         0.02,
       );
+    gsap.to(cannonStars, {
+      autoAlpha: 0,
+      duration: 0.14,
+      ease: "power2.out",
+      overwrite: true,
+    });
+    gsap.to(cannonOrigins, {
+      x: 0,
+      y: 0,
+      rotation: 0,
+      duration: 0.24,
+      ease: "power3.out",
+      overwrite: "auto",
+    });
+  };
+
+  const moveProjectCannons = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "touch" || reduceMotionRef.current) return;
+    const root = rootRef.current;
+    if (!root) return;
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const normalizedX = Math.max(
+      -1,
+      Math.min(1, ((event.clientX - bounds.left) / bounds.width - 0.5) * 2),
+    );
+    const normalizedY = Math.max(
+      -1,
+      Math.min(1, ((event.clientY - bounds.top) / bounds.height - 0.5) * 2),
+    );
+    const origins = gsap.utils.toArray<HTMLElement>(
+      "[data-project-cta-cannon-origin]",
+      root,
+    );
+    cannonPointerRef.current = { x: normalizedX, y: normalizedY };
+
+    origins.forEach((origin) => {
+      gsap.to(origin, {
+        x: normalizedX * 28,
+        y: normalizedY * 34,
+        rotation: normalizedX * 6 + normalizedY * 2.5,
+        duration: 0.28,
+        ease: "power3.out",
+        overwrite: "auto",
+      });
+    });
   };
 
   const emitSparkle = (event: ReactPointerEvent<HTMLElement>) => {
@@ -318,6 +460,7 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
       className="relative isolate bg-background p-3 sm:p-4 lg:p-6"
     >
       <div
+        data-project-cta-panel
         className="relative min-h-[clamp(14rem,24vw,20rem)] overflow-hidden border border-current"
         style={{ backgroundColor: panelColor, borderColor: outlineColor }}
       >
@@ -337,25 +480,42 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
             <span
               key={index}
               ref={(node) => { sparkleRefs.current[index] = node; }}
-              className="absolute left-0 top-0 aspect-[71/37] w-[clamp(1.5rem,2.8vw,2.8rem)] opacity-0 will-change-transform"
+              className="absolute left-0 top-0 aspect-[71/37] w-[clamp(1.5rem,2.8vw,2.8rem)] text-[#D8FF56] opacity-0 will-change-transform"
             >
-              <Image
-                src={SPARKLE_ASSETS[index % SPARKLE_ASSETS.length]}
-                alt=""
-                fill
-                sizes="3rem"
-                className="object-contain"
-              />
+              <GreenStarSvg className="h-full w-full" />
+            </span>
+          ))}
+        </div>
+
+        <div className="pointer-events-none absolute inset-0 z-[35] overflow-hidden" aria-hidden="true">
+          {(["left", "right"] as const).map((side) => (
+            <span
+              key={side}
+              data-project-cta-cannon-origin={side}
+              className={`absolute top-1/2 h-px w-px will-change-transform ${
+                side === "left" ? "left-[3.5%]" : "right-[3.5%]"
+              }`}
+            >
+              {Array.from({ length: CANNON_STAR_COUNT }, (_, index) => (
+                <span
+                  key={`${side}-${index}`}
+                  data-project-cta-cannon-star={side}
+                  className="absolute left-0 top-0 w-[clamp(1.35rem,2.35vw,2.65rem)] opacity-0 will-change-transform"
+                  style={{ color: CANNON_STAR_COLORS[index % CANNON_STAR_COLORS.length] }}
+                >
+                  <GreenStarSvg className="h-auto w-full" />
+                </span>
+              ))}
             </span>
           ))}
         </div>
 
         <div className="relative z-20 flex min-h-[clamp(14rem,24vw,20rem)] w-full items-center justify-center px-[clamp(3.5rem,14vw,13rem)] py-8">
           <span className="pointer-events-none absolute left-[3.5%] top-1/2 -translate-y-1/2">
-            <CtaStar color={accentColor} asset={SPARKLE_ASSETS[0]} />
+            <CtaStar />
           </span>
           <span className="pointer-events-none absolute right-[3.5%] top-1/2 -translate-y-1/2">
-            <CtaStar color={accentColor} asset={SPARKLE_ASSETS[2]} delay="-9s" />
+            <CtaStar delay="-9s" />
           </span>
 
           <span className="relative flex w-full flex-col items-center gap-4">
@@ -385,6 +545,7 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
               data-project-cta-reveal
               onPointerEnter={() => setProjectHover(true)}
               onPointerLeave={() => setProjectHover(false)}
+              onPointerMove={moveProjectCannons}
               onFocus={() => setProjectHover(true)}
               onBlur={() => setProjectHover(false)}
               className="relative z-40 inline-flex h-10 items-center justify-center border border-current bg-background px-6 font-sans text-sm font-semibold uppercase leading-none text-foreground transition-transform duration-200 hover:scale-110 focus-visible:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"

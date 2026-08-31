@@ -1,7 +1,7 @@
 // components/layout/smooth-scroller.tsx
 "use client";
 
-import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import React, { useLayoutEffect, useRef, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { gsap } from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
@@ -44,15 +44,17 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
   const savedTabScrollRef = useRef<number>(0);
   const isFirstPathMountRef = useRef(true);
 
-  // NEW: we always run ScrollSmoother (so pins can share the same scroller on mobile),
-  // but we disable smoothing on touch via smoothTouch: 0 and near-zero smooth on < lg.
+  // ScrollSmoother is reserved for fine-pointer desktop devices. Touch devices
+  // retain native, finger-locked scrolling while ScrollTrigger continues to
+  // drive responsive pins and scrubbed section animation directly from window.
   const [isDesktop, setIsDesktop] = useState(false);
   const [isTouch, setIsTouch] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const [suppressForLoader, setSuppressForLoader] = useState(false);
 
   // Track loader flag without changing DOM structure
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") return;
 
     const read = () => document.documentElement.hasAttribute(LOADER_FLAG_ATTR);
@@ -66,8 +68,11 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
   }, []);
 
   // Detect device breakpoints + touch
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") return;
+    const reducedMotionQuery = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    );
 
     const compute = () => {
       const touch =
@@ -79,11 +84,16 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
       setIsTouch(touch);
       setIsDesktop(desktop);
+      setPrefersReducedMotion(reducedMotionQuery.matches);
     };
 
     compute();
     window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
+    reducedMotionQuery.addEventListener("change", compute);
+    return () => {
+      window.removeEventListener("resize", compute);
+      reducedMotionQuery.removeEventListener("change", compute);
+    };
   }, []);
 
   const scrollToHashIfPresent = useCallback(() => {
@@ -200,19 +210,37 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
     const prefersReduced =
       window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+    const touchDevice =
+      isTouch ||
+      "ontouchstart" in window ||
+      navigator.maxTouchPoints > 0 ||
+      (navigator as any).msMaxTouchPoints > 0;
 
     const wrapper = wrapperRef.current;
     const content = contentRef.current;
     if (!wrapper || !content) return;
 
-    // If loader is playing: kill smoother + remove transforms (DO NOT touch opacity)
-    if (suppressForLoader) {
+    const restoreNativeScroller = () => {
       try {
         ScrollSmoother.get()?.kill();
       } catch { }
 
+      // ScrollSmoother may have been created during the first client layout
+      // pass, before touch capability state settles. Explicitly restore the
+      // document as the scroller so every section can use window ScrollTrigger.
+      wrapper.style.position = "relative";
+      wrapper.style.inset = "auto";
+      wrapper.style.width = "auto";
+      wrapper.style.height = "auto";
+      wrapper.style.overflow = "visible";
+      wrapper.style.overflowX = "clip";
+      content.style.transform = "";
       wrapper.setAttribute("data-smooth-active", "false");
-      gsap.set(content, { clearProps: "transform" });
+    };
+
+    // If loader is playing: kill smoother + remove transforms (DO NOT touch opacity)
+    if (suppressForLoader) {
+      restoreNativeScroller();
 
       try {
         ScrollTrigger.refresh();
@@ -221,22 +249,20 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       return;
     }
 
-    // Reduced motion: kill smoother and use native scroll
-    if (prefersReduced) {
+    // Touch and reduced-motion modes use a genuinely native scroll container.
+    // Killing normalizeScroll is important here too: it otherwise continues to
+    // intercept touch input even after ScrollSmoother has been removed.
+    if (prefersReduced || touchDevice) {
       try {
-        ScrollSmoother.get()?.kill();
+        ScrollTrigger.normalizeScroll(false);
       } catch { }
 
-      wrapper.setAttribute("data-smooth-active", "false");
-      gsap.set(content, { clearProps: "transform" });
+      restoreNativeScroller();
+      requestAnimationFrame(() => ScrollTrigger.refresh());
       return;
     }
 
-    // IMPORTANT: we keep smoother ON for mobile/tablet too.
-    // Desktop: smooth = 1
-    // Mobile/tablet: smooth ~= 0 (no smoothing), but still uses the smoother scroller/wrapper.
-    const smooth = isDesktop && !isTouch ? 1 : 0.001; // near-native
-    const smoothTouch = 0; // NO smoothing on touch
+    const smooth = isDesktop ? 1 : 0.001;
 
     try {
       if ("scrollRestoration" in window.history) {
@@ -430,7 +456,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
         wrapper,
         content,
         smooth,
-        smoothTouch,
+        smoothTouch: 0,
         effects: true,
         normalizeScroll: true,
       });
@@ -485,20 +511,30 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
       wrapper.setAttribute("data-smooth-active", "false");
     };
-  }, [pathname, isDesktop, isTouch, suppressForLoader, scrollToHashIfPresent, stabilizeHashIfPresent]);
+  }, [
+    pathname,
+    isDesktop,
+    isTouch,
+    prefersReducedMotion,
+    suppressForLoader,
+    scrollToHashIfPresent,
+    stabilizeHashIfPresent,
+  ]);
 
-  // Keep DOM structure stable; toggle styles only.
-  // With smoother always on (unless loader/reduced), wrapper is always the scroll container.
-  const wrapperStyle: React.CSSProperties =
-    suppressForLoader ? { height: "auto", overflow: "visible" } : { height: "var(--app-height, 100vh)" };
+  // Keep DOM structure stable; toggle styles only. Touch/reduced modes scroll
+  // the document itself, while fine-pointer desktop uses this as the smoother.
+  const nativeScroll = suppressForLoader || isTouch || prefersReducedMotion;
+  const wrapperStyle: React.CSSProperties = nativeScroll
+    ? { height: "auto", overflow: "visible", overflowX: "clip" }
+    : { height: "var(--app-height, 100vh)" };
 
   const wrapperClass =
-    suppressForLoader
-      ? "relative overflow-visible overflow-x-hidden [overflow-anchor:none]"
+    nativeScroll
+      ? "relative [overflow-x:clip] [overflow-y:visible] [overflow-anchor:none]"
       : "relative overflow-hidden overflow-x-hidden [overflow-anchor:none]";
 
   const contentClass =
-    suppressForLoader
+    nativeScroll
       ? "min-h-[100vh] [overflow-anchor:none]"
       : "min-h-[var(--app-height,100vh)] will-change-transform [transform:translate3d(0,0,0)] [overflow-anchor:none]";
 

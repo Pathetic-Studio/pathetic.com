@@ -200,12 +200,14 @@ export default function TalentMatrixScene({
   cameraScrollProgress,
   avatarCount = 0,
   avatarLabels = [],
+  quality = "desktop",
 }: {
   color?: string;
   density?: number;
   cameraScrollProgress?: MutableRefObject<{ value: number }>;
   avatarCount?: number;
   avatarLabels?: string[];
+  quality?: "desktop" | "tablet" | "mobile";
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const avatarLabelsKey = avatarLabels.slice(0, 4).join("\u0000");
@@ -227,7 +229,9 @@ export default function TalentMatrixScene({
       return;
     }
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 0.8));
+    const renderPixelRatio =
+      quality === "desktop" ? 0.8 : quality === "tablet" ? 0.68 : 0.56;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderPixelRatio));
     renderer.setClearColor(0x000200, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
@@ -541,6 +545,7 @@ export default function TalentMatrixScene({
     );
     const cameraBasePosition = fallbackCamera.position.clone();
     const cameraBaseQuaternion = fallbackCamera.quaternion.clone();
+    let cameraBaseFov = fallbackCamera.fov;
     const avatarGroup = new THREE.Group();
     avatarGroup.name = "Talent_Avatars_World";
     scene.add(avatarGroup);
@@ -663,6 +668,7 @@ export default function TalentMatrixScene({
           bloomRenderPass.camera = activeCamera;
           cameraBasePosition.copy(modelCamera.position);
           cameraBaseQuaternion.copy(modelCamera.quaternion);
+          cameraBaseFov = modelCamera.fov;
           host.dataset.cameraSource = "gltf";
           resize();
         } else {
@@ -831,15 +837,36 @@ export default function TalentMatrixScene({
       pointerInside = false;
       setBuildingHover(null);
     };
-    host.addEventListener("pointermove", onPointerMove, { passive: true });
-    host.addEventListener("pointerleave", onPointerLeave, { passive: true });
+    const finePointer = window.matchMedia(
+      "(hover: hover) and (pointer: fine)",
+    ).matches;
+    if (finePointer) {
+      host.addEventListener("pointermove", onPointerMove, { passive: true });
+      host.addEventListener("pointerleave", onPointerLeave, { passive: true });
+    }
 
     const resize = () => {
       const width = Math.max(host.clientWidth, 1);
       const height = Math.max(host.clientHeight, 1);
       renderer.setSize(width, height, false);
       bloomComposer.setSize(width, height);
-      activeCamera.aspect = width / height;
+      const aspect = width / height;
+      activeCamera.aspect = aspect;
+      const referenceAspect = 1440 / 900;
+      const maximumPortraitFit =
+        quality === "desktop" ? 1 : quality === "tablet" ? 1.42 : 1.64;
+      const portraitFit = THREE.MathUtils.clamp(
+        referenceAspect / Math.max(aspect, 0.01),
+        1,
+        maximumPortraitFit,
+      );
+      activeCamera.fov = THREE.MathUtils.radToDeg(
+        2 *
+          Math.atan(
+            Math.tan(THREE.MathUtils.degToRad(cameraBaseFov) / 2) *
+              portraitFit,
+          ),
+      );
       activeCamera.updateProjectionMatrix();
     };
     const resizeObserver = new ResizeObserver(resize);
@@ -900,10 +927,13 @@ export default function TalentMatrixScene({
       }
       previousFrameTime = now;
 
-      if (
-        now - lastMatrixSurfaceUpdate >=
-        MATRIX_TEXTURE_UPDATE_INTERVAL
-      ) {
+      const matrixTextureInterval =
+        quality === "desktop"
+          ? MATRIX_TEXTURE_UPDATE_INTERVAL
+          : quality === "tablet"
+            ? 320
+            : 410;
+      if (now - lastMatrixSurfaceUpdate >= matrixTextureInterval) {
         matrixFrame = (matrixFrame + 1) % MATRIX_TEXTURE_FRAME_COUNT;
         backgroundMaterial.map = backgroundSurface.textures[matrixFrame];
         floorMaterial.map = floorSurface.textures[matrixFrame];
@@ -913,7 +943,7 @@ export default function TalentMatrixScene({
         host.dataset.matrixFrame = `${matrixFrame}`;
         host.dataset.matrixSurface = "precomputed";
         lastMatrixSurfaceUpdate =
-          now - ((now - lastMatrixSurfaceUpdate) % MATRIX_TEXTURE_UPDATE_INTERVAL);
+          now - ((now - lastMatrixSurfaceUpdate) % matrixTextureInterval);
       }
 
       activeCamera.position.x +=
@@ -945,6 +975,7 @@ export default function TalentMatrixScene({
 
       const hasHoveredBuilding = hoveredBuilding !== null;
       let renderBloom =
+        quality === "desktop" &&
         hasHoveredBuilding &&
         now >= bloomCooldownUntil &&
         (bloomWasRendered || smoothedFps >= BLOOM_RESUME_FPS);
@@ -1009,8 +1040,10 @@ export default function TalentMatrixScene({
       if (warmupTimerHandle !== null) {
         window.clearTimeout(warmupTimerHandle);
       }
-      host.removeEventListener("pointermove", onPointerMove);
-      host.removeEventListener("pointerleave", onPointerLeave);
+      if (finePointer) {
+        host.removeEventListener("pointermove", onPointerMove);
+        host.removeEventListener("pointerleave", onPointerLeave);
+      }
       clearBuildingHover();
       scene.traverse((object) => {
         if (
@@ -1039,11 +1072,13 @@ export default function TalentMatrixScene({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [avatarCount, avatarLabelsKey, cameraScrollProgress, color]);
+  }, [avatarCount, avatarLabelsKey, cameraScrollProgress, color, quality]);
 
   return (
     <div
       ref={hostRef}
+      data-matrix-scene
+      data-matrix-quality={quality}
       className="absolute inset-0 [&>canvas]:block [&>canvas]:h-full [&>canvas]:w-full data-[webgl-fallback=true]:bg-[repeating-linear-gradient(90deg,transparent_0_4vw,rgba(0,255,70,.13)_4vw_calc(4vw+1px)),repeating-linear-gradient(0deg,transparent_0_4vw,rgba(0,255,70,.12)_4vw_calc(4vw+1px))]"
       aria-hidden="true"
     />

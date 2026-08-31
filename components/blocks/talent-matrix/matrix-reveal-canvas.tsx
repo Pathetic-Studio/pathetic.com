@@ -26,12 +26,14 @@ export default function MatrixRevealCanvas({
   density = 96,
   changeSpeed = 1,
   softness = 0.13,
+  quality = "desktop",
 }: {
   progress: MutableRefObject<{ value: number }>;
   color?: string;
   density?: number;
   changeSpeed?: number;
   softness?: number;
+  quality?: "desktop" | "tablet" | "mobile";
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
 
@@ -53,15 +55,18 @@ export default function MatrixRevealCanvas({
 
     // The chunky glyphs and soft fade retain their detail below native
     // resolution while leaving enough GPU headroom for the scene underneath.
-    renderer.setPixelRatio(0.65);
+    const pixelRatio =
+      quality === "desktop" ? 0.65 : quality === "tablet" ? 0.55 : 0.48;
+    renderer.setPixelRatio(pixelRatio);
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
 
-    const textureFrameWidth = 1024;
+    const textureFrameWidth = quality === "mobile" ? 768 : 1024;
+    const textureFrameHeight = quality === "mobile" ? 384 : 512;
     const rainCanvas = document.createElement("canvas");
     rainCanvas.width = textureFrameWidth * GLYPH_FRAMES;
-    rainCanvas.height = 512;
+    rainCanvas.height = textureFrameHeight;
     const context = rainCanvas.getContext("2d");
     if (!context) {
       renderer.dispose();
@@ -70,9 +75,15 @@ export default function MatrixRevealCanvas({
       return;
     }
 
+    const minimumColumns =
+      quality === "desktop" ? 112 : quality === "tablet" ? 88 : 68;
+    const maximumColumns =
+      quality === "desktop" ? 260 : quality === "tablet" ? 190 : 148;
+    const densityMultiplier =
+      quality === "desktop" ? 1.75 : quality === "tablet" ? 1.35 : 1.05;
     const columns = Math.max(
-      112,
-      Math.min(260, Math.round(density * 1.75)),
+      minimumColumns,
+      Math.min(maximumColumns, Math.round(density * densityMultiplier)),
     );
     const columnWidth = textureFrameWidth / columns;
     const glyphSize = columnWidth * 1.82;
@@ -209,6 +220,9 @@ export default function MatrixRevealCanvas({
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
     resize();
+    renderer.clear();
+    host.style.opacity = "0";
+    host.style.visibility = "hidden";
 
     let visible = false;
     const intersectionObserver = new IntersectionObserver(
@@ -268,12 +282,18 @@ export default function MatrixRevealCanvas({
       const active = currentProgress > 0.002 && currentProgress < 0.998;
       if (!active) {
         if (wasActive) renderer.clear();
+        host.style.opacity = "0";
+        host.style.visibility = "hidden";
         wasActive = false;
         return;
       }
 
+      host.style.opacity = "1";
+      host.style.visibility = "visible";
       wasActive = true;
-      if (now - renderedAt < 30) return;
+      const frameInterval =
+        quality === "desktop" ? 30 : quality === "tablet" ? 33 : 36;
+      if (now - renderedAt < frameInterval) return;
       const glyphFrame = Math.floor(
         (now - startedAt) /
           (GLYPH_CHANGE_INTERVAL / Math.max(0.2, Math.min(3, changeSpeed))),
@@ -298,15 +318,18 @@ export default function MatrixRevealCanvas({
       texture.dispose();
       geometry.dispose();
       material.dispose();
+      host.style.opacity = "";
+      host.style.visibility = "";
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [changeSpeed, color, density, progress, softness]);
+  }, [changeSpeed, color, density, progress, quality, softness]);
 
   return (
     <div
       ref={hostRef}
       data-matrix-reveal
+      data-matrix-quality={quality}
       className="pointer-events-none absolute inset-0 z-50 [&>canvas]:block [&>canvas]:h-full [&>canvas]:w-full data-[webgl-fallback=true]:bg-[linear-gradient(180deg,transparent,rgba(0,255,70,.82),#001b08)] data-[webgl-fallback=true]:opacity-0"
       aria-hidden="true"
     />

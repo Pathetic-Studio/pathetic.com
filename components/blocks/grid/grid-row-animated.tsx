@@ -17,6 +17,7 @@ import GridCard from "./grid-card";
 import GridCardAnimated from "./grid-card-animated";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
+import { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
 import {
   GRID_ROW_ANIMATED_PARALLAX,
   type GridCardParallaxConfig,
@@ -45,6 +46,12 @@ const introPaddingClasses: Record<
 const CARD_STAGGER = 0.18;
 const CARD_DURATION = 0.7;
 const HEIGHT_STAGGER_PX = 120;
+const BELIEF_CARD_FLOAT_EFFECTS = [
+  { speed: 0.99, lag: 0.06, captionSpeed: 1.015, captionLag: 0.06 },
+  { speed: 1.01, lag: 0.08, captionSpeed: 0.99, captionLag: 0.08 },
+  { speed: 0.985, lag: 0.1, captionSpeed: 1.02, captionLag: 0.05 },
+] as const;
+const BELIEF_CAPTION_WIDTHS_REM = [12.75, 12, 12.75] as const;
 
 function getActiveScroller(): Window | HTMLElement {
   if (typeof window === "undefined") return {} as Window;
@@ -92,12 +99,14 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handleResize = () => {
       setIsDesktop(window.innerWidth >= 1024);
+      setIsMobile(window.innerWidth < 640);
     };
 
     handleResize();
@@ -117,6 +126,11 @@ export default function GridRowAnimated(props: GridRowAnimated) {
 
   const introHasContent =
     !!tagLine || !!title || !!body || (links && links.length > 0);
+  const cleanTitle = title ? stegaClean(title) : "";
+  const displayedTitle =
+    isBeliefSection && isMobile
+      ? cleanTitle.replace(/\s+BELIEVE\s*$/i, "\nBELIEVE")
+      : title;
 
   const introPaddingKey = (introPadding || "md") as NonNullable<
     GridRowAnimated["introPadding"]
@@ -141,6 +155,49 @@ export default function GridRowAnimated(props: GridRowAnimated) {
       // gsap.set(".caption-bubble", { opacity: 0, scale: 0.8, y: 8 });
 
       const scroller = getActiveScroller();
+
+      if (isBeliefSection) {
+        const captions = cards
+          .map((card) =>
+            card.querySelector<HTMLElement>(".caption-bubble"),
+          )
+          .filter((caption): caption is HTMLElement => Boolean(caption));
+        const timeline = gsap.timeline({
+          scrollTrigger: {
+            trigger: rootRef.current,
+            scroller,
+            start: "top 92%",
+            once: true,
+          },
+        });
+
+        timeline.to(
+          cards,
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            stagger: 0.07,
+            ease: "power3.out",
+          },
+          0,
+        );
+        if (captions.length) {
+          timeline.to(
+            captions,
+            {
+              autoAlpha: 1,
+              duration: 0.2,
+              stagger: 0.055,
+              ease: "power3.out",
+            },
+            0.1,
+          );
+        }
+
+        ScrollTrigger.refresh();
+        return;
+      }
 
       ScrollTrigger.batch(cards, {
         scroller,
@@ -225,6 +282,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   return (
     <section
       id={`_gridrow-animated-${_key}`}
+      data-typeon-trigger={isBeliefSection ? "true" : undefined}
       className="relative overflow-visible"
     >
       <SectionContainer color={color} padding={padding}>
@@ -238,8 +296,8 @@ export default function GridRowAnimated(props: GridRowAnimated) {
             {introHasContent && (
               <div
                 data-belief-intro={isBeliefSection ? "true" : undefined}
-                data-speed={isBeliefSection ? 0.9 : undefined}
-                data-lag={isBeliefSection ? 0.2 : undefined}
+                data-speed={isBeliefSection && isDesktop ? 0.9 : undefined}
+                data-lag={isBeliefSection && isDesktop ? 0.2 : undefined}
                 className={cn(
                   "container text-center will-change-transform",
                   isBeliefSection
@@ -263,7 +321,11 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                     align="center"
                     maxChars={isBeliefSection ? 0 : 21}
                     animation={"typeOn"}
-                    animationSpeed={isBeliefSection ? 4 : 1.2}
+                    animationSpeed={
+                      isBeliefSection
+                        ? TYPE_ON_SPEEDS.deliberate
+                        : TYPE_ON_SPEEDS.standard
+                    }
                     typeOnStart={isBeliefSection ? "top 90%" : undefined}
                     typeOnDelay={isBeliefSection ? 0 : undefined}
                     textColor={isBeliefSection ? "#ffffff" : undefined}
@@ -272,14 +334,14 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                     outlineWidth={1.5}
                     outlinePosition="outside"
                     fontWeight="bold"
-                    singleLine={isBeliefSection}
+                    singleLine={isBeliefSection && !isMobile}
                     className={
                       isBeliefSection
-                        ? "!w-full [&_h2]:leading-[.76] [&_h2]:tracking-[-.01em]"
+                        ? "!w-full [&_h2]:whitespace-pre-line [&_h2]:leading-[.76] [&_h2]:tracking-[-.01em]"
                         : undefined
                     }
                   >
-                    {title}
+                    {displayedTitle}
                   </TitleText>
                 )}
 
@@ -361,6 +423,11 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                               index === 0 ? 0 : index * HEIGHT_STAGGER_PX,
                           }
                           : {};
+                        const beliefFloatEffect = isBeliefSection
+                          ? BELIEF_CARD_FLOAT_EFFECTS[
+                              index % BELIEF_CARD_FLOAT_EFFECTS.length
+                            ]
+                          : undefined;
 
                         if (column._type === "grid-card") {
                           return (
@@ -369,11 +436,20 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                               className="relative"
                               style={offsetStyle}
                             >
-                              <div className={animatedCardClass}>
-                                <GridCard
-                                  {...(column as any)}
-                                  color={color}
-                                />
+                              <div
+                                data-belief-card-float={
+                                  isBeliefSection ? index : undefined
+                                }
+                                data-speed={isDesktop ? beliefFloatEffect?.speed : undefined}
+                                data-lag={isDesktop ? beliefFloatEffect?.lag : undefined}
+                                className="relative will-change-transform"
+                              >
+                                <div className={animatedCardClass}>
+                                  <GridCard
+                                    {...(column as any)}
+                                    color={color}
+                                  />
+                                </div>
                               </div>
                             </div>
                           );
@@ -383,6 +459,17 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                           animatedCardIndex += 1;
                           const parallaxConfig: GridCardParallaxConfig | undefined =
                             GRID_ROW_ANIMATED_PARALLAX[animatedCardIndex];
+                          const resolvedParallaxConfig = isBeliefSection
+                            ? isDesktop
+                              ? {
+                                ...parallaxConfig,
+                                captionSpeed:
+                                  beliefFloatEffect?.captionSpeed ?? 1,
+                                captionLag:
+                                  beliefFloatEffect?.captionLag ?? 0.2,
+                              }
+                              : undefined
+                            : parallaxConfig;
 
                           return (
                             <div
@@ -390,12 +477,29 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                               className="relative"
                               style={offsetStyle}
                             >
-                              <div className={animatedCardClass}>
-                                <GridCardAnimated
-                                  {...(column as any)}
-                                  color={color}
-                                  parallaxConfig={parallaxConfig}
-                                />
+                              <div
+                                data-belief-card-float={
+                                  isBeliefSection ? index : undefined
+                                }
+                                data-speed={isDesktop ? beliefFloatEffect?.speed : undefined}
+                                data-lag={isDesktop ? beliefFloatEffect?.lag : undefined}
+                                className="relative will-change-transform"
+                              >
+                                <div className={animatedCardClass}>
+                                  <GridCardAnimated
+                                    {...(column as any)}
+                                    color={color}
+                                    parallaxConfig={resolvedParallaxConfig}
+                                    captionDesktopWidthRem={
+                                      isBeliefSection
+                                        ? BELIEF_CAPTION_WIDTHS_REM[
+                                            animatedCardIndex %
+                                              BELIEF_CAPTION_WIDTHS_REM.length
+                                          ]
+                                        : undefined
+                                    }
+                                  />
+                                </div>
                               </div>
                             </div>
                           );
@@ -407,8 +511,17 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                             className="relative"
                             style={offsetStyle}
                           >
-                            <div className={animatedCardClass}>
-                              <div data-type={column._type} />
+                            <div
+                              data-belief-card-float={
+                                isBeliefSection ? index : undefined
+                              }
+                                data-speed={isDesktop ? beliefFloatEffect?.speed : undefined}
+                                data-lag={isDesktop ? beliefFloatEffect?.lag : undefined}
+                              className="relative will-change-transform"
+                            >
+                              <div className={animatedCardClass}>
+                                <div data-type={column._type} />
+                              </div>
                             </div>
                           </div>
                         );

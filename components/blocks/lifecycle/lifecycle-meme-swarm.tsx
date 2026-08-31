@@ -110,17 +110,19 @@ function getCompositionBox(
   }
 
   width = Math.min(width, bounds.width - 28);
-  const destinations = [
-    { left: bounds.width * 0.08, top: bounds.height * 0.15 },
-    { left: bounds.width * 0.055, top: (bounds.height - height) * 0.5 },
-    {
-      left: bounds.width - width - bounds.width * 0.045,
-      top: bounds.height - height - bounds.height * 0.045,
-    },
-  ];
-  const destination = destinations[groupIndex] ?? destinations[0];
-  const left = clamp(destination.left, 14, Math.max(14, bounds.width - width - 14));
-  const top = clamp(destination.top, 14, Math.max(14, bounds.height - height - 14));
+  // Every meme resolves into the same central viewing area. The scattered
+  // source image still determines which template is built, but the finished
+  // composition no longer jumps between desktop-specific corner positions.
+  const left = clamp(
+    (bounds.width - width) * 0.5,
+    14,
+    Math.max(14, bounds.width - width - 14),
+  );
+  const top = clamp(
+    (bounds.height - height) * 0.5,
+    14,
+    Math.max(14, bounds.height - height - 14),
+  );
 
   return {
     left: (left / bounds.width) * 100,
@@ -359,6 +361,7 @@ export default function LifecycleMemeSwarm({
     if (!root) return;
 
     const rootBounds = root.getBoundingClientRect();
+    const mobileRestScale = rootBounds.width < 640 ? 0.7 : 1;
     const items = gsap.utils.toArray<HTMLElement>(
       "[data-lifecycle-meme-image]",
       root,
@@ -383,10 +386,6 @@ export default function LifecycleMemeSwarm({
       const restZIndex = Number(item.dataset.restZIndex ?? 10);
       const isStandalone = item.dataset.memeStandalone === "true";
       const belongsToActiveGroup = groupIndex === activeMeme?.groupIndex;
-      const isReturningGroup =
-        !isStandalone &&
-        activeMeme === null &&
-        groupIndex === displayedMeme?.groupIndex;
       const isActiveItem = globalIndex === activeMeme?.globalIndex;
       const layer = isStandalone
         ? null
@@ -397,8 +396,8 @@ export default function LifecycleMemeSwarm({
 
       let left: string | number = `${restX}%`;
       let top: string | number = `${restY}%`;
-      let width = restWidth;
-      let height = restHeight;
+      let width = restWidth * (belongsToActiveGroup ? 1 : mobileRestScale);
+      let height = restHeight * (belongsToActiveGroup ? 1 : mobileRestScale);
 
       if (belongsToActiveGroup && compositionBox && layer) {
         const layerCenterX = layer.left + layer.width / 2;
@@ -428,16 +427,20 @@ export default function LifecycleMemeSwarm({
         rotationX: 0,
         rotationY: 0,
         z: 0,
-        zIndex:
-          belongsToActiveGroup || isReturningGroup
-            ? 110 + layerIndex
-            : restZIndex,
+        // Restore authored depth as soon as the return begins. Keeping the
+        // assembled z-index until the end made deeper items arrive above the
+        // title and then visibly snap behind it one frame later.
+        zIndex: belongsToActiveGroup ? 110 + layerIndex : restZIndex,
         force3D: true,
       };
 
       if (!hasInteractedRef.current) {
         gsap.set(item, properties);
         return;
+      }
+
+      if (activeMeme === null) {
+        gsap.set(item, { zIndex: restZIndex });
       }
 
       gsap.to(item, {

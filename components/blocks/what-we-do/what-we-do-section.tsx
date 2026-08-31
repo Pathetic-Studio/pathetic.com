@@ -1,7 +1,13 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import gsap from "gsap";
@@ -9,7 +15,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { stegaClean } from "next-sanity";
 import type { ColorVariant, PAGE_QUERYResult } from "@/sanity.types";
 import { BackgroundPanel } from "@/components/ui/background-panel";
-import TypeOnText from "@/components/ui/type-on-text";
+import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import { cn } from "@/lib/utils";
 import WorkContentViewer, {
@@ -68,6 +74,9 @@ type ItemStyle = CSSProperties & {
   "--item-mobile-x": string;
   "--item-mobile-y": string;
   "--item-mobile-width": string;
+  "--item-tablet-x": string;
+  "--item-tablet-y": string;
+  "--item-tablet-width": string;
 };
 
 const DEFAULT_POSITIONS = [
@@ -77,6 +86,28 @@ const DEFAULT_POSITIONS = [
   { x: 55, y: 68, width: 18, mobileX: 72, mobileY: 55, mobileWidth: 40 },
   { x: 72, y: 28, width: 12, mobileX: 28, mobileY: 72, mobileWidth: 32 },
   { x: 84, y: 38, width: 11, mobileX: 72, mobileY: 78, mobileWidth: 30 },
+] as const;
+
+const TABLET_POSITIONS = [
+  { x: 14, y: 35, width: 13 },
+  { x: 38, y: 44, width: 12 },
+  { x: 64, y: 34, width: 13 },
+  { x: 86, y: 49, width: 15 },
+  { x: 21, y: 69, width: 13 },
+  { x: 52, y: 73, width: 12 },
+  { x: 80, y: 76, width: 13 },
+  { x: 39, y: 85, width: 13 },
+] as const;
+
+const MOBILE_POSITIONS = [
+  { x: 25, y: 35, width: 25 },
+  { x: 73, y: 37, width: 22 },
+  { x: 27, y: 51, width: 23 },
+  { x: 72, y: 53, width: 27 },
+  { x: 25, y: 68, width: 24 },
+  { x: 73, y: 69, width: 22 },
+  { x: 27, y: 83, width: 23 },
+  { x: 72, y: 84, width: 24 },
 ] as const;
 
 const DEFAULT_HAND_POINTS = {
@@ -245,22 +276,62 @@ function getProjectHref(project: FloatingProject["project"]) {
 
 function ProjectMedia({ item }: { item: ResolvedFloatingProject }) {
   const isCover = item.mediaFit === "cover";
+  const [loadVideo, setLoadVideo] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+
+  useEffect(() => {
+    if (item.mediaType !== "video" || !item.videoUrl) return;
+
+    const touch =
+      window.matchMedia("(pointer: coarse)").matches ||
+      navigator.maxTouchPoints > 0;
+    if (!touch) {
+      setLoadVideo(true);
+      return undefined;
+    }
+
+    // Touch layouts keep the lightweight poster in the composition. The same
+    // source is loaded only after the user opens the fullscreen viewer, which
+    // avoids a pair of video decodes competing with the section entrance.
+    setLoadVideo(false);
+    return undefined;
+  }, [item.mediaType, item.videoUrl]);
 
   if (item.mediaType === "video" && item.videoUrl) {
     return (
-      <video
-        src={item.videoUrl}
-        poster={item.videoPosterUrl || undefined}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        className={cn(
-          "h-full w-full",
-          isCover ? "object-cover" : "object-contain",
+      <div className="relative h-full w-full overflow-hidden bg-[#dadada]">
+        {item.videoPosterUrl ? (
+          <Image
+            src={item.videoPosterUrl}
+            alt={item.imageAlt || item.title}
+            fill
+            loading="eager"
+            sizes="(min-width: 1024px) 20vw, 44vw"
+            className={isCover ? "object-cover" : "object-contain"}
+          />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center bg-[linear-gradient(145deg,#efefef,#b9b9b9)] text-center text-xs font-bold uppercase tracking-[.12em] text-black/55">
+            {item.title}
+          </div>
         )}
-      />
+        {loadVideo && (
+          <video
+            src={item.videoUrl}
+            poster={item.videoPosterUrl || undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            onCanPlay={() => setVideoReady(true)}
+            className={cn(
+              "relative h-full w-full transition-opacity duration-200",
+              videoReady ? "opacity-100" : "opacity-0",
+              isCover ? "object-cover" : "object-contain",
+            )}
+          />
+        )}
+      </div>
     );
   }
 
@@ -270,6 +341,7 @@ function ProjectMedia({ item }: { item: ResolvedFloatingProject }) {
         src={item.imageUrl}
         alt={item.imageAlt || ""}
         fill
+        loading="eager"
         sizes="(min-width: 1024px) 20vw, 40vw"
         className={isCover ? "object-cover" : "object-contain"}
       />
@@ -295,9 +367,21 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
   const handRef = useRef<HTMLDivElement | null>(null);
   const bodySocketRef = useRef<HTMLSpanElement | null>(null);
   const [activeRevealKey, setActiveRevealKey] = useState<string | null>(null);
+  const [touchLayout, setTouchLayout] = useState(false);
   const [viewerContent, setViewerContent] =
     useState<WorkViewerContent | null>(null);
   const closeViewer = useCallback(() => setViewerContent(null), []);
+
+  useEffect(() => {
+    const update = () =>
+      setTouchLayout(
+        window.matchMedia("(pointer: coarse)").matches ||
+          navigator.maxTouchPoints > 0,
+      );
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   const cleanColor = (stegaClean(colorVariant) || "background") as ColorVariant;
   const cleanAnchor = stegaClean(anchor?.anchorId) || undefined;
@@ -461,14 +545,14 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     const context = gsap.context(() => {
       gsap.set(floatingLayers, { rotation: 0, rotationX: 0, rotationY: 0 });
       gsap.set(revealLayers, {
-        autoAlpha: reduceMotion ? 1 : 0,
-        scale: reduceMotion ? 1 : 0.72,
+        autoAlpha: 1,
+        scale: reduceMotion ? 1 : hasFinePointer ? 0.12 : 0.68,
         transformOrigin: "50% 50%",
       });
       gsap.set(scrollLagLayers, { y: 0 });
 
       if (!reduceMotion) {
-        scrollLagLayers.forEach((layer) => {
+        if (hasFinePointer) scrollLagLayers.forEach((layer) => {
           const speed = Number(layer.dataset.scrollSpeed || 0.14);
           const rate = Number(layer.dataset.scrollRate);
           const lag = Number(layer.dataset.scrollLag || 0.9);
@@ -503,22 +587,21 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
 
         ScrollTrigger.create({
           trigger: root,
-          start: "top 60%",
+          start: hasFinePointer ? "top 72%" : "top 88%",
           once: true,
           onEnter: () => {
             gsap.to(revealLayers, {
-              autoAlpha: 1,
               scale: 1,
-              duration: 0.72,
-              delay: 0.62,
-              stagger: 0.105,
-              ease: "back.out(1.55)",
+              duration: hasFinePointer ? 0.44 : 0.22,
+              delay: hasFinePointer ? 0.14 : 0,
+              stagger: hasFinePointer ? 0.06 : 0.055,
+              ease: hasFinePointer ? "back.out(1.9)" : "back.out(1.35)",
               overwrite: "auto",
             });
           },
         });
 
-        floatingLayers.forEach((layer, index) => {
+        if (hasFinePointer) floatingLayers.forEach((layer, index) => {
           const amount = Number(layer.dataset.floatAmount || 12);
           const duration = Number(layer.dataset.floatDuration || 5);
           const direction = index % 2 === 0 ? 1 : -1;
@@ -1164,9 +1247,10 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
   return (
     <section
       ref={rootRef}
-      id={cleanAnchor || `_what-we-do-${_key}`}
+      id={cleanAnchor || "work"}
+      data-typeon-trigger="true"
       className={cn(
-        "relative isolate z-[3] h-[128svh] min-h-[128svh] overflow-visible md:h-[136svh] md:min-h-[136svh]",
+        "relative isolate z-[3] h-[100svh] min-h-[100svh] overflow-visible",
         getSectionSurfaceClass(cleanColor),
         padding?.top ? "pt-16 xl:pt-20" : undefined,
         padding?.bottom ? "pb-16 xl:pb-20" : undefined,
@@ -1177,21 +1261,20 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       <div className="relative mx-auto h-full min-h-0 max-w-[1800px]">
         {heading && (
           <div
-            data-typeon-trigger="true"
             className="pointer-events-none absolute inset-x-0 top-[22%] z-20 flex justify-center md:top-[28%]"
           >
             <div
               data-what-we-do-scroll-lag
               data-scroll-rate="0.8"
               data-scroll-lag="2.4"
-              className="will-change-transform"
+              className="lg:will-change-transform"
             >
               <h2 className="whitespace-nowrap text-center text-base font-bold uppercase md:text-xl">
                 <TypeOnText
                   text={stegaClean(heading)}
                   trigger="scroll"
-                  start="top 60%"
-                  speed={1.65}
+                  start="top 78%"
+                  speed={TYPE_ON_SPEEDS.quick}
                 />
               </h2>
             </div>
@@ -1201,13 +1284,18 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         <div className="absolute inset-0 z-20">
           {validItems.map((item, index) => {
             const fallback = DEFAULT_POSITIONS[index % DEFAULT_POSITIONS.length];
+            const tablet = TABLET_POSITIONS[index % TABLET_POSITIONS.length];
+            const mobile = MOBILE_POSITIONS[index % MOBILE_POSITIONS.length];
             const style: ItemStyle = {
               "--item-x": `${item.positionX ?? fallback.x}%`,
               "--item-y": `${item.positionY ?? fallback.y}%`,
               "--item-width": `${item.width ?? fallback.width}%`,
-              "--item-mobile-x": `${item.mobilePositionX ?? fallback.mobileX}%`,
-              "--item-mobile-y": `${item.mobilePositionY ?? fallback.mobileY}%`,
-              "--item-mobile-width": `${item.mobileWidth ?? fallback.mobileWidth}%`,
+              "--item-mobile-x": `${mobile.x}%`,
+              "--item-mobile-y": `${mobile.y}%`,
+              "--item-mobile-width": `${mobile.width}%`,
+              "--item-tablet-x": `${tablet.x}%`,
+              "--item-tablet-y": `${tablet.y}%`,
+              "--item-tablet-width": `${tablet.width}%`,
               zIndex: 20 + index,
             };
             const title = item.title;
@@ -1220,14 +1308,14 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                 data-what-we-do-scroll-lag
                 data-scroll-speed={scrollSpeed}
                 data-scroll-lag={scrollLag}
-                className="relative will-change-transform"
+                className="relative lg:will-change-transform"
               >
                 <div data-what-we-do-reveal className="relative will-change-transform">
                   <div
                     data-what-we-do-float
                     data-float-amount={item.floatAmount ?? 12}
                     data-float-duration={item.floatDuration ?? 5}
-                    className="relative will-change-transform"
+                    className="relative lg:will-change-transform"
                   >
                     <div
                       className={cn(
@@ -1272,7 +1360,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               </div>
             );
             const projectClassName =
-              "group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-x)] md:top-[var(--item-y)] md:w-[var(--item-width)]";
+              "group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-tablet-x)] md:top-[var(--item-tablet-y)] md:w-[var(--item-tablet-width)] lg:left-[var(--item-x)] lg:top-[var(--item-y)] lg:w-[var(--item-width)]";
 
             if (item.interactionMode === "link" && href) {
               return (
@@ -1357,20 +1445,20 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           {showSizzleReel && (
             <div
               data-what-we-do-project
-              className="group absolute left-[36%] top-[80%] z-40 w-[30%] -translate-x-1/2 -translate-y-1/2 md:left-[35%] md:top-[79%] md:w-[13%]"
+              className="group absolute left-[72%] top-[84%] z-40 w-[25%] -translate-x-1/2 -translate-y-1/2 md:left-[41%] md:top-[86%] md:w-[15%] lg:left-[35%] lg:top-[79%] lg:w-[13%]"
             >
               <div
                 data-what-we-do-scroll-lag
                 data-scroll-speed="0.24"
                 data-scroll-lag="1.55"
-                className="relative will-change-transform"
+                className="relative lg:will-change-transform"
               >
                 <div data-what-we-do-reveal className="relative will-change-transform">
                   <div
                     data-what-we-do-float
                     data-float-amount="6"
                     data-float-duration="5.2"
-                    className="relative will-change-transform"
+                    className="relative lg:will-change-transform"
                   >
                     <button
                       type="button"
@@ -1389,7 +1477,9 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                         aria-hidden="true"
                         className="absolute inset-0 scale-110 bg-center transition-transform duration-300 group-hover:scale-125"
                         style={{
-                          backgroundImage: `url(${sizzleFireSrc})`,
+                          backgroundImage: touchLayout
+                            ? "url(/images/what-we-do/sizzle-fire-poster.png)"
+                            : `url(${sizzleFireSrc})`,
                           backgroundPosition: "center bottom",
                           backgroundRepeat: "no-repeat",
                           backgroundSize: "contain",

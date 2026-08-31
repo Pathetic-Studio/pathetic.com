@@ -25,10 +25,12 @@ export function TalentMatrixView({
   block,
   className = "",
   cameraScrollProgress,
+  quality = "desktop",
 }: {
   block: TalentMatrixBlock;
   className?: string;
   cameraScrollProgress?: MutableRefObject<{ value: number }>;
+  quality?: "desktop" | "tablet" | "mobile";
 }) {
   const sceneColor = colorValue(block.sceneColor, "#00ff46");
   const backgroundColor = colorValue(block.backgroundColor, "#000600");
@@ -64,10 +66,11 @@ export function TalentMatrixView({
         avatarLabels={talents
           .slice(0, 4)
           .map((talent) => stegaClean(talent.label) || "")}
+        quality={quality}
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,transparent_0%,rgba(0,12,3,.06)_38%,rgba(0,4,1,.42)_100%),linear-gradient(180deg,rgba(0,0,0,.06),transparent_50%,rgba(0,0,0,.2))]" />
 
-      <div data-talent-copy className="pointer-events-none absolute inset-x-4 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center text-center">
+      <div data-talent-copy className="pointer-events-none absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center text-center sm:inset-x-4">
         {block.eyebrow && (
           <TitleText
             variant="stretched"
@@ -94,7 +97,7 @@ export function TalentMatrixView({
             textColor="#ffffff"
             stretchScaleX={0.66}
             overallScale={1.2}
-            className="pointer-events-auto !mt-[4.25rem] !w-auto select-text [&_p]:leading-[.8] [&_p]:tracking-[-.045em]"
+            className="pointer-events-auto !mt-[2.4rem] !w-auto select-text sm:!mt-[3.25rem] lg:!mt-[4.25rem] [&_p]:leading-[.8] [&_p]:tracking-[-.045em]"
           >
             {stegaClean(block.accentWord)}
           </TitleText>
@@ -130,7 +133,7 @@ export function TalentMatrixView({
           </TitleText>
         </div>
         {cleanDescription && (
-          <p className="pointer-events-auto mt-6 w-[90vw] max-w-[34rem] select-text text-[clamp(1rem,1.3vw,1.3rem)] leading-[1.1] text-white lg:w-[clamp(31rem,37vw,34rem)] [text-shadow:0_2px_8px_#000]">
+          <p className="pointer-events-auto mt-4 w-[88vw] max-w-[34rem] select-text text-[clamp(.92rem,1.3vw,1.3rem)] leading-[1.08] text-white sm:mt-5 sm:text-[1.15rem] lg:mt-6 lg:w-[clamp(31rem,37vw,34rem)] lg:text-[clamp(.92rem,1.3vw,1.3rem)] [text-shadow:0_2px_8px_#000]">
             {descriptionLines.map((line, index) => (
               <span key={`${line}-${index}`} className="lg:block">
                 {line}
@@ -164,7 +167,7 @@ export function TalentMatrixView({
 }
 
 export default function TalentMatrixSection(block: TalentMatrixBlock) {
-  const id = stegaClean(block.anchor?.anchorId) || `_talent-matrix-${block._key}`;
+  const id = stegaClean(block.anchor?.anchorId) || "talent-matrix";
 
   return (
     <section id={id} className="relative min-h-[100svh] overflow-hidden">

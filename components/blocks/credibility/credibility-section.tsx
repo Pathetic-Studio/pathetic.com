@@ -7,6 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { stegaClean } from "next-sanity";
 import type { ColorVariant, PAGE_QUERYResult } from "@/sanity.types";
 import TitleText from "@/components/ui/title-text";
+import { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import { cn } from "@/lib/utils";
@@ -86,13 +87,14 @@ function LogoBlob({
                 data-credibility-logo
                 data-logo-index={index}
                 className="relative h-full w-full will-change-transform"
+                style={{ transform: "scale(0)" }}
               >
                 <Image
                   src={logo.asset!.url!}
                   alt={logo.alt || ""}
                   fill
                   sizes="(min-width: 1024px) 72px, 44px"
-                  className="object-contain drop-shadow-[0_10px_12px_rgba(0,0,0,0.16)]"
+                  className="object-contain"
                 />
               </div>
             </div>
@@ -136,6 +138,9 @@ export default function CredibilitySection(props: CredibilityBlock) {
       const blobs = gsap.utils.toArray<HTMLElement>(
         "[data-credibility-blob]",
         root,
+      );
+      const arrowPath = root.querySelector<SVGPathElement>(
+        "[data-credibility-arrow-path]",
       );
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
@@ -191,23 +196,52 @@ export default function CredibilitySection(props: CredibilityBlock) {
         removeTicker = () => gsap.ticker.remove(updateSpheres);
       }
 
-      if (logoItems.length) {
-        gsap.fromTo(
-          logoItems,
-          { autoAlpha: 0, scale: 0.2 },
-          {
-            autoAlpha: 1,
-            scale: 1,
-            duration: 0.9,
-            stagger: { each: 0.05, from: "random" },
-            ease: "back.out(1.6)",
-            scrollTrigger: {
-              trigger: root,
-              start: "top 72%",
-              once: true,
-            },
-            immediateRender: false,
+      if (reduceMotion) {
+        gsap.set(logoItems, { autoAlpha: 1, scale: 1 });
+        if (arrowPath) gsap.set(arrowPath, { strokeDashoffset: 0 });
+      } else {
+        gsap.set(logoItems, {
+          autoAlpha: 1,
+          scale: 0,
+          transformOrigin: "50% 50%",
+        });
+        if (arrowPath) {
+          gsap.set(arrowPath, {
+            strokeDasharray: 1,
+            strokeDashoffset: 1,
+          });
+        }
+
+        const entrance = gsap.timeline({
+          scrollTrigger: {
+            trigger: root,
+            start: "top 82%",
+            once: true,
           },
+        });
+
+        if (arrowPath) {
+          entrance.to(
+            arrowPath,
+            {
+              strokeDashoffset: 0,
+              duration: 0.34,
+              ease: "power3.out",
+            },
+            0.14,
+          );
+        }
+
+        entrance.to(
+          logoItems,
+          {
+            scale: 1,
+            duration: 0.42,
+            stagger: { each: 0.035, from: "random" },
+            ease: "back.out(1.85)",
+            overwrite: "auto",
+          },
+          0.22,
         );
       }
     }, root);
@@ -222,6 +256,7 @@ export default function CredibilitySection(props: CredibilityBlock) {
     <section
       ref={rootRef}
       id={cleanAnchor || `_credibility-${_key}`}
+      data-typeon-trigger="true"
       className={cn(
         "relative isolate overflow-hidden",
         getSectionSurfaceClass(cleanColor),
@@ -233,12 +268,15 @@ export default function CredibilitySection(props: CredibilityBlock) {
 
       <div className="relative mx-auto flex min-h-[780px] max-w-[1800px] flex-col items-center justify-center px-8 py-16 md:min-h-[680px] lg:h-[clamp(560px,43vw,680px)] lg:min-h-0 lg:px-8 lg:py-10">
         <svg
+          data-credibility-arrow
           aria-hidden="true"
           viewBox="0 0 1000 40"
           preserveAspectRatio="none"
           className="pointer-events-none absolute left-[10%] top-[58%] z-20 h-8 w-[80%] -translate-y-1/2 overflow-visible text-foreground lg:left-[29%] lg:top-1/2 lg:w-[46%]"
         >
           <path
+            data-credibility-arrow-path
+            pathLength="1"
             d="M20 20H980M20 20L34 8M20 20L34 32M980 20L966 8M980 20L966 32"
             fill="none"
             stroke="currentColor"
@@ -255,7 +293,10 @@ export default function CredibilitySection(props: CredibilityBlock) {
               size="display-compact"
               align="center"
               maxChars={22}
-              animation="none"
+              animation="typeOn"
+              animationSpeed={TYPE_ON_SPEEDS.rapid}
+              typeOnStart="top 82%"
+              typeOnDelay={0}
               className="whitespace-pre-line [text-wrap:wrap]"
               textColor={displayTextStyle?.fillColor?.hex || undefined}
               textOutline={Boolean(displayTextStyle?.outline)}

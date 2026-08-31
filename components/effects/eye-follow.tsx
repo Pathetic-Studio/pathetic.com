@@ -27,6 +27,7 @@ type EyeFollowProps = {
     edgePadding?: number;
     staggerOnEnter?: boolean;
     staggerEnterDelayMs?: number;
+    staggerEnterRootMargin?: string;
 };
 
 type MousePos = { x: number; y: number } | null;
@@ -84,6 +85,7 @@ export default function EyeFollow({
     edgePadding = 0,
     staggerOnEnter = false,
     staggerEnterDelayMs = 0,
+    staggerEnterRootMargin = "0px 0px -22% 0px",
 }: EyeFollowProps) {
     const [mouse, setMouse] = useState<MousePos>(null);
     const [rect, setRect] = useState<Rect>(null);
@@ -191,7 +193,7 @@ export default function EyeFollow({
                 );
                 observer.disconnect();
             },
-            { rootMargin: "0px 0px -22% 0px", threshold: 0.01 },
+            { rootMargin: staggerEnterRootMargin, threshold: 0.01 },
         );
 
         observer.observe(el);
@@ -199,7 +201,12 @@ export default function EyeFollow({
             window.clearTimeout(revealTimer);
             observer.disconnect();
         };
-    }, [containerId, staggerEnterDelayMs, staggerOnEnter]);
+    }, [
+        containerId,
+        staggerEnterDelayMs,
+        staggerEnterRootMargin,
+        staggerOnEnter,
+    ]);
 
     // Pointer tracking and click-to-add
     useEffect(() => {
@@ -209,6 +216,10 @@ export default function EyeFollow({
         if (!el) return;
 
         const handleMove = (event: PointerEvent) => {
+            if (event.pointerType === "touch") {
+                setMouse(null);
+                return;
+            }
             const r = el.getBoundingClientRect();
             const localX = event.clientX - r.left;
             const localY = event.clientY - r.top;
@@ -373,8 +384,24 @@ export default function EyeFollow({
 
         let rafId: number;
         let lastTime = performance.now();
+        let visible = false;
+        const container = document.getElementById(containerId);
+        const visibilityObserver = container
+            ? new IntersectionObserver(
+                ([entry]) => {
+                    visible = entry?.isIntersecting ?? false;
+                },
+                { rootMargin: "20% 0px" },
+            )
+            : null;
+        if (container) visibilityObserver?.observe(container);
 
         const step = (time: number) => {
+            if (!visible) {
+                lastTime = time;
+                rafId = requestAnimationFrame(step);
+                return;
+            }
             const dt = Math.min((time - lastTime) / 1000, 0.032);
             lastTime = time;
 
@@ -470,8 +497,9 @@ export default function EyeFollow({
 
         return () => {
             cancelAnimationFrame(rafId);
+            visibilityObserver?.disconnect();
         };
-    }, [edgePadding, internalEyes, isMobile]);
+    }, [containerId, edgePadding, internalEyes, isMobile]);
 
     if (!internalEyes || internalEyes.length === 0) return null;
 

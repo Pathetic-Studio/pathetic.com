@@ -9,7 +9,7 @@ import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import EyeFollow from "@/components/effects/eye-follow";
 import TitleText from "@/components/ui/title-text";
-import TypeOnText from "@/components/ui/type-on-text";
+import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
 
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type NetworkReachBlock = Extract<PageBlock, { _type: "network-reach-section" }>;
@@ -109,7 +109,14 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
 
       friendItems.forEach((item) => {
         const tag = item.querySelector<HTMLElement>("[data-network-friend-tag]");
+        const visual = item.querySelector<HTMLElement>(
+          "[data-network-friend-visual]",
+        );
         if (!tag) return;
+
+        if (visual) {
+          gsap.set(visual, { transformOrigin: "50% 100%" });
+        }
 
         gsap.set(tag, {
           autoAlpha: 0,
@@ -134,6 +141,15 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
         };
         const onEnter = (event: PointerEvent) => {
           onMove(event);
+          if (visual) {
+            gsap.to(visual, {
+              y: -9,
+              scale: 1.045,
+              duration: 0.3,
+              ease: "power3.out",
+              overwrite: "auto",
+            });
+          }
           gsap.to(tag, {
             autoAlpha: 1,
             scale: 1,
@@ -143,6 +159,15 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
           });
         };
         const onLeave = () => {
+          if (visual) {
+            gsap.to(visual, {
+              y: 0,
+              scale: 1,
+              duration: 0.26,
+              ease: "power3.out",
+              overwrite: "auto",
+            });
+          }
           gsap.to(tag, {
             autoAlpha: 0,
             scale: 0.82,
@@ -174,7 +199,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
     <section
       ref={rootRef}
       id={sectionId}
-      className="relative isolate bg-background p-3 sm:p-4 lg:p-6"
+      className="relative isolate bg-background p-2.5 sm:p-4 lg:p-6"
     >
       <div
         className="relative overflow-hidden rounded-none border border-current"
@@ -182,7 +207,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
       >
         <div
           id={eyeAreaId}
-          className="relative min-h-[34rem] cursor-crosshair sm:min-h-[37rem] lg:min-h-[40rem]"
+          className="relative min-h-[32rem] cursor-default sm:min-h-[37rem] sm:cursor-crosshair lg:min-h-[40rem]"
         >
           <EyeFollow
             containerId={eyeAreaId}
@@ -195,19 +220,20 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
             spawnGap={12}
             edgePadding={12}
             staggerOnEnter
-            staggerEnterDelayMs={1650}
+            staggerEnterDelayMs={80}
+            staggerEnterRootMargin="0px 0px -8% 0px"
           />
 
           <div
             data-network-intro
+            data-typeon-trigger="true"
             data-network-float="intro"
             data-speed={NETWORK_FLOAT_EFFECTS.intro.speed}
             data-lag={NETWORK_FLOAT_EFFECTS.intro.lag}
-            className="pointer-events-none relative z-20 mx-auto flex max-w-[54rem] flex-col items-center px-4 pb-[clamp(8rem,13vw,12rem)] pt-[clamp(7rem,12vw,10rem)] text-center will-change-transform"
+            className="pointer-events-none relative z-20 mx-auto flex max-w-[54rem] flex-col items-center px-3 pb-[clamp(6rem,13vw,12rem)] pt-[clamp(5.75rem,12vw,10rem)] text-center will-change-transform sm:px-4"
           >
             <div
               data-network-intro-title
-              data-typeon-trigger="true"
               className="flex flex-col items-center"
             >
               {props.eyebrow && (
@@ -220,7 +246,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                   stretchScaleX={0.8}
                   overallScale={1}
                   animation="typeOn"
-                  animationSpeed={4}
+                  animationSpeed={TYPE_ON_SPEEDS.rapid}
                   typeOnStart="top 90%"
                   typeOnDelay={0}
                   className="!w-auto [&_p]:leading-[.84] [&_p]:tracking-[-.04em]"
@@ -237,7 +263,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 stretchScaleX={0.8}
                 overallScale={1}
                 animation="typeOn"
-                animationSpeed={4}
+                animationSpeed={TYPE_ON_SPEEDS.rapid}
                 typeOnStart="top 90%"
                 typeOnDelay={0.06}
                 className="!mt-3 !w-auto [&_p]:leading-[.82] [&_p]:tracking-[-.05em]"
@@ -253,7 +279,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 stretchScaleX={0.8}
                 overallScale={1}
                 animation="typeOn"
-                animationSpeed={4}
+                animationSpeed={TYPE_ON_SPEEDS.rapid}
                 typeOnStart="top 90%"
                 typeOnDelay={0.12}
                 className="!mt-3 !w-auto [&_h2]:leading-[.72] [&_h2]:tracking-[-.06em]"
@@ -264,12 +290,12 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
             {props.description && (
               <p
                 data-network-intro-body
-                className="mt-6 max-w-[34rem] text-[1rem] font-medium leading-[1.1] tracking-[-.025em] sm:text-[1.15rem] lg:text-[1.3rem]"
+                className="mt-5 max-w-[31rem] text-[.94rem] font-medium leading-[1.08] tracking-[-.025em] sm:mt-6 sm:text-[1.15rem] lg:max-w-[34rem] lg:text-[1.3rem]"
               >
                 <TypeOnText
                   text={stegaClean(props.description) || ""}
-                  speed={4}
-                  delay={0.18}
+                  speed={TYPE_ON_SPEEDS.rapid}
+                  delay={0.42}
                   start="top 90%"
                 />
               </p>
@@ -277,7 +303,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
           </div>
         </div>
 
-        <div className="relative mx-auto min-h-[42rem] max-w-[94rem] px-3 sm:min-h-[46rem] sm:px-6 lg:min-h-[50rem] lg:px-10">
+        <div className="relative mx-auto min-h-[54rem] max-w-[94rem] px-3 sm:min-h-[49rem] sm:px-6 lg:min-h-[50rem] lg:px-10">
           <div
             className="network-orbit-stage absolute inset-x-0 top-0 h-[29rem] sm:h-[31rem] lg:h-[34rem]"
             style={orbitStyle}
@@ -349,17 +375,25 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                   className="object-contain object-bottom"
                 />
               )}
-              <p className="absolute inset-0 z-10 flex items-center justify-center whitespace-pre-line px-2 text-center text-[clamp(1.55rem,2.35vw,2.6rem)] font-bold uppercase leading-[.83] tracking-[-.06em] text-white [-webkit-text-stroke:2px_#111] [paint-order:stroke_fill]">
+              <p
+                contentEditable
+                suppressContentEditableWarning
+                role="textbox"
+                aria-label="Type your brand name"
+                spellCheck={false}
+                data-network-brand-editor
+                className="absolute inset-0 z-10 flex cursor-text items-center justify-center whitespace-pre-line px-2 text-center text-[clamp(1.55rem,2.35vw,2.6rem)] font-bold uppercase leading-[.83] tracking-[-.06em] text-white outline-none [-webkit-text-stroke:2px_#111] [paint-order:stroke_fill] focus-visible:[text-shadow:0_0_8px_rgba(255,255,255,.8)]"
+              >
                 {stegaClean(props.brandLabel) || "YOUR\nBRAND\nGOES HERE"}
               </p>
             </div>
           </div>
 
-          <div className="absolute inset-x-3 top-[33rem] z-30 grid -translate-y-1/2 grid-cols-3 place-items-center gap-1 sm:inset-x-8 sm:top-[36rem] sm:gap-6 lg:inset-x-12 lg:top-[41rem] lg:gap-12">
+          <div className="absolute inset-x-3 top-[30rem] z-30 flex flex-wrap items-center justify-center gap-x-2 gap-y-0 sm:inset-x-8 sm:top-[33rem] sm:gap-x-6 lg:inset-x-12 lg:top-[41rem] lg:-translate-y-1/2 lg:gap-x-12">
             {detailStats.slice(0, 5).map((stat, index) => (
               <div
                 key={stat._key || `${stat.title}-${index}`}
-                className="relative flex h-[clamp(7.5rem,27vw,10rem)] w-[clamp(7.5rem,27vw,10rem)] items-center justify-center px-3 text-center sm:h-[clamp(10rem,15vw,13.5rem)] sm:w-[clamp(10rem,15vw,13.5rem)] sm:px-7"
+                className="relative flex h-[clamp(7.5rem,27vw,10rem)] w-[clamp(7.5rem,27vw,10rem)] items-center justify-center px-3 text-center sm:h-[clamp(9rem,15vw,12rem)] sm:w-[clamp(9rem,15vw,12rem)] sm:px-6 lg:h-[clamp(10rem,15vw,13.5rem)] lg:w-[clamp(10rem,15vw,13.5rem)] lg:px-7"
               >
                 <div
                   className="absolute inset-[8%] z-0 scale-x-[1.45] scale-y-[.9] blur-sm"
@@ -380,7 +414,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
           </div>
         </div>
 
-        <div className="relative mx-auto flex min-h-[27rem] max-w-[96rem] flex-col items-center justify-end px-2 pb-[clamp(2rem,4vw,4rem)] pt-10 text-center sm:min-h-[28rem] sm:px-6 lg:min-h-[28rem] lg:px-8 lg:pt-12">
+        <div className="relative mx-auto flex min-h-[25rem] max-w-[96rem] flex-col items-center justify-end px-2 pb-[clamp(2.5rem,4vw,4rem)] pt-8 text-center sm:min-h-[28rem] sm:px-6 sm:pt-10 lg:px-8 lg:pt-12">
           <div className="mb-auto flex w-full max-w-[90rem] flex-col items-center">
             <TitleText
               variant="stretched"
@@ -400,14 +434,14 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
               {stegaClean(props.friendsTitle) || "AND WE BRING FRIENDS"}
             </TitleText>
             {props.friendsDescription && (
-              <p className="mt-6 max-w-[34rem] text-[1rem] font-medium leading-[1.1] tracking-[-.025em] sm:text-[1.15rem] lg:text-[1.3rem]">
+              <p className="mt-4 max-w-[31rem] text-[.94rem] font-medium leading-[1.08] tracking-[-.025em] sm:mt-6 sm:text-[1.15rem] lg:max-w-[34rem] lg:text-[1.3rem]">
                 {stegaClean(props.friendsDescription)}
               </p>
             )}
           </div>
 
           {displayedFriends.length > 0 && (
-            <div className="network-friends-row relative mt-3 flex h-[clamp(10rem,15vw,14.5rem)] w-full items-end justify-center overflow-visible px-1 sm:mt-4 sm:px-3">
+            <div className="network-friends-row relative mt-5 flex h-[clamp(9rem,15vw,14.5rem)] w-full items-end justify-center overflow-visible px-1 sm:mt-4 sm:px-3">
               {displayedFriends.map((friend, index) => {
                 const href = stegaClean(friend.link?.href) || "";
                 const name = stegaClean(friend.name) || "Network friend";
@@ -415,7 +449,10 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                   "network-friend-cutout relative h-full w-[clamp(5.5rem,9.5vw,9.5rem)] flex-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
                 const content = (
                   <>
-                    <div className="absolute inset-0 overflow-hidden">
+                    <div
+                      data-network-friend-visual
+                      className="absolute inset-0 overflow-hidden will-change-transform"
+                    >
                       <Image
                         src={friend.image!.asset!.url!}
                         alt={
@@ -566,6 +603,10 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
         @media (max-width: 639px) {
           .network-orbit-ring {
             --network-orbit-radius: clamp(9.5rem, 42vw, 11rem);
+            --network-orbit-x-scale: 0.76;
+            --network-orbit-x-scale-inverse: 1.316;
+            --network-line-label-gap: 3.5rem;
+            --network-line-center-gap: 4.5rem;
           }
 
           .network-friend-cutout + .network-friend-cutout {

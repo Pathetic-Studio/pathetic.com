@@ -3,7 +3,7 @@
 
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import TypeOnText from "@/components/ui/type-on-text";
+import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
 
 type TitleTextVariant = "normal" | "stretched";
 type TitleTextAnimation = "none" | "typeOn";
@@ -88,7 +88,7 @@ const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   xxl: "text-5xl lg:text-8xl",
   display: "text-[2rem] sm:text-[2.5rem] lg:text-[3.5rem]",
   "display-compact": "text-[1.65rem] sm:text-[2.4rem] lg:text-[2.9rem]",
-  "what-we-do": "text-[clamp(3.25rem,6.6vw,7.2rem)]",
+  "what-we-do": "text-[clamp(3.25rem,6.6vw,7.2rem)] sm:text-[clamp(5.5rem,10vw,10.5rem)] lg:text-[clamp(3.25rem,6.6vw,7.2rem)]",
   "matrix-eyebrow": "text-[clamp(1.3rem,2vw,2.15rem)]",
   "matrix-accent": "text-[clamp(2.6rem,4vw,4.5rem)]",
   "matrix-talent": "text-[clamp(4.4rem,7.2vw,7.25rem)]",
@@ -209,7 +209,7 @@ export default function TitleText({
   as = "h2",
   variant = "normal",
   animation = "none",
-  animationSpeed = 1.2,
+  animationSpeed = TYPE_ON_SPEEDS.standard,
   className,
   size = "md",
   stretchScaleX,

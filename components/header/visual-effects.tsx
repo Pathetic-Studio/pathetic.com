@@ -44,7 +44,7 @@ export function HeaderFeatureVisualEffects() {
     <span
       data-header-feature-effects
       aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[180px] w-[280px] -translate-x-1/2 -translate-y-1/2 text-[var(--header-effect-accent)]"
+      className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[180px] w-[280px] -translate-x-1/2 -translate-y-1/2 text-[var(--header-effect-accent)]"
     >
       <span data-header-feature-matrix-streams className="absolute inset-0 overflow-hidden font-mono text-[8px] font-bold leading-[0.92]">
         {MATRIX_ROWS.slice(0, 8).map((row, index) => (
@@ -66,7 +66,7 @@ export function HeaderFeatureMatrixTexture({ imageUrl }: { imageUrl: string }) {
     <span
       data-header-feature-matrix-texture
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 overflow-hidden bg-[#001306] font-mono text-[9px] font-bold leading-[0.82] tracking-[-0.08em] text-[var(--header-effect-accent)]"
+      className="pointer-events-none absolute inset-0 bg-[var(--header-effect-accent)]"
       style={{
         maskImage: `url("${imageUrl}")`,
         WebkitMaskImage: `url("${imageUrl}")`,
@@ -77,17 +77,6 @@ export function HeaderFeatureMatrixTexture({ imageUrl }: { imageUrl: string }) {
         maskSize: "contain",
         WebkitMaskSize: "contain",
       }}
-    >
-      {MATRIX_ROWS.map((row, index) => (
-        <span
-          key={`${row}-${index}`}
-          data-header-matrix-row
-          className="block whitespace-nowrap"
-          style={{ animationDelay: `${index * -0.09}s` }}
-        >
-          {row}
-        </span>
-      ))}
-    </span>
+    />
   );
 }

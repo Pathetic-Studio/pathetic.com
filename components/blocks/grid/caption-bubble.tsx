@@ -15,6 +15,8 @@ export interface CaptionBubbleProps {
   xPercent?: number | null;
   yPercent?: number | null;
   parallaxSpeed?: number | null;
+  parallaxLag?: number | null;
+  desktopWidthRem?: number;
 }
 
 // Default desktop max width
@@ -37,6 +39,8 @@ export default function CaptionBubble({
   xPercent,
   yPercent,
   parallaxSpeed,
+  parallaxLag,
+  desktopWidthRem,
 }: CaptionBubbleProps) {
   const safeX = xPercent ?? 70;
   const safeY = yPercent ?? 20;
@@ -61,7 +65,7 @@ export default function CaptionBubble({
       );
       const oneRem = rootFontSize || 16;
 
-      const baseMaxPx = BUBBLE_MAX_REM * oneRem;
+      const baseMaxPx = (desktopWidthRem ?? BUBBLE_MAX_REM) * oneRem;
       const edgePadPx = EDGE_PADDING_REM * oneRem;
       const minReadablePx = Math.min(baseMaxPx, MIN_READABLE_REM * oneRem);
 
@@ -124,7 +128,7 @@ export default function CaptionBubble({
       window.removeEventListener("resize", updateLayout);
       ro?.disconnect();
     };
-  }, [clampedX, effectiveSide]);
+  }, [clampedX, desktopWidthRem, effectiveSide]);
 
   // IMPORTANT:
   // - Use `translate` (not `transform`) so parallax (transform) can't clobber anchoring.
@@ -151,8 +155,14 @@ export default function CaptionBubble({
     visibility: "hidden",
 
     // Desktop keeps a clean cap; mobile/tablet only shrinks (never grows wider than desktop)
-    maxWidth: dynamicMaxWidth ?? `${BUBBLE_MAX_REM}rem`,
+    maxWidth:
+      dynamicMaxWidth ?? `${desktopWidthRem ?? BUBBLE_MAX_REM}rem`,
     willChange: "transform, opacity",
+    ...(desktopWidthRem
+      ? ({
+          ["--caption-desktop-width" as string]: `${desktopWidthRem}rem`,
+        } as CSSProperties)
+      : {}),
   };
 
   return (
@@ -161,9 +171,11 @@ export default function CaptionBubble({
       className={cn(
         "caption-bubble absolute z-20 rounded-2xl px-3 py-2 text-xs tracking-wide",
         "flex items-center justify-center",
+        desktopWidthRem && "lg:w-[var(--caption-desktop-width)]",
       )}
       style={bubbleStyle}
       data-speed={parallaxSpeed ?? undefined}
+      data-lag={parallaxLag ?? undefined}
     >
       <span className="block text-left break-words leading-snug">{text}</span>
 

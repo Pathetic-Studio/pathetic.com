@@ -2,23 +2,17 @@ import { defineField, defineType } from "sanity";
 import { ShoppingBasket } from "lucide-react";
 
 const localAssets = [
-  { title: "Computer", value: "computer" },
-  { title: "Black object", value: "object-black" },
-  { title: "Magazine", value: "magazine" },
-  { title: "Portal", value: "portal" },
-  { title: "Smoothie", value: "smoothie" },
-  { title: "Hoodie", value: "hoodie" },
-  { title: "Pigeon", value: "pigeon" },
+  { title: "Newsletter pigeon", value: "pigeon" },
+  { title: "Shop hoodie", value: "hoodie" },
+  { title: "Jobs computer", value: "computer" },
+  { title: "The Abyss portal", value: "portal" },
 ];
 
 const defaultItems = [
-  { _key: "computer", _type: "basketLinkItem", title: "Computer", localAsset: "computer", size: 24, startX: 69, startY: 57 },
-  { _key: "black-object", _type: "basketLinkItem", title: "Basket item", localAsset: "object-black", size: 18, startX: 29, startY: 30 },
-  { _key: "magazine", _type: "basketLinkItem", title: "Magazine", localAsset: "magazine", size: 18, startX: 76, startY: 28 },
-  { _key: "portal", _type: "basketLinkItem", title: "Portal", localAsset: "portal", size: 25, startX: 43, startY: 64 },
-  { _key: "smoothie", _type: "basketLinkItem", title: "Smoothie", localAsset: "smoothie", size: 14, startX: 53, startY: 30 },
-  { _key: "hoodie", _type: "basketLinkItem", title: "Hoodie", localAsset: "hoodie", size: 21, startX: 27, startY: 66 },
-  { _key: "pigeon", _type: "basketLinkItem", title: "Pigeon", localAsset: "pigeon", size: 21, startX: 37, startY: 38 },
+  { _key: "pigeon", _type: "basketLinkItem", title: "Newsletter", localAsset: "pigeon", size: 23, startX: 28, startY: 34 },
+  { _key: "hoodie", _type: "basketLinkItem", title: "Shop", localAsset: "hoodie", size: 23, startX: 48, startY: 39 },
+  { _key: "computer", _type: "basketLinkItem", title: "Jobs", localAsset: "computer", size: 26, startX: 72, startY: 43 },
+  { _key: "portal", _type: "basketLinkItem", title: "The Abyss", localAsset: "portal", size: 27, startX: 44, startY: 68 },
 ];
 
 export default defineType({

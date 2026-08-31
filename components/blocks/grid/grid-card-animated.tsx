@@ -18,6 +18,7 @@ interface GridCardAnimatedProps
   extends Omit<GridCardAnimatedBlock, "_type" | "_key"> {
   color?: ColorVariant;
   parallaxConfig?: GridCardParallaxConfig; // NEW
+  captionDesktopWidthRem?: number;
 }
 
 export default function GridCardAnimated({
@@ -28,6 +29,7 @@ export default function GridCardAnimated({
   link,
   caption,
   parallaxConfig,
+  captionDesktopWidthRem,
 }: GridCardAnimatedProps) {
   const hasLink = !!link?.href;
   const hasCaptionText = !!caption?.text;
@@ -35,6 +37,7 @@ export default function GridCardAnimated({
   const imageSpeed = parallaxConfig?.imageSpeed;
   const bodySpeed = parallaxConfig?.bodySpeed;
   const captionSpeed = parallaxConfig?.captionSpeed;
+  const captionLag = parallaxConfig?.captionLag;
   const buttonSpeed = parallaxConfig?.buttonSpeed;
   const titleSpeed = parallaxConfig?.titleSpeed;
 
@@ -71,6 +74,8 @@ export default function GridCardAnimated({
                 xPercent={caption!.xPercent}
                 yPercent={caption!.yPercent}
                 parallaxSpeed={captionSpeed ?? null} // NEW
+                parallaxLag={captionLag ?? null}
+                desktopWidthRem={captionDesktopWidthRem}
               />
             )}
           </div>

@@ -79,6 +79,51 @@ function normaliseClaim(
   };
 }
 
+function syncBoundaryToHeaderItems(header: HTMLElement, boundary: number) {
+  const targets = header.querySelectorAll<HTMLElement>(
+    [
+      "[data-header-logo-main]",
+      "[data-header-logo-effects]",
+      "[data-header-logo-matrix]",
+      "[data-header-feature-root]",
+      "[data-header-feature-effects]",
+      "[data-header-feature-image-rotator]",
+      "[data-header-feature-matrix-texture]",
+      "[data-header-feature-matrix-streams]",
+      "[data-header-right-box]",
+      "[data-right-nav-item]",
+      "[data-left-nav-item]",
+      "[data-header-nav-label]",
+      "[data-social-nav-item]",
+      "[data-header-social-matrix]",
+      "[data-mobile-header-item]",
+    ].join(","),
+  );
+
+  const visibleTargets = Array.from(targets)
+    .map((target) => ({
+      target,
+      bounds: target.getBoundingClientRect(),
+    }))
+    .filter(({ bounds }) => bounds.width > 0 && bounds.height > 0);
+  // `boundary` follows the actual section seam through the viewport. Each
+  // header visual then converts that shared page-space Y into its own mask.
+  // This keeps oversized artwork (the feature star) aligned with normal text.
+  const boundaryLead = Math.min(44, window.innerHeight * 0.045);
+  const edgeY = (1 - boundary) * window.innerHeight - boundaryLead;
+
+  visibleTargets.forEach(({ target, bounds }) => {
+    const localProgress =
+      bounds.height > 0
+        ? Math.max(0, Math.min(1, (edgeY - bounds.top) / bounds.height))
+        : 1 - boundary;
+    target.style.setProperty(
+      "--header-item-matrix-edge",
+      `${localProgress * 100}%`,
+    );
+  });
+}
+
 function applyClaimToHeader(claim: HeaderVisualClaim | null) {
   if (typeof document === "undefined") return;
   const header = document.getElementById("site-header-root");
@@ -96,6 +141,7 @@ function applyClaimToHeader(claim: HeaderVisualClaim | null) {
     header.style.setProperty("--header-matrix-edge", "100%");
     header.style.setProperty("--header-native-opacity", "1");
     header.style.setProperty("--header-boundary-icon-color", "rgb(0 0 0)");
+    syncBoundaryToHeaderItems(header, 0);
     return;
   }
 
@@ -123,6 +169,7 @@ function applyClaimToHeader(claim: HeaderVisualClaim | null) {
     "--header-matrix-edge",
     `${(1 - claim.boundary) * 100}%`,
   );
+  syncBoundaryToHeaderItems(header, claim.boundary);
   header.style.setProperty(
     "--header-native-opacity",
     String(claim.boundary > 0 ? 1 : 1 - claim.progress),

@@ -81,6 +81,7 @@ export default function BeliefSection(props: BeliefBlock) {
         <div
           key={`${cloud.side}-${cloud.left}-${cloud.top}-${index}`}
           data-belief-cloud-side={cloud.side}
+          data-belief-cloud-group={floatGroup}
           data-belief-layer-side={cloud.side}
           className="absolute origin-center will-change-transform"
           style={{
@@ -195,7 +196,7 @@ export default function BeliefSection(props: BeliefBlock) {
   }, [cloudsEnabled, partDuration]);
 
   return (
-    <div ref={rootRef} className="relative isolate">
+    <div ref={rootRef} className="relative isolate overflow-visible">
       {cloudsEnabled && (
         <>
           <svg
@@ -227,13 +228,14 @@ export default function BeliefSection(props: BeliefBlock) {
 
           {/* The export uses several interleaved cloud/figure layers. Keep that
               stack here so the figures sit inside the cloud bank, not on it. */}
-          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 z-10 overflow-visible">
             {renderClouds(CLOUD_LAYERS.slice(0, 5))}
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-[12] overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 z-[12] overflow-visible">
             <div
               data-belief-layer-side="right"
+              data-belief-figure="cherub-right"
               className="absolute"
               style={{ left: "71.18%", top: "2.49%", width: "17.99%", height: "11.13%" }}
             >
@@ -249,20 +251,30 @@ export default function BeliefSection(props: BeliefBlock) {
                     alt=""
                     fill
                     sizes="18vw"
-                    className="object-contain"
+                    className="z-10 object-contain"
                   />
+                  <div
+                    data-belief-cloud-group="cherub-right"
+                    data-belief-attached-cloud="cherub-right"
+                    className="absolute z-20"
+                    style={{ left: "-32%", top: "20%", width: "145%", height: "144%" }}
+                  >
+                    <Image src={cloudSrc} alt="" fill sizes="28vw" className="object-contain" />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-[14] overflow-hidden">
-            {renderClouds(CLOUD_LAYERS.slice(5, 11))}
+          <div className="pointer-events-none absolute inset-0 z-[14] overflow-visible">
+            {renderClouds(CLOUD_LAYERS.slice(5, 8))}
+            {renderClouds(CLOUD_LAYERS.slice(9, 10))}
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-[15] overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 z-[15] overflow-visible">
             <div
               data-belief-layer-side="right"
+              data-belief-figure="hands"
               className="absolute"
               style={{ left: "85.9%", top: "14%", width: "10.49%", height: "14.51%" }}
             >
@@ -278,20 +290,29 @@ export default function BeliefSection(props: BeliefBlock) {
                     alt=""
                     fill
                     sizes="11vw"
-                    className="object-contain"
+                    className="z-10 object-contain"
                   />
+                  <div
+                    data-belief-cloud-group="hands"
+                    data-belief-attached-cloud="hands"
+                    className="absolute z-20"
+                    style={{ left: "-64%", top: "35%", width: "213%", height: "92%" }}
+                  >
+                    <Image src={cloudSrc} alt="" fill sizes="24vw" className="object-contain" />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-[16] overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 z-[16] overflow-visible">
             {renderClouds(CLOUD_LAYERS.slice(11, 12))}
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-[17] overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 z-[17] overflow-visible">
             <div
               data-belief-layer-side="left"
+              data-belief-figure="cherub-left"
               className="absolute"
               style={{ left: "-0.42%", top: "10.1%", width: "20.14%", height: "17.65%" }}
             >
@@ -307,15 +328,23 @@ export default function BeliefSection(props: BeliefBlock) {
                     alt=""
                     fill
                     sizes="21vw"
-                    className="object-contain"
+                    className="z-10 object-contain"
                   />
+                  <div
+                    data-belief-cloud-group="cherub-left"
+                    data-belief-attached-cloud="cherub-left"
+                    className="absolute z-20"
+                    style={{ left: "-92%", top: "-10%", width: "233%", height: "159%" }}
+                  >
+                    <Image src={cloudSrc} alt="" fill sizes="48vw" className="object-contain" />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
-            {renderClouds(CLOUD_LAYERS.slice(12))}
+          <div className="pointer-events-none absolute inset-0 z-30 overflow-visible">
+            {renderClouds(CLOUD_LAYERS.slice(13))}
           </div>
         </>
       )}
@@ -346,6 +375,53 @@ export default function BeliefSection(props: BeliefBlock) {
         @keyframes belief-idle-left {
           from { transform: translate3d(0, -7px, 0); }
           to { transform: translate3d(0, 5px, 0); }
+        }
+
+        @media (max-width: 639px) {
+          [data-belief-cloud-group] {
+            height: auto !important;
+            aspect-ratio: 428 / 278;
+          }
+
+          [data-belief-cloud-group="cloud-back-left-wide"] { left: -55% !important; top: -2rem !important; width: 130% !important; }
+          [data-belief-cloud-group="cloud-back-right-wide"] { left: 35% !important; top: -4rem !important; width: 135% !important; }
+          [data-belief-cloud-group="cloud-back-center"] { left: -1% !important; top: 5rem !important; width: 105% !important; }
+          [data-belief-cloud-group="cloud-back-right-lower"] { left: 42% !important; top: 14rem !important; width: 100% !important; }
+          [data-belief-cloud-group="cloud-lower-left"] { left: -45% !important; top: 15.5rem !important; width: 105% !important; }
+          [data-belief-cloud-group="cloud-mid-right"] { left: 48% !important; top: 2.5rem !important; width: 95% !important; }
+          [data-belief-cloud-group="cloud-lower-right-edge"] { left: 76% !important; top: 17rem !important; width: 68% !important; }
+          [data-belief-cloud-group="cloud-upper-left"] { left: -45% !important; top: 0 !important; width: 105% !important; }
+          [data-belief-cloud-group="cloud-small-left"] { left: -4% !important; top: 12.5rem !important; width: 55% !important; }
+          [data-belief-cloud-group="cloud-center-right"] { left: 27% !important; top: 8.5rem !important; width: 92% !important; }
+          [data-belief-cloud-group="cloud-center-left"] { left: 5% !important; top: 13.5rem !important; width: 78% !important; }
+
+          [data-belief-attached-cloud="cherub-right"] { left: -30% !important; top: 30% !important; width: 190% !important; }
+          [data-belief-attached-cloud="cherub-left"] { left: -50% !important; top: -10% !important; width: 200% !important; }
+          [data-belief-attached-cloud="hands"] { left: -100% !important; top: 25% !important; width: 300% !important; }
+
+          [data-belief-figure="cherub-right"] {
+            left: 63% !important;
+            top: 3rem !important;
+            width: 38% !important;
+            height: auto !important;
+            aspect-ratio: 518 / 348;
+          }
+
+          [data-belief-figure="hands"] {
+            left: 78% !important;
+            top: 14.25rem !important;
+            width: 21% !important;
+            height: auto !important;
+            aspect-ratio: 302 / 454;
+          }
+
+          [data-belief-figure="cherub-left"] {
+            left: -2% !important;
+            top: 7rem !important;
+            width: 37% !important;
+            height: auto !important;
+            aspect-ratio: 568 / 552;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {

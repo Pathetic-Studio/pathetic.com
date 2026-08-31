@@ -3,7 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { stegaClean } from "next-sanity";
-import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import TypeOnText from "@/components/ui/type-on-text";
 import { urlFor } from "@/sanity/lib/image";
@@ -208,7 +214,7 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
             {kind === "city" && (
               layer.image?.asset?.url ? (
                 <div className="absolute inset-x-4 bottom-[39%] top-4 overflow-hidden md:inset-x-8 md:top-8">
-                  <div className="absolute bottom-0 left-1/2 w-1/2 -translate-x-1/2">
+                  <div className="absolute bottom-0 left-1/2 w-[92%] -translate-x-1/2 sm:w-[78%] lg:w-1/2">
                     <Image
                       src={layer.image.asset.url}
                       alt={stegaClean(layer.image.alt) || ""}
@@ -285,9 +291,15 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
 function ServiceCard({
   service,
   accent,
+  touchActive = false,
+  desktopFill = false,
+  onTouchActivate,
 }: {
   service: NonNullable<WhatWeDoGridBlock["services"]>[number];
   accent: string;
+  touchActive?: boolean;
+  desktopFill?: boolean;
+  onTouchActivate?: () => void;
 }) {
   const detectorRef = useRef<HTMLDivElement | null>(null);
   const coordinatesRef = useRef<HTMLDivElement | null>(null);
@@ -297,13 +309,14 @@ function ServiceCard({
   const verticalOffset = safeNumber(service.verticalOffset, 0);
   const objectDetectHover = Boolean(stegaClean(service.objectDetectHover));
   const textColor = colorValue(service.accentTextColor, "#ffffff");
+  const cardActive = pantsActive || touchActive;
   const imageFrame = (() => {
     const width = service.image?.asset?.metadata?.dimensions?.width;
     const height = service.image?.asset?.metadata?.dimensions?.height;
     if (!width || !height) return { width: 190, height: 300, sourceWidth: 240 };
     const sourceWidth = (300 * width) / height;
     return {
-      width: Math.max(1, Math.min(190, sourceWidth)),
+      width: Math.max(110, Math.min(280, sourceWidth)),
       height: 300,
       sourceWidth,
     };
@@ -325,13 +338,29 @@ function ServiceCard({
   const content = (
     <article
       data-what-service
-      className={`relative flex h-full min-w-0 flex-col items-start justify-end text-left will-change-transform lg:justify-start ${pantsActive ? "z-[60]" : "z-40"}`}
+      onClickCapture={(event) => {
+        if (
+          window.matchMedia("(max-width: 1023px)").matches &&
+          !touchActive
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          onTouchActivate?.();
+        }
+      }}
+      className={`relative flex h-full min-w-0 flex-col items-start justify-start text-left will-change-transform ${cardActive ? "z-[60]" : "z-40"}`}
+      style={{
+        "--service-image-width": `${imageFrame.width}px`,
+      } as CSSProperties}
     >
       <div
         ref={detectorRef}
+        data-what-service-image
         data-typeon-hover="true"
-        onPointerEnter={() => {
-          setPantsActive(true);
+        onPointerEnter={(event) => {
+          if (event.pointerType === "mouse" || event.pointerType === "pen") {
+            setPantsActive(true);
+          }
         }}
         onPointerLeave={() => {
           setPantsActive(false);
@@ -339,8 +368,12 @@ function ServiceCard({
         onPointerCancel={() => {
           setPantsActive(false);
         }}
-        onPointerMove={updateDetector}
-        className="relative h-[clamp(7.25rem,18svh,9.5rem)] w-full origin-bottom overflow-hidden lg:h-[var(--service-image-height)] lg:w-[var(--service-image-width)] lg:max-w-none"
+        onPointerMove={(event) => {
+          if (event.pointerType === "mouse" || event.pointerType === "pen") {
+            updateDetector(event);
+          }
+        }}
+        className="relative h-[clamp(15rem,34svh,19rem)] w-[min(100%,var(--service-image-width))] origin-bottom overflow-hidden sm:h-[clamp(17rem,36svh,23rem)] lg:h-[var(--service-image-height)] lg:w-[var(--service-image-width)] lg:max-w-none"
         style={{
           "--service-image-width": `${imageFrame.width}px`,
           "--service-image-height": `${imageFrame.height}px`,
@@ -349,7 +382,7 @@ function ServiceCard({
       >
         {service.image?.asset?.url ? (
           <div
-            className="absolute bottom-0 left-1/2 h-full w-full -translate-x-1/2 lg:w-[var(--service-source-width)]"
+            className="absolute bottom-0 left-1/2 h-full w-full -translate-x-1/2"
             style={{ "--service-source-width": `${imageFrame.sourceWidth}px` } as CSSProperties}
           >
             <Image
@@ -357,7 +390,9 @@ function ServiceCard({
               alt={stegaClean(service.image.alt) || stegaClean(service.title) || ""}
               fill
               sizes="(min-width: 1024px) 25vw, 50vw"
-              className="object-contain object-bottom lg:object-fill"
+              className={`object-contain object-bottom ${
+                desktopFill ? "lg:object-cover lg:object-center" : ""
+              }`}
             />
           </div>
         ) : (
@@ -365,9 +400,9 @@ function ServiceCard({
         )}
 
         {objectDetectHover && service.hoverImage?.asset?.url && (
-          <div className={`pointer-events-none absolute inset-0 z-10 transition-opacity duration-200 ${pantsActive ? "opacity-100" : "opacity-0"}`}>
+          <div className={`pointer-events-none absolute inset-0 z-10 transition-opacity duration-200 ${cardActive ? "opacity-100" : "opacity-0"}`}>
             <div
-              className="absolute bottom-0 left-1/2 h-full w-full -translate-x-1/2 lg:w-[var(--service-source-width)]"
+              className="absolute bottom-0 left-1/2 h-full w-full -translate-x-1/2"
               style={{ "--service-source-width": `${imageFrame.sourceWidth}px` } as CSSProperties}
             >
               <Image
@@ -375,7 +410,9 @@ function ServiceCard({
                 alt={stegaClean(service.hoverImage.alt) || stegaClean(service.title) || ""}
                 fill
                 sizes="(min-width: 1024px) 25vw, 50vw"
-                className="object-contain object-bottom lg:object-fill"
+                className={`object-contain object-bottom ${
+                  desktopFill ? "lg:object-cover lg:object-center" : ""
+                }`}
               />
               <div className="absolute inset-0 bg-[var(--service-accent)] opacity-30 mix-blend-soft-light" style={{ "--service-accent": accent } as CSSProperties} />
             </div>
@@ -383,7 +420,7 @@ function ServiceCard({
         )}
 
         {objectDetectHover && (
-          <div className={`pointer-events-none absolute inset-0 z-20 hidden transition-opacity duration-150 lg:block ${pantsActive ? "opacity-100" : "opacity-0"}`}>
+          <div className={`pointer-events-none absolute inset-0 z-20 hidden transition-opacity duration-150 lg:block ${cardActive ? "opacity-100" : "opacity-0"}`}>
             <div
               className="absolute inset-y-0 w-px bg-[var(--service-accent)] shadow-[0_0_8px_var(--service-accent),0_0_18px_var(--service-accent)]"
               style={{ left: "var(--detect-x, 50%)", "--service-accent": accent } as CSSProperties}
@@ -407,12 +444,17 @@ function ServiceCard({
         )}
 
         <div
-          className="pointer-events-none absolute inset-0 z-30 border-2"
-          style={{ borderColor: accent }}
+          className={cardActive
+            ? "pointer-events-none absolute inset-0 z-30 border-[3px] shadow-[0_0_0_1px_rgba(255,255,255,.72),0_0_18px_var(--service-accent)]"
+            : "pointer-events-none absolute inset-0 z-30 border-2"}
+          style={{ borderColor: accent, "--service-accent": accent } as CSSProperties}
         />
       </div>
 
-      <div className="relative z-10 -mt-[2px] flex max-w-full flex-col items-start">
+      <div
+        data-what-service-copy
+        className="relative z-10 -mt-[2px] flex w-full flex-col items-start lg:w-auto lg:max-w-[19rem]"
+      >
         <h3
           className="inline-flex max-w-full px-3 py-1 text-base font-semibold uppercase leading-none tracking-tight text-white"
           style={{ backgroundColor: accent, color: textColor }}
@@ -421,16 +463,16 @@ function ServiceCard({
         </h3>
         {service.description && (
           <div
-            className="relative mt-0.5 hidden w-full max-w-xs text-base leading-tight lg:block"
+            className={`relative inline-block w-full max-w-xs text-base leading-tight sm:max-w-none sm:text-[1.15rem] lg:w-auto lg:max-w-xs lg:text-base ${touchActive ? "block" : "hidden lg:block"}`}
           >
             <div className="invisible whitespace-pre-wrap px-3 py-2">{stegaClean(service.description)}</div>
             <div
-              className={`pointer-events-none absolute inset-0 origin-top-left whitespace-pre-wrap px-3 py-2 transition-all duration-200 ${pantsActive ? "scale-100 opacity-100 ease-out" : "scale-80 opacity-0 ease-in"}`}
+              className={`pointer-events-none absolute inset-0 origin-top-left whitespace-pre-wrap px-3 py-2 transition-all duration-200 ${cardActive ? "scale-100 opacity-100 ease-out" : "scale-80 opacity-0 ease-in"}`}
               style={{ backgroundColor: accent, color: textColor }}
             >
               <TypeOnText
                 text={stegaClean(service.description) || ""}
-                trigger="hover"
+                trigger={touchActive ? "immediate" : "hover"}
                 speed={1.8}
                 hoverTargetRef={detectorRef}
               />
@@ -460,8 +502,160 @@ export function WhatWeDoGridView({
   const accent = colorValue(block.accentColor, "#ff00d9");
   const background = colorValue(block.backgroundColor, "#e7e7e2");
   const services = (block.services || []).slice(0, 4);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const scrollEndTimerRef = useRef(0);
+  const pointerDragRef = useRef({
+    active: false,
+    moved: false,
+    pointerId: -1,
+    startX: 0,
+    startScrollLeft: 0,
+  });
+  const suppressDragClickRef = useRef(false);
+  const [touchActiveIndexes, setTouchActiveIndexes] = useState<number[]>([0]);
+  const [touchLayout, setTouchLayout] = useState(false);
   const cleanDescription = stegaClean(block.description) || "";
   const descriptionLines = splitTextAtWordRatio(cleanDescription, 0.6);
+
+  const commitNearestTouchCard = () => {
+    const carousel = carouselRef.current;
+    if (!carousel || window.innerWidth >= 1024) return;
+    const carouselBounds = carousel.getBoundingClientRect();
+    const focusX = carouselBounds.left + carouselBounds.width * 0.48;
+    const cards = Array.from(
+      carousel.querySelectorAll<HTMLElement>("[data-what-service-slide]"),
+    );
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    cards.forEach((card, index) => {
+      const bounds = card.getBoundingClientRect();
+      const distance = Math.abs(bounds.left + bounds.width / 2 - focusX);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+    if (window.innerWidth >= 640) {
+      const visibleIndexes = cards.flatMap((card, index) => {
+        const bounds = card.getBoundingClientRect();
+        const visibleWidth = Math.max(
+          0,
+          Math.min(bounds.right, carouselBounds.right) -
+            Math.max(bounds.left, carouselBounds.left),
+        );
+        return visibleWidth / Math.max(1, bounds.width) >= 0.45
+          ? [index]
+          : [];
+      });
+      setTouchActiveIndexes(
+        visibleIndexes.length ? visibleIndexes : [closestIndex],
+      );
+    } else {
+      setTouchActiveIndexes([closestIndex]);
+    }
+  };
+
+  useEffect(() => {
+    let layoutFrame = 0;
+    const updateLayout = () => {
+      setTouchLayout(window.innerWidth < 1024);
+      cancelAnimationFrame(layoutFrame);
+      layoutFrame = requestAnimationFrame(commitNearestTouchCard);
+    };
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    return () => {
+      window.removeEventListener("resize", updateLayout);
+      cancelAnimationFrame(layoutFrame);
+      window.clearTimeout(scrollEndTimerRef.current);
+    };
+  }, []);
+
+  const updateTouchActiveCard = () => {
+    // Keep the current layer active for the whole gesture. Changing z-index
+    // while momentum scroll is running made the pants appear to flip between
+    // the foreground and background on mobile.
+    window.clearTimeout(scrollEndTimerRef.current);
+    scrollEndTimerRef.current = window.setTimeout(
+      commitNearestTouchCard,
+      140,
+    );
+  };
+
+  const activateTouchCard = (index: number) => {
+    setTouchActiveIndexes((current) =>
+      window.innerWidth >= 640
+        ? Array.from(new Set([...current, index])).sort((a, b) => a - b)
+        : [index],
+    );
+    const carousel = carouselRef.current;
+    const card = carousel?.querySelectorAll<HTMLElement>(
+      "[data-what-service-slide]",
+    )[index];
+    if (carousel && card) {
+      carousel.scrollTo({
+        left:
+          card.offsetLeft -
+          (carousel.clientWidth - card.offsetWidth) / 2,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const beginPointerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (
+      event.pointerType === "touch" ||
+      window.innerWidth >= 1024 ||
+      event.button !== 0
+    ) {
+      return;
+    }
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+    pointerDragRef.current = {
+      active: true,
+      moved: false,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startScrollLeft: carousel.scrollLeft,
+    };
+    carousel.style.scrollSnapType = "none";
+    carousel.setPointerCapture(event.pointerId);
+  };
+
+  const movePointerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const carousel = carouselRef.current;
+    const drag = pointerDragRef.current;
+    if (
+      !carousel ||
+      !drag.active ||
+      drag.pointerId !== event.pointerId
+    ) {
+      return;
+    }
+    const movement = event.clientX - drag.startX;
+    if (Math.abs(movement) > 4) {
+      drag.moved = true;
+      suppressDragClickRef.current = true;
+      event.preventDefault();
+    }
+    carousel.scrollLeft = drag.startScrollLeft - movement;
+  };
+
+  const endPointerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const carousel = carouselRef.current;
+    const drag = pointerDragRef.current;
+    if (!drag.active || drag.pointerId !== event.pointerId) return;
+    drag.active = false;
+    if (carousel?.hasPointerCapture(event.pointerId)) {
+      carousel.releasePointerCapture(event.pointerId);
+    }
+    carousel?.style.removeProperty("scroll-snap-type");
+    updateTouchActiveCard();
+    window.setTimeout(() => {
+      suppressDragClickRef.current = false;
+    }, 0);
+  };
 
   return (
     <div
@@ -474,7 +668,7 @@ export function WhatWeDoGridView({
 
       <div
         data-what-heading
-        className="absolute inset-x-4 top-[13%] z-40 flex flex-col items-center text-center lg:top-[19%]"
+        className="absolute inset-x-3 top-[10%] z-40 flex flex-col items-center text-center sm:inset-x-4 sm:top-[12%] lg:top-[16.5%]"
         style={{ "--what-accent": accent } as CSSProperties}
       >
         <TitleText
@@ -492,7 +686,7 @@ export function WhatWeDoGridView({
         </TitleText>
         {cleanDescription && (
           <p
-            className="mt-3 w-[90vw] max-w-[34rem] px-4 py-2 text-[clamp(1rem,1.3vw,1.3rem)] leading-[1.1] text-white lg:w-[clamp(31rem,37vw,34rem)]"
+            className="mt-2 w-[92vw] max-w-[34rem] px-3 py-2 text-[clamp(.9rem,1.3vw,1.3rem)] leading-[1.08] text-white sm:mt-3 sm:w-[86vw] sm:px-4 sm:text-[1.15rem] lg:w-[clamp(31rem,37vw,34rem)] lg:text-[clamp(.9rem,1.3vw,1.3rem)]"
             style={{ backgroundColor: accent }}
           >
             {descriptionLines.map((line, index) => (
@@ -507,11 +701,48 @@ export function WhatWeDoGridView({
         )}
       </div>
 
-      <div className="absolute inset-x-[3.5%] bottom-[3.5%] grid h-[61%] grid-cols-2 gap-x-3 gap-y-1 lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:top-[43%] lg:h-auto lg:grid-cols-4 lg:gap-0">
-        {services.map((service) => (
-          <ServiceCard key={service._key} service={service} accent={accent} />
+      <div
+        ref={carouselRef}
+        onScroll={updateTouchActiveCard}
+        onPointerDown={beginPointerDrag}
+        onPointerMove={movePointerDrag}
+        onPointerUp={endPointerDrag}
+        onPointerCancel={endPointerDrag}
+        onClickCapture={(event) => {
+          if (suppressDragClickRef.current) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+        onDragStart={(event) => event.preventDefault()}
+        className="absolute inset-x-0 bottom-[1%] top-[38%] z-[60] flex cursor-grab snap-x snap-mandatory scroll-px-[6vw] gap-[6vw] overflow-x-scroll overflow-y-hidden px-[6vw] pb-8 pt-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:top-[40%] sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] md:top-[41%] lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:bottom-[4%] lg:top-[40%] lg:z-auto lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
+      >
+        {services.map((service, index) => (
+          <div
+            key={service._key}
+            data-what-service-slide
+            className="h-full w-[80vw] shrink-0 snap-start [scroll-snap-stop:always] sm:w-[40vw] lg:w-auto"
+          >
+            <ServiceCard
+              service={service}
+              accent={accent}
+              touchActive={
+                touchLayout && touchActiveIndexes.includes(index)
+              }
+              desktopFill={index === services.length - 1}
+              onTouchActivate={() => activateTouchCard(index)}
+            />
+          </div>
         ))}
       </div>
+
+      <style jsx global>{`
+        @media (max-width: 1023px) {
+          [data-what-service-image] {
+            transform: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

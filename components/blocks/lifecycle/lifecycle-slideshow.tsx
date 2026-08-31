@@ -153,6 +153,10 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
 
   useEffect(() => {
     boostedRef.current = boosted;
+    document.documentElement.toggleAttribute(
+      "data-lifecycle-fun-active",
+      boosted,
+    );
     if (boosted && objectSlideActiveRef.current && electricHeaderEnabled) {
       setHeaderVisualTheme(headerThemeSource, {
         mode: "electric",
@@ -164,6 +168,10 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
     } else {
       clearHeaderVisualTheme(headerThemeSource);
     }
+
+    return () => {
+      document.documentElement.removeAttribute("data-lifecycle-fun-active");
+    };
   }, [
     boosted,
     clearHeaderVisualTheme,
@@ -173,6 +181,18 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
     headerThemeSource,
     setHeaderVisualTheme,
   ]);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const next = root.nextElementSibling as HTMLElement | null;
+    next?.setAttribute("data-lifecycle-fun-neighbor", "below");
+
+    return () => {
+      next?.removeAttribute("data-lifecycle-fun-neighbor");
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -351,10 +371,10 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           }
 
           const waveMemeImages = [...memeImages].sort((a, b) => {
-            const xDifference =
-              Number(a.dataset.restX ?? 0) - Number(b.dataset.restX ?? 0);
-            if (Math.abs(xDifference) > 3) return xDifference;
-            return Number(a.dataset.restY ?? 0) - Number(b.dataset.restY ?? 0);
+            const yDifference =
+              Number(a.dataset.restY ?? 0) - Number(b.dataset.restY ?? 0);
+            if (Math.abs(yDifference) > 3) return yDifference;
+            return Number(a.dataset.restX ?? 0) - Number(b.dataset.restX ?? 0);
           });
           const firstSlideEntrance = gsap.timeline({
             scrollTrigger: {
@@ -367,7 +387,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           if (waveMemeImages.length) {
             firstSlideEntrance.fromTo(
               waveMemeImages,
-              { autoAlpha: 0, scale: 0, rotation: 0 },
+              { autoAlpha: 0, scale: 0.72, rotation: 0 },
               {
                 autoAlpha: (_index, target) =>
                   Number((target as HTMLElement).dataset.restOpacity ?? 1),
@@ -795,27 +815,161 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
       );
 
       media.add(
-        "(max-width: 1023px), (prefers-reduced-motion: reduce)",
+        "(max-width: 1023px) and (prefers-reduced-motion: no-preference)",
         () => {
           const slides = gsap.utils.toArray<HTMLElement>(
             "[data-lifecycle-slide]",
             root,
           );
-          const animatedItems = gsap.utils.toArray<HTMLElement>(
-            "[data-lifecycle-meme-image], [data-lifecycle-orbit-image], [data-lifecycle-three-stage]",
+          const memeImages = gsap.utils.toArray<HTMLElement>(
+            "[data-lifecycle-meme-image]",
             root,
           );
+          const orbitReveals = gsap.utils.toArray<HTMLElement>(
+            "[data-lifecycle-orbit-reveal]",
+            root,
+          );
+          const orbitStage = root.querySelector<HTMLElement>(
+            "[data-lifecycle-orbit-stage]",
+          );
+          const orbitCenter = root.querySelector<HTMLElement>(
+            "[data-lifecycle-orbit-center]",
+          );
+          const threeStage = root.querySelector<HTMLElement>(
+            "[data-lifecycle-three-stage]",
+          );
           const readableItems = gsap.utils.toArray<HTMLElement>(
-            "[data-lifecycle-top-text], [data-lifecycle-title-char], [data-lifecycle-meme-image], [data-lifecycle-orbit-reveal]",
+            "[data-lifecycle-top-text], [data-lifecycle-title-char]",
             root,
           );
 
           if (slides.length) gsap.set(slides, { clearProps: "all" });
-          if (animatedItems.length) {
-            gsap.set(animatedItems, { clearProps: "opacity,visibility" });
-          }
           if (readableItems.length) {
             gsap.set(readableItems, { autoAlpha: 1, scale: 1 });
+          }
+
+          const waveMemeImages = [...memeImages].sort((a, b) => {
+            const yDifference =
+              Number(a.dataset.restY ?? 0) - Number(b.dataset.restY ?? 0);
+            if (Math.abs(yDifference) > 3) return yDifference;
+            return Number(a.dataset.restX ?? 0) - Number(b.dataset.restX ?? 0);
+          });
+
+          if (waveMemeImages.length && slides[0]) {
+            gsap.set(waveMemeImages, { autoAlpha: 0, scale: 0.18 });
+            gsap
+              .timeline({
+                scrollTrigger: {
+                  trigger: slides[0],
+                  start: "top 86%",
+                  toggleActions: "play none none reverse",
+                },
+              })
+              .to(waveMemeImages, {
+                autoAlpha: (_index, target) =>
+                  Number((target as HTMLElement).dataset.restOpacity ?? 1),
+                scale: (_index, target) =>
+                  Number((target as HTMLElement).dataset.restScale ?? 1),
+                duration: 0.34,
+                stagger: { amount: 0.72, from: "start" },
+                ease: "back.out(1.75)",
+                overwrite: "auto",
+              });
+          }
+
+          if (slides[1]) {
+            if (orbitStage) gsap.set(orbitStage, { scale: 0.82 });
+            if (orbitCenter) gsap.set(orbitCenter, { scale: 0.55 });
+            if (orbitReveals.length) {
+              gsap.set(orbitReveals, { autoAlpha: 0, scale: 0.35 });
+            }
+
+            const orbitEntrance = gsap.timeline({
+              scrollTrigger: {
+                trigger: slides[1],
+                start: "top 84%",
+                toggleActions: "play none none reverse",
+              },
+            });
+            if (orbitStage) {
+              orbitEntrance.to(
+                orbitStage,
+                { scale: 1, duration: 0.48, ease: "power3.out" },
+                0,
+              );
+            }
+            if (orbitCenter) {
+              orbitEntrance.to(
+                orbitCenter,
+                { scale: 1, duration: 0.42, ease: "back.out(1.7)" },
+                0.04,
+              );
+            }
+            if (orbitReveals.length) {
+              orbitEntrance.to(
+                orbitReveals,
+                {
+                  autoAlpha: 1,
+                  scale: 1,
+                  duration: 0.2,
+                  stagger: 0.055,
+                  ease: "back.out(1.8)",
+                },
+                0.14,
+              );
+            }
+          }
+
+          if (slides[2] && threeStage) {
+            gsap.set(threeStage, {
+              yPercent: 38,
+              scale: 0.68,
+              transformOrigin: "50% 50%",
+            });
+            const objectEntrance = gsap
+              .timeline({
+                scrollTrigger: {
+                  trigger: slides[2],
+                  start: "top 84%",
+                  toggleActions: "play none none reverse",
+                  onEnter: () => {
+                    objectSlideActiveRef.current = true;
+                  },
+                  onEnterBack: () => {
+                    objectSlideActiveRef.current = true;
+                  },
+                  onLeave: () => {
+                    objectSlideActiveRef.current = false;
+                    setBoosted(false);
+                    clearHeaderVisualTheme(headerThemeSource);
+                  },
+                  onLeaveBack: () => {
+                    objectSlideActiveRef.current = false;
+                    setBoosted(false);
+                    clearHeaderVisualTheme(headerThemeSource);
+                  },
+                },
+              })
+              .call(
+                () => setObjectEntryKey((current) => current + 1),
+                [],
+                0,
+              )
+              .to(
+                threeStage,
+                {
+                  yPercent: 0,
+                  scale: 1,
+                  duration: 0.72,
+                  ease: "power4.out",
+                  force3D: true,
+                },
+                0,
+              );
+
+            if (objectEntrance.scrollTrigger?.isActive) {
+              objectSlideActiveRef.current = true;
+            }
           }
 
           const progress = root.querySelector<HTMLElement>(
@@ -824,6 +978,21 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           if (progress) gsap.set(progress, { scaleX: 1 });
         },
       );
+
+      media.add("(prefers-reduced-motion: reduce)", () => {
+        const slides = gsap.utils.toArray<HTMLElement>(
+          "[data-lifecycle-slide]",
+          root,
+        );
+        const readableItems = gsap.utils.toArray<HTMLElement>(
+          "[data-lifecycle-top-text], [data-lifecycle-title-char], [data-lifecycle-meme-image], [data-lifecycle-orbit-reveal]",
+          root,
+        );
+        if (slides.length) gsap.set(slides, { clearProps: "all" });
+        if (readableItems.length) {
+          gsap.set(readableItems, { autoAlpha: 1, scale: 1 });
+        }
+      });
     }, root);
 
     return () => {
@@ -887,6 +1056,8 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
     <section
       ref={rootRef}
       id={cleanAnchor || `_lifecycle-${_key}`}
+      data-lifecycle-root="true"
+      data-lifecycle-fun-active={boosted ? "true" : undefined}
       data-pin-to-viewport="true"
       data-pin-duration={duration}
       data-pin-spacing="true"
@@ -898,9 +1069,21 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
       >
         <BackgroundPanel background={background} />
 
+        <div
+          data-lifecycle-fun-site-wash
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-0 z-[5] transition-opacity duration-300 ease-out",
+            boosted ? "opacity-100" : "opacity-0",
+          )}
+          style={{
+            background: "#000000",
+          }}
+        />
+
         <article
           data-lifecycle-slide="meme"
-          className="relative z-10 min-h-[92svh] overflow-hidden border-b border-current/15 lg:absolute lg:inset-0 lg:min-h-0 lg:border-0"
+          className="relative z-10 min-h-[92svh] overflow-hidden lg:absolute lg:inset-0 lg:min-h-0"
         >
           <LifecycleMemeSwarm
             memes={memeSlide?.memes}
@@ -916,7 +1099,8 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
 
         <article
           data-lifecycle-slide="orbit"
-          className="relative z-10 min-h-[92svh] overflow-hidden border-b border-current/15 lg:invisible lg:absolute lg:inset-0 lg:min-h-0 lg:opacity-0 lg:border-0"
+          data-lifecycle-fun-previous="true"
+          className="relative z-10 -mt-px min-h-[calc(92svh+1px)] overflow-hidden lg:invisible lg:absolute lg:inset-0 lg:mt-0 lg:min-h-0 lg:opacity-0"
         >
           <LifecycleOrbit
             centerImage={resolvedOrbitCenter}
@@ -932,7 +1116,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
 
         <article
           data-lifecycle-slide="object"
-          className="relative z-10 min-h-[92svh] overflow-hidden lg:invisible lg:absolute lg:inset-0 lg:min-h-0 lg:opacity-0"
+          className="relative z-10 -mt-px min-h-[calc(92svh+1px)] overflow-hidden lg:invisible lg:absolute lg:inset-0 lg:mt-0 lg:min-h-0 lg:opacity-0"
         >
           <div
             data-lifecycle-fun-background
@@ -964,6 +1148,19 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
               entryKey={objectEntryKey}
             />
           </div>
+
+          <div
+            data-lifecycle-fun-edge-gradient
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-0 z-30 transition-opacity duration-300 ease-out",
+              boosted ? "opacity-100" : "opacity-0",
+            )}
+            style={{
+              background:
+                "linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.92) 1.5%, rgba(0,0,0,0.48) 4%, transparent 9%, transparent 91%, rgba(0,0,0,0.48) 96%, rgba(0,0,0,0.92) 98.5%, #000 100%)",
+            }}
+          />
 
           <SlideCopy
             topText={objectSlide?.topText}

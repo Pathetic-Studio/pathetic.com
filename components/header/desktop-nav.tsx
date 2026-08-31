@@ -267,6 +267,7 @@ export default function DesktopNav({
     <>
       {links.map((navItem, index) => {
         const key = navItem._key;
+        const navLabel = stegaClean(navItem.title) || "";
         const explicitPreset = stegaClean(
           (navItem as NavLinkLite & { headerVisualPreset?: string | null })
             .headerVisualPreset,
@@ -296,7 +297,10 @@ export default function DesktopNav({
 
         if (navItem.linkType === "contact") {
           return wrapLeftItem(
-              <ContactFormTrigger className={cn(buttonVariants({ variant: "menu", size: "sm" }))}>
+              <ContactFormTrigger
+                data-header-nav-label={navLabel}
+                className={cn(buttonVariants({ variant: "menu", size: "sm" }))}
+              >
                 {navItem.title}
               </ContactFormTrigger>
           );
@@ -310,6 +314,7 @@ export default function DesktopNav({
             return wrapLeftItem(
                 <button
                   type="button"
+                  data-header-nav-label={navLabel}
                   onClick={(e) => handleSamePageAnchor(e, navItem)}
                   className={cn(
                     buttonVariants({ variant: "menu", size: "sm" }),
@@ -326,6 +331,7 @@ export default function DesktopNav({
           return wrapLeftItem(
               <Link
                 href={href}
+                data-header-nav-label={navLabel}
                 scroll={false}
                 className={cn(
                   buttonVariants({ variant: "menu", size: "sm" }),
@@ -340,6 +346,7 @@ export default function DesktopNav({
         return wrapLeftItem(
             <Button
               link={resolvedNavItem as any}
+              data-header-nav-label={navLabel}
               variant="menu"
               size="sm"
               className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-auto px-0 py-0")}
@@ -354,6 +361,7 @@ export default function DesktopNav({
   const renderRightLinks = (links: NavLinkLite[]) => (
     <>
       {links.map((navItem) => {
+        const navLabel = stegaClean(navItem.title) || "";
         const variant =
           (navItem.buttonVariant as
             | "link"
@@ -372,6 +380,7 @@ export default function DesktopNav({
             <ContactFormTrigger
               key={navItem._key}
               data-right-nav-item
+              data-header-nav-label={navLabel}
               className={cn(
                 buttonVariants({ variant, size: "sm" }),
                 "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
@@ -393,6 +402,7 @@ export default function DesktopNav({
                 type="button"
                 onClick={(e) => handleSamePageAnchor(e, navItem)}
                 data-right-nav-item
+                data-header-nav-label={navLabel}
                 className={cn(
                   buttonVariants({ variant, size: "sm" }),
                   "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
@@ -411,6 +421,7 @@ export default function DesktopNav({
               href={href}
               scroll={false}
               data-right-nav-item
+              data-header-nav-label={navLabel}
               className={cn(
                 buttonVariants({ variant, size: "sm" }),
                 "transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full"
@@ -428,6 +439,7 @@ export default function DesktopNav({
             variant={variant}
             size="sm"
             data-right-nav-item
+            data-header-nav-label={navLabel}
             className={cn("transition-colors hover:text-foreground/90 text-foreground/70 h-8 px-3 rounded-full")}
           >
             {navItem.title}

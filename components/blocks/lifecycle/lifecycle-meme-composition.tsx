@@ -104,9 +104,9 @@ export const MEME_TEMPLATES: MemeTemplate[] = [
         kind: "headline",
       },
     ],
-    // This divider deliberately sits below the full trouser silhouettes and
-    // above the coffee row, so no pair of pants is cut through by the index.
-    lines: [{ left: 4.5, top: 62.35, width: 91 }],
+    // The index divider runs through the trouser row, with the cut-outs
+    // composited in front of it (matching the source layout).
+    lines: [{ left: 4.5, top: 48.5, width: 91 }],
     layers: [
       { src: `${ASSET_ROOT}/pants-skinny.webp`, alt: "Slim black trousers", left: 1.577, top: 21.943, width: 17.072, height: 39.596 },
       { src: `${ASSET_ROOT}/pants-denim.webp`, alt: "Wide denim trousers", left: 24.894, top: 21.943, width: 19.057, height: 39.596 },
@@ -312,7 +312,7 @@ export default function LifecycleMemeComposition({
     <div
       ref={rootRef}
       data-lifecycle-meme-composition
-      className="pointer-events-none absolute z-[130] text-foreground"
+      className="pointer-events-none absolute text-foreground"
       style={{
         left: `${box.left}%`,
         top: `${box.top}%`,
@@ -323,7 +323,7 @@ export default function LifecycleMemeComposition({
     >
       <div
         data-meme-frame
-        className="absolute -inset-px"
+        className="absolute -inset-px z-[130]"
       >
         <span
           data-meme-frame-edge
@@ -355,7 +355,7 @@ export default function LifecycleMemeComposition({
         <div
           key={`line-${index}`}
           data-meme-line
-          className="absolute h-[2px] bg-current"
+          className="absolute z-[105] h-[2px] bg-current"
           style={{
             left: `${line.left}%`,
             top: `${line.top}%`,
@@ -367,7 +367,7 @@ export default function LifecycleMemeComposition({
       {template.copies.map((copy, index) => (
         <div
           key={`${copy.text}-${index}`}
-          className={`${
+          className={`z-[130] ${
             copy.kind === "headline"
               ? "absolute text-center text-[clamp(9px,1vw,17px)] font-bold uppercase leading-[1.02]"
               : "absolute text-center text-[clamp(6px,0.5vw,9px)] font-bold leading-[1.05]"

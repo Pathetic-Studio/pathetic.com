@@ -17,6 +17,15 @@ type TypeOnTextProps = {
   hoverTargetRef?: RefObject<HTMLElement | null>;
 };
 
+// Shared cadence bands. Section layouts should generally move their trigger
+// earlier before increasing these values; speed is reserved for tone.
+export const TYPE_ON_SPEEDS = {
+  standard: 1.2,
+  deliberate: 2.7,
+  quick: 3.4,
+  rapid: 4,
+} as const;
+
 const LOADER_FLAG_ATTR = "data-loader-playing";
 const LOADER_EVENT = "loader-playing-change";
 const LOADER_SECTION_ID = "page-loader-section";
@@ -30,7 +39,7 @@ function parseStartThresholdPx(start: string): number {
 
 export default function TypeOnText({
   text,
-  speed = 1,
+  speed = TYPE_ON_SPEEDS.standard,
   delay = 0,
   className,
   start = "top 80%",

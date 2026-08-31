@@ -459,7 +459,9 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         tl.to(paths, { autoAlpha: 1, duration: 0.01, stagger: 0.04, ease: "none" });
       }
 
-      tl.to({}, { duration: 0.7 });
+      // The image burst hands straight into the large mark. Keep only a very
+      // short read beat before it travels into the header.
+      tl.to({}, { duration: 0.18 });
 
       // move logo to header
       tl.add(() => {
@@ -479,7 +481,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         });
       });
 
-      tl.to({}, { duration: 0.8 });
+      tl.to({}, { duration: 0.72 });
 
       tl.add(() => {
         setLogoFlipDoneFlag(true);
@@ -541,8 +543,8 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
           containerId={EXPLODE_STAGE_ID}
           images={sprites as any}
           onAllItemsAnimatedIn={handleExplodeReady}
-          appearStaggerEach={0.14}
-          appearDuration={1.1}
+          appearStaggerEach={0.1}
+          appearDuration={0.68}
         />
       </div>
 

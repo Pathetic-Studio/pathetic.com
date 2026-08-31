@@ -213,6 +213,9 @@ function Button({
     typeof cmsLink?.target === "boolean" ? cmsLink.target : target === "_blank";
 
   const content = children ?? cmsLink?.title ?? props["aria-label"] ?? "Button";
+  const dataProps = Object.fromEntries(
+    Object.entries(props).filter(([key]) => key.startsWith("data-")),
+  ) as any;
 
   const buttonClassName = cn(buttonVariants({ variant, size, className }));
 
@@ -448,6 +451,7 @@ function Button({
   if (isContactLink) {
     return (
       <ContactFormTrigger
+        {...dataProps}
         className={buttonClassName}
         label={typeof content === "string" ? content : undefined}
       >
@@ -459,6 +463,7 @@ function Button({
   if (url && isDownloadLink) {
     return (
       <a
+        {...dataProps}
         href={url}
         className={buttonClassName}
         download={cmsLink?.downloadFilename || ""}
@@ -478,6 +483,7 @@ function Button({
     if (samePath && anchorId) {
       return (
         <button
+          {...dataProps}
           type="button"
           className={buttonClassName}
           onClick={(e) => {
@@ -498,6 +504,7 @@ function Button({
     // Cross-page anchor: keep real navigation
     return (
       <Link
+        {...dataProps}
         href={url}
         scroll={false}
         target={openInNewTab ? "_blank" : undefined}
@@ -512,6 +519,7 @@ function Button({
   if (url) {
     return (
       <Link
+        {...dataProps}
         href={url}
         target={openInNewTab ? "_blank" : undefined}
         rel={openInNewTab ? "noopener noreferrer" : undefined}

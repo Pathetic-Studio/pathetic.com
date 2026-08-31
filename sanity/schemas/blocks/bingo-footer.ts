@@ -55,16 +55,16 @@ export default defineType({
     textColor: { hex: "#050505" },
     leftCells: [
       { _key: "newsletter", _type: "bingoFooterCell", label: "NEWS\nLETTER", action: "newsletter", icon: "none", column: 3, row: 1 },
-      { _key: "privacy", _type: "bingoFooterCell", label: "PRIVACY\nPOLICY", action: "none", icon: "none", column: 2, row: 2 },
-      { _key: "work", _type: "bingoFooterCell", label: "WORK", action: "none", icon: "none", column: 1, row: 4 },
-      { _key: "talent", _type: "bingoFooterCell", label: "TALENT\nMATRIX", action: "none", icon: "none", column: 3, row: 4 },
+      { _key: "privacy", _type: "bingoFooterCell", label: "PRIVACY\nPOLICY", action: "link", icon: "none", column: 2, row: 2, link: { _type: "link", linkType: "external", href: "/privacy", target: false } },
+      { _key: "work", _type: "bingoFooterCell", label: "WORK", action: "link", icon: "none", column: 1, row: 4, link: { _type: "link", linkType: "anchor-link", anchorId: "work" } },
+      { _key: "talent", _type: "bingoFooterCell", label: "TALENT\nMATRIX", action: "link", icon: "none", column: 3, row: 4, link: { _type: "link", linkType: "anchor-link", anchorId: "talent-matrix" } },
     ],
     rightCells: [
-      { _key: "insta", _type: "bingoFooterCell", label: "INSTA", action: "none", icon: "none", column: 1, row: 1 },
+      { _key: "insta", _type: "bingoFooterCell", label: "INSTA", action: "link", icon: "none", column: 1, row: 1, link: { _type: "link", linkType: "external", href: "https://www.instagram.com/pathetic/", target: true } },
       { _key: "contact", _type: "bingoFooterCell", label: "CONTACT", action: "contact", icon: "none", column: 3, row: 1 },
-      { _key: "shop", _type: "bingoFooterCell", label: "SHOP", action: "none", icon: "none", column: 1, row: 3 },
+      { _key: "shop", _type: "bingoFooterCell", label: "SHOP", action: "link", icon: "none", column: 1, row: 3, link: { _type: "link", linkType: "anchor-link", anchorId: "shop" } },
       { _key: "star", _type: "bingoFooterCell", label: "", action: "none", icon: "star", column: 1, row: 4 },
-      { _key: "careers", _type: "bingoFooterCell", label: "CAREERS", action: "none", icon: "none", column: 3, row: 4 },
+      { _key: "careers", _type: "bingoFooterCell", label: "CAREERS", action: "link", icon: "none", column: 3, row: 4, link: { _type: "link", linkType: "anchor-link", anchorId: "work-with-us" } },
     ],
   },
   fields: [

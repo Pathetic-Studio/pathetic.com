@@ -35,6 +35,7 @@ function smoothstep(start: number, end: number, value: number) {
 
 const REVEAL_START_TIME = 0.82;
 const SEQUENCE_TIMELINE_DURATION = 3.1;
+type SequenceViewportMode = "desktop" | "tablet" | "mobile" | "reduced";
 
 export default function WhatWeDoTalentSequence({
   whatWeDo,
@@ -46,7 +47,7 @@ export default function WhatWeDoTalentSequence({
   const rootRef = useRef<HTMLElement | null>(null);
   const transitionProgress = useRef({ value: 0 });
   const cameraScrollProgress = useRef({ value: 0 });
-  const [viewportMode, setViewportMode] = useState<"desktop" | "mobile" | null>(null);
+  const [viewportMode, setViewportMode] = useState<SequenceViewportMode | null>(null);
   const { setHeaderVisualTheme, clearHeaderVisualTheme } =
     useHeaderVisualTheme();
   const duration = Math.max(
@@ -69,28 +70,67 @@ export default function WhatWeDoTalentSequence({
   const sequenceBackground =
     stegaClean(whatWeDo.backgroundColor?.hex) || "#e7e7e2";
   const whatWeDoId = stegaClean(whatWeDo.anchor?.anchorId) || `_what-we-do-grid-${whatWeDo._key}`;
-  const talentId = stegaClean(talent.anchor?.anchorId) || `_talent-matrix-${talent._key}`;
+  const talentId = stegaClean(talent.anchor?.anchorId) || "talent-matrix";
 
   useLayoutEffect(() => {
-    const query = window.matchMedia("(min-width: 1024px)");
-    const update = () => setViewportMode(query.matches ? "desktop" : "mobile");
+    const coarsePointer = window.matchMedia("(pointer: coarse)");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => {
+      if (reducedMotion.matches) {
+        setViewportMode("reduced");
+        return;
+      }
+
+      const touch = coarsePointer.matches || navigator.maxTouchPoints > 0;
+      if (window.innerWidth >= 1024 && !touch) {
+        setViewportMode("desktop");
+      } else if (window.innerWidth >= 700) {
+        setViewportMode("tablet");
+      } else {
+        setViewportMode("mobile");
+      }
+    };
     update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
+    coarsePointer.addEventListener("change", update);
+    reducedMotion.addEventListener("change", update);
+    window.addEventListener("resize", update);
+    return () => {
+      coarsePointer.removeEventListener("change", update);
+      reducedMotion.removeEventListener("change", update);
+      window.removeEventListener("resize", update);
+    };
   }, []);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!root || viewportMode !== "desktop") return;
+    if (!root || !viewportMode || viewportMode === "reduced") return;
+
+    const isDesktop = viewportMode === "desktop";
+    const sequenceDuration = isDesktop
+      ? duration
+      : viewportMode === "tablet"
+        ? Math.max(3, Math.min(3.5, duration * 0.58))
+        : Math.max(2.3, Math.min(2.75, duration * 0.44));
+    const animationScrub = isDesktop
+      ? 0.72
+      : viewportMode === "tablet"
+        ? 0.3
+        : 0.18;
+    const parallaxScrub = isDesktop
+      ? 0.35
+      : viewportMode === "tablet"
+        ? 0.24
+        : 0.16;
 
     const media = gsap.matchMedia();
     const context = gsap.context(() => {
       media.add(
-        "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
+        "(prefers-reduced-motion: no-preference)",
         () => {
           const whatScene = root.querySelector<HTMLElement>("[data-sequence-what]");
           const talentScene = root.querySelector<HTMLElement>("[data-sequence-talent]");
-          if (!whatScene || !talentScene) return;
+          const pinTarget = root.querySelector<HTMLElement>("[data-pin-target='true']");
+          if (!whatScene || !talentScene || !pinTarget) return;
 
           const layers = gsap.utils.toArray<HTMLElement>(
             "[data-what-layer]",
@@ -139,7 +179,8 @@ export default function WhatWeDoTalentSequence({
           transitionProgress.current.value = 0;
           cameraScrollProgress.current.value = 0;
           gsap.set(whatScene, {
-            autoAlpha: 1,
+            opacity: 1,
+            visibility: "visible",
             clipPath: "none",
             pointerEvents: "auto",
           });
@@ -156,8 +197,8 @@ export default function WhatWeDoTalentSequence({
             scrollTrigger: {
               trigger: root,
               start: "top bottom",
-              end: () => `+=${window.innerHeight * (duration + 1)}`,
-              scrub: 0.35,
+              end: () => `+=${window.innerHeight * (sequenceDuration + 1)}`,
+              scrub: parallaxScrub,
               invalidateOnRefresh: true,
             },
           });
@@ -184,8 +225,11 @@ export default function WhatWeDoTalentSequence({
             scrollTrigger: {
               trigger: root,
               start: "top top",
-              end: () => `+=${window.innerHeight * duration}`,
-              scrub: 0.72,
+              end: () => `+=${window.innerHeight * sequenceDuration}`,
+              scrub: animationScrub,
+              pin: isDesktop ? false : pinTarget,
+              pinSpacing: isDesktop ? false : true,
+              anticipatePin: isDesktop ? 0 : 1,
               invalidateOnRefresh: true,
               onEnter: () => clearHeaderVisualTheme(headerThemeSource),
               onEnterBack: () =>
@@ -238,27 +282,12 @@ export default function WhatWeDoTalentSequence({
             .set(whatScene, { opacity: 0, pointerEvents: "none" }, 2.34)
             .to({}, { duration: 0.76 });
 
-          const fullCameraDistance = duration + 1;
-          const exitStartProgress = duration / fullCameraDistance;
-          let headerBoundaryWindow = Math.max(
-            0.08,
-            Math.min(
-              0.22,
-              (document.getElementById("site-header-root")?.offsetHeight || 96) /
-                Math.max(1, window.innerHeight),
-            ),
-          );
+          const fullCameraDistance = sequenceDuration + 1;
+          const exitStartProgress = sequenceDuration / fullCameraDistance;
           const boundaryForExit = (exitProgress: number) =>
-            Math.max(
-              0,
-              Math.min(
-                1,
-                (exitProgress - (1 - headerBoundaryWindow)) /
-                  headerBoundaryWindow,
-              ),
-            );
+            Math.max(0, Math.min(1, exitProgress));
           const cameraStartProgress =
-            (duration * (REVEAL_START_TIME / SEQUENCE_TIMELINE_DURATION)) /
+            (sequenceDuration * (REVEAL_START_TIME / SEQUENCE_TIMELINE_DURATION)) /
             fullCameraDistance;
           gsap
             .timeline({
@@ -268,16 +297,6 @@ export default function WhatWeDoTalentSequence({
                 end: () => `+=${window.innerHeight * fullCameraDistance}`,
                 scrub: true,
                 invalidateOnRefresh: true,
-                onRefresh: () => {
-                  headerBoundaryWindow = Math.max(
-                    0.08,
-                    Math.min(
-                      0.22,
-                      (document.getElementById("site-header-root")
-                        ?.offsetHeight || 96) / Math.max(1, window.innerHeight),
-                    ),
-                  );
-                },
                 onUpdate: (self) => {
                   if (self.progress < exitStartProgress) return;
                   const exitProgress = Math.max(
@@ -303,7 +322,15 @@ export default function WhatWeDoTalentSequence({
                   const boundaryProgress = boundaryForExit(exitProgress);
                   applyHeaderProgress(1, boundaryProgress);
                 },
-                onLeave: () => clearHeaderVisualTheme(headerThemeSource),
+                onLeave: () => {
+                  // Paint the completed boundary state before dropping the
+                  // Matrix claim. Without this final frame, fast scrolling can
+                  // clear the theme one tick before the text/icon masks finish.
+                  applyHeaderProgress(1, 1);
+                  requestAnimationFrame(() => {
+                    clearHeaderVisualTheme(headerThemeSource);
+                  });
+                },
               },
             })
             .to(cameraScrollProgress.current, {
@@ -366,28 +393,38 @@ export default function WhatWeDoTalentSequence({
       className="relative z-[2] -mt-[8px]"
       style={{ backgroundColor: sequenceBackground }}
     >
-      {viewportMode !== "desktop" && (
-        <div className="lg:hidden">
+      {viewportMode === "reduced" && (
+        <div>
           <WhatWeDoGridView block={whatWeDo} />
           <div id={talentId}>
-            <TalentMatrixView block={talent} />
+            <TalentMatrixView block={talent} quality="mobile" />
           </div>
         </div>
       )}
 
-      {viewportMode !== "mobile" && (
+      {viewportMode !== "reduced" && (
         <div
           data-pin-target="true"
-          className="relative hidden h-[100svh] min-h-[680px] overflow-hidden lg:block"
+          data-sequence-mode={viewportMode || "mobile"}
+          className="relative overflow-hidden"
           style={{
             backgroundColor: sequenceBackground,
             boxShadow: `0 -12px 0 ${sequenceBackground}, 0 12px 0 ${sequenceBackground}`,
+            height:
+              viewportMode === "desktop"
+                ? "100svh"
+                : "var(--app-height, 100dvh)",
+            minHeight:
+              viewportMode === "desktop"
+                ? "680px"
+                : "var(--app-height, 100dvh)",
           }}
         >
           <div
             data-sequence-what
             className="absolute inset-0 z-30"
             style={{
+              visibility: "visible",
               maskRepeat: "no-repeat",
               maskSize: "100% 100%",
               WebkitMaskRepeat: "no-repeat",
@@ -397,10 +434,16 @@ export default function WhatWeDoTalentSequence({
           >
             <WhatWeDoGridView block={whatWeDo} />
           </div>
-          <div id={talentId} data-sequence-talent className="absolute inset-0 z-20 opacity-0 will-change-opacity">
+          <div
+            id={talentId}
+            data-sequence-talent
+            className="absolute inset-0 z-20 opacity-0 will-change-opacity"
+            style={{ visibility: "visible" }}
+          >
             <TalentMatrixView
               block={talent}
               cameraScrollProgress={cameraScrollProgress}
+              quality={viewportMode === "desktop" ? "desktop" : viewportMode === "tablet" ? "tablet" : "mobile"}
             />
           </div>
           <MatrixRevealCanvas
@@ -409,6 +452,7 @@ export default function WhatWeDoTalentSequence({
             density={density}
             changeSpeed={changeSpeed}
             softness={softness}
+            quality={viewportMode === "desktop" ? "desktop" : viewportMode === "tablet" ? "tablet" : "mobile"}
           />
         </div>
       )}

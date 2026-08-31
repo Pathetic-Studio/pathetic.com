@@ -1,12 +1,12 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef } from "react";
-import Link from "next/link";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Bodies, Body, Engine, Sleeping, World } from "matter-js";
+import type { Body as MatterBody, Vector } from "matter-js";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import gsap from "gsap";
 import { stegaClean } from "next-sanity";
-import { useContactModal } from "@/components/contact/contact-modal-context";
+import BasketLinksPopup, { type BasketPopupType } from "./basket-links-popup";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger);
 
@@ -46,25 +46,87 @@ export type BasketLinksSectionBlock = {
 
 const LOCAL_ASSETS: Record<string, string> = {
   computer: "/images/basket-links/computer.png",
-  "object-black": "/images/basket-links/object-black.png",
-  magazine: "/images/basket-links/magazine.png",
   portal: "/images/basket-links/portal.png",
-  smoothie: "/images/basket-links/smoothie.png",
   hoodie: "/images/basket-links/hoodie.png",
   pigeon: "/images/basket-links/pigeon.png",
 };
 
+type BasketPreset = {
+  title: string;
+  genericTitle: string;
+  artworkRotation: number;
+  artworkScale: number;
+  labelX: number;
+  labelY: number;
+  startX: number;
+  startY: number;
+};
+
+const BASKET_PRESETS: Record<string, BasketPreset> = {
+  pigeon: {
+    title: "Newsletter",
+    genericTitle: "Pigeon",
+    artworkRotation: 0,
+    artworkScale: 0.94,
+    labelX: 48,
+    labelY: 72,
+    startX: 28,
+    startY: 34,
+  },
+  hoodie: {
+    title: "Shop",
+    genericTitle: "Hoodie",
+    artworkRotation: 48,
+    artworkScale: 0.92,
+    labelX: 49,
+    labelY: 79,
+    startX: 48,
+    startY: 39,
+  },
+  computer: {
+    title: "Jobs",
+    genericTitle: "Computer",
+    artworkRotation: -22,
+    artworkScale: 0.8,
+    labelX: 50,
+    labelY: 64,
+    startX: 72,
+    startY: 43,
+  },
+  portal: {
+    title: "The Abyss",
+    genericTitle: "Portal",
+    artworkRotation: -20,
+    artworkScale: 0.86,
+    labelX: 50,
+    labelY: 73,
+    startX: 44,
+    startY: 68,
+  },
+};
+
+const POPUP_BY_PRESET: Record<string, BasketPopupType> = {
+  pigeon: "newsletter",
+  hoodie: "shop",
+  computer: "jobs",
+  portal: "abyss",
+};
+
 const FALLBACK_ITEMS: BasketItem[] = [
-  { _key: "computer", title: "Computer", localAsset: "computer", size: 24, startX: 69, startY: 57 },
-  { _key: "black-object", title: "Basket item", localAsset: "object-black", size: 18, startX: 29, startY: 30 },
-  { _key: "magazine", title: "Magazine", localAsset: "magazine", size: 18, startX: 76, startY: 28 },
-  { _key: "portal", title: "Portal", localAsset: "portal", size: 25, startX: 43, startY: 64 },
-  { _key: "smoothie", title: "Smoothie", localAsset: "smoothie", size: 14, startX: 53, startY: 30 },
-  { _key: "hoodie", title: "Hoodie", localAsset: "hoodie", size: 21, startX: 27, startY: 66 },
-  { _key: "pigeon", title: "Pigeon", localAsset: "pigeon", size: 21, startX: 37, startY: 38 },
+  { _key: "pigeon", title: "Newsletter", localAsset: "pigeon", size: 23, startX: 28, startY: 34 },
+  { _key: "hoodie", title: "Shop", localAsset: "hoodie", size: 23, startX: 48, startY: 39 },
+  { _key: "computer", title: "Jobs", localAsset: "computer", size: 26, startX: 72, startY: 43 },
+  { _key: "portal", title: "The Abyss", localAsset: "portal", size: 27, startX: 44, startY: 68 },
 ];
 
-type ResolvedBasketItem = BasketItem & { src: string };
+type ResolvedBasketItem = Omit<BasketItem, "title" | "startX" | "startY"> & {
+  title: string;
+  startX: number;
+  startY: number;
+  src: string;
+  preset: BasketPreset;
+  presetKey: string;
+};
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.max(minimum, Math.min(maximum, value));
@@ -73,18 +135,87 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
   const rootRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Array<HTMLElement | null>>([]);
-  const { open: openContact } = useContactModal();
+  const matterBodiesRef = useRef<MatterBody[]>([]);
+  const frozenPopupBodyRef = useRef<{
+    body: MatterBody;
+    velocity: Vector;
+    angularVelocity: number;
+    collisionMask: number;
+  } | null>(null);
+  const popupSourceRef = useRef<HTMLElement | null>(null);
+  const [activePopup, setActivePopup] = useState<BasketPopupType | null>(null);
+  const [popupOrigin, setPopupOrigin] = useState<{ x: number; y: number } | null>(null);
 
   const items = useMemo<ResolvedBasketItem[]>(() => {
     const source = props.items?.length ? props.items : FALLBACK_ITEMS;
     return source
       .map((item) => {
         const localKey = stegaClean(item.localAsset) || "";
-        const src = item.image?.asset?.url || LOCAL_ASSETS[localKey];
-        return src ? { ...item, src } : null;
+        const preset = BASKET_PRESETS[localKey];
+        if (!preset) return null;
+        const customImageUrl = item.image?.asset?.url || "";
+        const src = customImageUrl || LOCAL_ASSETS[localKey];
+        if (!src) return null;
+
+        const cleanTitle = (stegaClean(item.title) || "").trim();
+        const title =
+          !cleanTitle || cleanTitle.toLowerCase() === preset.genericTitle.toLowerCase()
+            ? preset.title
+            : cleanTitle;
+
+        return {
+          ...item,
+          title,
+          src,
+          preset: customImageUrl
+            ? { ...preset, artworkRotation: 0, artworkScale: 0.94 }
+            : preset,
+          presetKey: localKey,
+          startX: preset.startX,
+          startY: preset.startY,
+        };
       })
-      .filter((item): item is ResolvedBasketItem => Boolean(item));
+      .filter((item): item is NonNullable<typeof item> => item !== null);
   }, [props.items]);
+
+  const closePopup = useCallback(() => {
+    setActivePopup(null);
+    const frozen = frozenPopupBodyRef.current;
+    frozenPopupBodyRef.current = null;
+    if (!frozen) return;
+
+    // The popup's reverse FLIP finishes before this callback. Keeping the
+    // Matter body static until now means its live DOM destination cannot drift
+    // away from the rectangle the artwork is animating toward.
+    Body.setStatic(frozen.body, false);
+    frozen.body.collisionFilter.mask = frozen.collisionMask;
+    Body.setVelocity(frozen.body, {
+      x: frozen.velocity.x * 0.32,
+      y: frozen.velocity.y * 0.32,
+    });
+    Body.setAngularVelocity(frozen.body, frozen.angularVelocity * 0.24);
+    Sleeping.set(frozen.body, false);
+  }, []);
+
+  const openPopup = useCallback((type: BasketPopupType, event: React.MouseEvent<HTMLElement>) => {
+    popupSourceRef.current = event.currentTarget;
+    const index = Number(event.currentTarget.dataset.basketIndex);
+    const body = matterBodiesRef.current[index];
+    if (body) {
+      frozenPopupBodyRef.current = {
+        body,
+        velocity: { x: body.velocity.x, y: body.velocity.y },
+        angularVelocity: body.angularVelocity,
+        collisionMask: body.collisionFilter.mask ?? 0xffffffff,
+      };
+      Body.setVelocity(body, { x: 0, y: 0 });
+      Body.setAngularVelocity(body, 0);
+      Body.setStatic(body, true);
+      body.collisionFilter.mask = 0;
+    }
+    setPopupOrigin({ x: event.clientX, y: event.clientY });
+    setActivePopup(type);
+  }, []);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -139,11 +270,14 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         density: 0.0014,
         chamfer: { radius: Math.min(itemWidth, itemHeight) * 0.12 },
       });
-      Body.setAngle(body, ((index * 47) % 70 - 35) * (Math.PI / 180));
-      Body.setVelocity(body, { x: (index % 2 ? 1 : -1) * (0.7 + (index % 3) * 0.35), y: (index % 3 - 1) * 0.45 });
-      Body.setAngularVelocity(body, (index % 2 ? 1 : -1) * (0.004 + (index % 3) * 0.002));
+      // Start from the artwork's authored orientation. The old random angle
+      // made labels look detached even though they lived inside the item.
+      Body.setAngle(body, 0);
+      Body.setVelocity(body, { x: 0, y: 0 });
+      Body.setAngularVelocity(body, 0);
       return body;
     });
+    matterBodiesRef.current = bodies;
 
     World.add(engine.world, [...walls, ...bodies]);
 
@@ -226,7 +360,6 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
             x: clamp(body.velocity.x + normalized * ((index % 3) - 1) * 1.6, -13, 13),
             y: clamp(body.velocity.y + normalized * (4.5 + (index % 3)), -15, 15),
           });
-          Body.setAngularVelocity(body, clamp(body.angularVelocity + normalized * (index % 2 ? 0.018 : -0.018), -0.09, 0.09));
           Sleeping.set(body, false);
         });
       },
@@ -337,28 +470,51 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       stage.removeEventListener("click", onClickCapture, true);
       World.clear(engine.world, false);
       Engine.clear(engine);
+      matterBodiesRef.current = [];
+      frozenPopupBodyRef.current = null;
     };
   }, [items]);
 
-  const sectionId = stegaClean(props.anchor?.anchorId) || undefined;
+  const sectionId = stegaClean(props.anchor?.anchorId) || "shop";
   const basketSrc = props.basketImage?.asset?.url || "/images/basket-links/basket.png";
   const backgroundColor = stegaClean(props.backgroundColor?.hex) || "#FFFFFF";
   const title = stegaClean(props.title) || "THE PATHETIC BASKET";
   const hint = stegaClean(props.hint) || "(PSSSST — YOU HAVE TO CLICK ON IT)";
 
   const itemContent = (item: ResolvedBasketItem) => (
-    <>
+    <span
+      data-basket-artwork-plane
+      className="pointer-events-none absolute inset-0 block"
+    >
       {/* A native image keeps animated/custom Sanity assets untouched and avoids
           Next Image wrappers interfering with Matter's transform target. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={item.src} alt={stegaClean(item.image?.alt) || stegaClean(item.title) || ""} draggable={false} className="pointer-events-none h-full w-full select-none object-contain" />
+      <img
+        src={item.src}
+        alt={stegaClean(item.image?.alt) || stegaClean(item.title) || ""}
+        draggable={false}
+        className="absolute inset-0 h-full w-full select-none object-contain"
+        style={{
+          transform: `rotate(${item.preset.artworkRotation}deg) scale(${item.preset.artworkScale})`,
+          transformOrigin: "50% 50%",
+        }}
+      />
       <span
-        className="pointer-events-none absolute bottom-[4%] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap text-[clamp(.9rem,1.8vw,1.55rem)] font-black italic uppercase leading-none tracking-[-.05em] text-white"
-        style={{ WebkitTextStroke: "clamp(1px,.14vw,2px) #000", paintOrder: "stroke fill" }}
+        data-basket-label
+        className="pointer-events-none absolute z-20 whitespace-nowrap text-center text-[clamp(1.05rem,2.3vw,2.05rem)] font-black italic uppercase leading-none tracking-[-.055em] text-black"
+        style={{
+          left: `${item.preset.labelX}%`,
+          top: `${item.preset.labelY}%`,
+          transform: "translate(-50%, -50%) rotate(0deg)",
+          WebkitTextStroke: "clamp(2px,.22vw,3px) #fff",
+          paintOrder: "stroke fill",
+          transformOrigin: "50% 50%",
+          filter: "drop-shadow(1px 1px 0 #000)",
+        }}
       >
         {stegaClean(item.title)}
       </span>
-    </>
+    </span>
   );
 
   return (
@@ -371,7 +527,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       <h2 className="sr-only">{title}</h2>
       <div
         ref={stageRef}
-        className="relative aspect-[1151/768] w-[min(96vw,112svh,78rem)] touch-none select-none"
+        className={`relative aspect-[1151/768] w-[min(96vw,112svh,78rem)] touch-none select-none transition-[filter] ${activePopup === "abyss" ? "duration-[3000ms] ease-in brightness-0" : "duration-700 ease-out"}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -382,7 +538,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         />
 
         {items.map((item, index) => {
-          const size = clamp(stegaClean(item.size) || 20, 8, 38);
+          const size = clamp((stegaClean(item.size) || 20) * 1.16, 10, 44);
           const commonClass = "group absolute left-0 top-0 z-10 aspect-square cursor-grab touch-none select-none border-0 bg-transparent p-0 will-change-transform active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
           const commonProps = {
             ref: (node: HTMLElement | null) => { itemRefs.current[index] = node; },
@@ -391,35 +547,29 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
             className: commonClass,
             style: { width: `${size}%` },
           };
-          const linkType = stegaClean(item.link?.linkType) || "";
-          const href = stegaClean(item.link?.href) || "";
-
-          if (linkType === "contact") {
-            return (
-              <button key={item._key} type="button" {...commonProps} onClick={openContact} aria-label={stegaClean(item.title) || "Open contact form"}>
-                {itemContent(item)}
-              </button>
-            );
-          }
-
-          if (href) {
-            return (
-              <Link key={item._key} href={href} target={item.link?.target ? "_blank" : undefined} rel={item.link?.target ? "noopener noreferrer" : undefined} {...commonProps} aria-label={stegaClean(item.title) || "Basket link"}>
-                {itemContent(item)}
-              </Link>
-            );
-          }
-
           return (
-            <div key={item._key} {...commonProps} aria-label={stegaClean(item.title) || undefined}>
+            <button
+              key={item._key}
+              type="button"
+              {...commonProps}
+              onClick={(event) => openPopup(POPUP_BY_PRESET[item.presetKey], event)}
+              aria-label={`Open ${stegaClean(item.title) || "basket"} popup`}
+            >
               {itemContent(item)}
-            </div>
+            </button>
           );
         })}
       </div>
       <p className="mt-4 text-center text-[clamp(.72rem,1.05vw,.95rem)] font-bold italic uppercase tracking-[-.03em]">
         {hint}
       </p>
+      <BasketLinksPopup
+        active={activePopup}
+        onClose={closePopup}
+        origin={popupOrigin}
+        sourceElement={popupSourceRef.current}
+        shopHref={stegaClean(items.find((item) => item.presetKey === "hoodie")?.link?.href) || undefined}
+      />
     </section>
   );
 }

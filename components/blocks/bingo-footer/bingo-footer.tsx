@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import Link from "next/link";
 import { stegaClean } from "next-sanity";
 import LogoAnimated from "@/components/logo-animated";
@@ -28,6 +28,41 @@ const REFERENCE_LINE_BREAKS: Record<string, string> = {
   "TALENT MATRIX": "TALENT\nMATRIX",
 };
 
+const FOOTER_FALLBACKS: Record<
+  string,
+  { action: "link" | "contact" | "newsletter"; href?: string; target?: boolean }
+> = {
+  NEWSLETTER: { action: "newsletter" },
+  "PRIVACY POLICY": { action: "link", href: "/privacy" },
+  WORK: { action: "link", href: "/#work" },
+  "TALENT MATRIX": { action: "link", href: "/#talent-matrix" },
+  INSTA: {
+    action: "link",
+    href: "https://www.instagram.com/pathetic/",
+    target: true,
+  },
+  CONTACT: { action: "contact" },
+  SHOP: { action: "link", href: "/#shop" },
+  CAREERS: { action: "link", href: "/#work-with-us" },
+};
+
+function handleFooterAnchor(event: MouseEvent<HTMLAnchorElement>, href: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(href, window.location.origin);
+  if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) {
+    return;
+  }
+
+  const anchorId = decodeURIComponent(url.hash.replace(/^#/, ""));
+  if (!anchorId) return;
+  event.preventDefault();
+  window.dispatchEvent(
+    new CustomEvent("app:anchor-navigate", {
+      detail: { anchorId, href: `${url.pathname}${url.hash}` },
+    }),
+  );
+}
+
 export type BingoFooterBlock = {
   _type: "bingo-footer";
   _key: string;
@@ -52,13 +87,20 @@ function BingoGrid({
 
   const renderCellContent = (cell: BingoCell) => {
     const label = stegaClean(cell.label) || "";
+    const normalizedLabel = label.trim().replace(/\s+/g, " ").toUpperCase();
+    const fallback = FOOTER_FALLBACKS[normalizedLabel];
     const displayLabel = label.includes("\n")
       ? label
-      : REFERENCE_LINE_BREAKS[label.trim().replace(/\s+/g, " ").toUpperCase()] || label;
+      : REFERENCE_LINE_BREAKS[normalizedLabel] || label;
     const icon = stegaClean(cell.icon) || "none";
-    const action = stegaClean(cell.action) || "link";
+    const configuredAction = stegaClean(cell.action) || "link";
+    const action =
+      configuredAction === "none" && fallback
+        ? fallback.action
+        : configuredAction;
     const linkType = stegaClean(cell.link?.linkType) || "";
-    const href = stegaClean(cell.link?.href) || "";
+    const href = stegaClean(cell.link?.href) || fallback?.href || "";
+    const opensNewTab = cell.link?.target || fallback?.target;
     const content = icon === "star" ? (
       <span aria-label={label || "Featured"} className="text-[clamp(2.2rem,5vw,4.7rem)] leading-none">★</span>
     ) : (
@@ -76,7 +118,14 @@ function BingoGrid({
     }
     if (action === "link" && href) {
       return (
-        <Link href={href} target={cell.link?.target ? "_blank" : undefined} rel={cell.link?.target ? "noopener noreferrer" : undefined} className={className}>
+        <Link
+          href={href}
+          scroll={false}
+          target={opensNewTab ? "_blank" : undefined}
+          rel={opensNewTab ? "noopener noreferrer" : undefined}
+          onClick={(event) => handleFooterAnchor(event, href)}
+          className={className}
+        >
           {content}
         </Link>
       );

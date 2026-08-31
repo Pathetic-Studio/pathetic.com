@@ -4,6 +4,7 @@ export type GridCardParallaxConfig = {
   bodySpeed?: number;
   imageSpeed?: number;
   captionSpeed?: number;
+  captionLag?: number;
   buttonSpeed?: number;
 };
 

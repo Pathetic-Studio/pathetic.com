@@ -22,6 +22,7 @@ export default function LifecycleThreeScene({
   const boostedRef = useRef(boosted);
   const sceneReadyRef = useRef(false);
   const pendingEntryRef = useRef(false);
+  const entryKeyRef = useRef(entryKey);
   const entrySpinRef = useRef({ value: 0 });
   const entryTweenRef = useRef<gsap.core.Tween | null>(null);
   const startEntryRef = useRef<() => void>(() => {
@@ -34,6 +35,7 @@ export default function LifecycleThreeScene({
   }, [boosted]);
 
   useEffect(() => {
+    entryKeyRef.current = entryKey;
     if (entryKey <= 0) return;
     startEntryRef.current();
   }, [entryKey]);
@@ -380,10 +382,10 @@ export default function LifecycleThreeScene({
 
         pendingEntryRef.current = false;
         entryTweenRef.current?.kill();
-        entrySpinRef.current.value = -Math.PI * 6;
+        entrySpinRef.current.value = -Math.PI * 4.5;
         entryTweenRef.current = gsap.to(entrySpinRef.current, {
           value: 0,
-          duration: 0.9,
+          duration: 1.18,
           ease: "power4.out",
           overwrite: true,
           onComplete: () => {
@@ -404,6 +406,8 @@ export default function LifecycleThreeScene({
       scene.add(accentLight);
       const baseAccentColor = new THREE.Color(0xff2d20);
       const surgeAccentColor = new THREE.Color(0x3fa7ff);
+      const responsiveModelScale =
+        window.innerWidth < 640 ? 0.68 : window.innerWidth < 1024 ? 0.84 : 1;
 
       function disposeObject(object: InstanceType<typeof THREE.Object3D>) {
         object.traverse((child) => {
@@ -428,7 +432,9 @@ export default function LifecycleThreeScene({
           clearcoatRoughness: 0.12,
         });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.scale.setScalar(Math.max(0.1, modelScale || 1));
+        mesh.scale.setScalar(
+          Math.max(0.1, modelScale || 1) * responsiveModelScale,
+        );
         root.add(mesh);
         return mesh;
       }
@@ -515,7 +521,9 @@ export default function LifecycleThreeScene({
             const size = initialBox.getSize(new THREE.Vector3());
             const largestAxis = Math.max(size.x, size.y, size.z) || 1;
             model.scale.setScalar(
-              (5 / largestAxis) * Math.max(0.1, modelScale || 1),
+              (5 / largestAxis) *
+                Math.max(0.1, modelScale || 1) *
+                responsiveModelScale,
             );
 
             const centeredBox = new THREE.Box3().setFromObject(model);
@@ -524,6 +532,11 @@ export default function LifecycleThreeScene({
 
             visibleObject = model;
             root.add(model);
+            // If the real model arrived after the entrance tween had already
+            // finished on the fallback, replay it once on the glasses.
+            if (entryKeyRef.current > 0 && !entryTweenRef.current) {
+              startEntrySpin();
+            }
           },
           undefined,
           () => {
