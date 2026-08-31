@@ -3,6 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { stegaClean } from "next-sanity";
 import { cn } from "@/lib/utils";
 
 export type CaptionSide = "left" | "right";
@@ -42,12 +43,16 @@ export default function CaptionBubble({
   parallaxLag,
   desktopWidthRem,
 }: CaptionBubbleProps) {
+  const cleanText = stegaClean(text) || "";
+  const cleanBgColor = stegaClean(bgColor) || "rgba(0,0,0,0.85)";
+  const cleanTextColor = stegaClean(textColor) || "#ffffff";
+  const cleanSide = stegaClean(side);
   const safeX = xPercent ?? 70;
   const safeY = yPercent ?? 20;
 
   const clampedX = Math.min(100, Math.max(0, safeX));
   const clampedY = Math.min(100, Math.max(0, safeY));
-  const effectiveSide = (side ?? "right") as CaptionSide;
+  const effectiveSide: CaptionSide = cleanSide === "left" ? "left" : "right";
 
   const bubbleRef = useRef<HTMLDivElement | null>(null);
 
@@ -146,13 +151,15 @@ export default function CaptionBubble({
   const bubbleStyle: CSSProperties = {
     top: `${clampedY}%`,
     ...horizontalPosition,
-    backgroundColor: bgColor || "rgba(0,0,0,0.85)",
-    color: textColor || "#ffffff",
+    backgroundColor: cleanBgColor,
+    color: cleanTextColor,
     transformOrigin: effectiveSide === "left" ? "top right" : "top left",
 
-    // Hard anti-FOUC (works even before CSS loads)
-    opacity: 0,
-    visibility: "hidden",
+    // The containing card supplies the entrance state. Keeping the bubble
+    // visible here prevents a Presentation refresh from permanently stranding
+    // newly reconciled caption nodes in their pre-animation state.
+    opacity: 1,
+    visibility: "visible",
 
     // Desktop keeps a clean cap; mobile/tablet only shrinks (never grows wider than desktop)
     maxWidth:
@@ -177,7 +184,7 @@ export default function CaptionBubble({
       data-speed={parallaxSpeed ?? undefined}
       data-lag={parallaxLag ?? undefined}
     >
-      <span className="block text-left break-words leading-snug">{text}</span>
+      <span className="block text-left break-words leading-snug">{cleanText}</span>
 
       {/* Tail */}
       <span
@@ -205,7 +212,7 @@ export default function CaptionBubble({
         >
           <path
             d="M13.508 19.1958C20.6379 16.7242 23.4344 5.36875 23.9414 0C22.1375 9.9727 7.22912 12.5732 0.000399285 12.6268C1.53219 15.8463 6.37823 21.6674 13.508 19.1958Z"
-            fill={bgColor || "rgba(0,0,0,0.85)"}
+            fill={cleanBgColor}
           />
         </svg>
       </span>

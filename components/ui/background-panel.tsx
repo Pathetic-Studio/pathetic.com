@@ -1,5 +1,6 @@
 //components/ui/background-panel.tsx
 import type { CSSProperties } from "react";
+import { stegaClean } from "next-sanity";
 import { cn } from "@/lib/utils";
 import { urlFor } from "@/sanity/lib/image";
 
@@ -31,25 +32,36 @@ export function BackgroundPanel({
   background,
   className,
 }: BackgroundPanelProps) {
-  if (!background?.enabled) return null;
+  if (!background || stegaClean(background.enabled) !== true) return null;
+
+  // Production Draft Mode adds Sanity's click-to-edit metadata to strings.
+  // Clean every value that participates in an equality check or CSS rule while
+  // leaving the image reference intact for the image URL builder.
+  const backgroundStyle = stegaClean(background.style);
+  const backgroundColor = stegaClean(background.color);
+  const fromColor = stegaClean(background.fromColor);
+  const toColor = stegaClean(background.toColor);
+  const layout = stegaClean(background.layout) ?? "inset";
+  const customHeight = stegaClean(background.customHeight);
+  const border = stegaClean(background.border) === true;
 
   let style: CSSProperties = {};
 
   // Solid
-  if (background.style === "solid" && background.color) {
-    style.background = background.color;
+  if (backgroundStyle === "solid" && backgroundColor) {
+    style.background = backgroundColor;
   }
   // Gradient
   else if (
-    background.style === "gradient" &&
-    background.fromColor &&
-    background.toColor
+    backgroundStyle === "gradient" &&
+    fromColor &&
+    toColor
   ) {
     const angle = background.angle ?? 135;
-    style.backgroundImage = `linear-gradient(${angle}deg, ${background.fromColor}, ${background.toColor})`;
+    style.backgroundImage = `linear-gradient(${angle}deg, ${fromColor}, ${toColor})`;
   }
   // Image
-  else if (background.style === "image" && background.image?.asset) {
+  else if (backgroundStyle === "image" && background.image?.asset) {
     try {
       const url = urlFor(background.image).url();
       style.backgroundImage = `url(${url})`;
@@ -63,8 +75,7 @@ export function BackgroundPanel({
   // If we still have no background style, bail
   if (!style.background && !style.backgroundImage) return null;
 
-  const layout = background.layout ?? "inset";
-  const hasCustomHeight = Boolean(background.customHeight);
+  const hasCustomHeight = Boolean(customHeight);
 
   let baseLayoutClass: string;
 
@@ -79,7 +90,7 @@ export function BackgroundPanel({
         "absolute left-4 right-4 md:left-8 md:right-8 overflow-hidden z-0 pointer-events-none";
 
       // Height
-      style.height = background.customHeight as string;
+      style.height = customHeight as string;
 
       // Top offset (percent of section height), or default
       if (typeof background.verticalOffsetPercent === "number") {
@@ -99,7 +110,7 @@ export function BackgroundPanel({
     }
   }
 
-  const borderClass = background.border ? "border border-border" : "";
+  const borderClass = border ? "border border-border" : "";
 
   return (
     <div

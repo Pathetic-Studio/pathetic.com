@@ -32,7 +32,8 @@ export default function GridCardAnimated({
   captionDesktopWidthRem,
 }: GridCardAnimatedProps) {
   const hasLink = !!link?.href;
-  const hasCaptionText = !!caption?.text;
+  const captionText = stegaClean(caption?.text) || "";
+  const hasCaptionText = Boolean(captionText);
 
   const imageSpeed = parallaxConfig?.imageSpeed;
   const bodySpeed = parallaxConfig?.bodySpeed;
@@ -67,10 +68,10 @@ export default function GridCardAnimated({
 
             {hasCaptionText && (
               <CaptionBubble
-                text={caption!.text!}
-                bgColor={caption!.bgColor}
-                textColor={caption!.textColor}
-                side={caption!.side as any}
+                text={captionText}
+                bgColor={stegaClean(caption!.bgColor)}
+                textColor={stegaClean(caption!.textColor)}
+                side={stegaClean(caption!.side) as any}
                 xPercent={caption!.xPercent}
                 yPercent={caption!.yPercent}
                 parallaxSpeed={captionSpeed ?? null} // NEW
