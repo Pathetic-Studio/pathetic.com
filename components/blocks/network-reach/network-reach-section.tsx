@@ -623,7 +623,9 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                   className="absolute inset-[8%] z-10 will-change-transform"
                   aria-hidden="true"
                 >
-                  <div className="h-full w-full scale-x-[1.62] scale-y-[.9] bg-white blur-sm [clip-path:polygon(50%_0%,61%_35%,98%_35%,68%_57%,79%_91%,50%_70%,21%_91%,32%_57%,2%_35%,39%_35%)]" />
+                  <div className="h-full w-full scale-x-[1.45] scale-y-[.9] blur-sm">
+                    <div className="h-full w-full bg-white [clip-path:polygon(50%_0%,61%_35%,98%_35%,68%_57%,79%_91%,50%_70%,21%_91%,32%_57%,2%_35%,39%_35%)]" />
+                  </div>
                 </div>
                 <div className="relative z-20 w-full max-w-[10.75rem]">
                   <div data-network-detail-copy className="will-change-transform">

@@ -190,29 +190,37 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
         const previousX = Number(gsap.getProperty(dvdTitle, "x")) || 0;
         const previousY = Number(gsap.getProperty(dvdTitle, "y")) || 0;
         stopDvd();
-        const titleWidth = dvdTitle.offsetWidth;
-        const titleHeight = dvdTitle.offsetHeight;
-        const maxX = Math.max(0, motionSurface.clientWidth - titleWidth);
-        const maxY = Math.max(0, motionSurface.clientHeight - titleHeight);
+        const titleBounds = dvdTitle.getBoundingClientRect();
+        const titleVisual =
+          dvdTitle.querySelector<HTMLElement>("h2 > span") ?? dvdTitle;
+        const visualBounds = titleVisual.getBoundingClientRect();
+        const visualLeft = visualBounds.left - titleBounds.left;
+        const visualTop = visualBounds.top - titleBounds.top;
+        const visualRight = visualBounds.right - titleBounds.left;
+        const visualBottom = visualBounds.bottom - titleBounds.top;
+        const minX = -visualLeft;
+        const maxX = Math.max(minX, motionSurface.clientWidth - visualRight);
+        const minY = -visualTop;
+        const maxY = Math.max(minY, motionSurface.clientHeight - visualBottom);
         const currentX = preservePosition
-          ? gsap.utils.clamp(0, maxX, previousX)
-          : 0;
+          ? gsap.utils.clamp(minX, maxX, previousX)
+          : minX;
         const currentY = preservePosition
-          ? gsap.utils.clamp(0, maxY, previousY)
-          : 0;
+          ? gsap.utils.clamp(minY, maxY, previousY)
+          : minY;
         gsap.set(dvdTitle, { x: currentX, y: currentY });
 
         if (reduceMotion) {
           gsap.set(dvdTitle, {
-            x: maxX / 2,
-            y: maxY / 2,
+            x: (minX + maxX) / 2,
+            y: (minY + maxY) / 2,
           });
           return;
         }
 
-        if (maxX > 1) {
-          const targetX = currentX >= maxX / 2 ? 0 : maxX;
-          const oppositeX = targetX === maxX ? 0 : maxX;
+        if (maxX - minX > 1) {
+          const targetX = currentX >= (minX + maxX) / 2 ? minX : maxX;
+          const oppositeX = targetX === maxX ? minX : maxX;
           const xTimeline = gsap.timeline();
           xTimeline
             .to(dvdTitle, {
@@ -222,16 +230,16 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
             })
             .to(dvdTitle, {
               x: oppositeX,
-              duration: Math.max(4.6, maxX / 75),
+              duration: Math.max(4.6, (maxX - minX) / 75),
               repeat: -1,
               yoyo: true,
               ease: "none",
             });
           dvdTweenRefs.current.push(xTimeline);
         }
-        if (maxY > 1) {
-          const targetY = currentY >= maxY / 2 ? 0 : maxY;
-          const oppositeY = targetY === maxY ? 0 : maxY;
+        if (maxY - minY > 1) {
+          const targetY = currentY >= (minY + maxY) / 2 ? minY : maxY;
+          const oppositeY = targetY === maxY ? minY : maxY;
           const yTimeline = gsap.timeline();
           yTimeline
             .to(dvdTitle, {
@@ -241,7 +249,7 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
             })
             .to(dvdTitle, {
               y: oppositeY,
-              duration: Math.max(3.7, maxY / 58),
+              duration: Math.max(3.7, (maxY - minY) / 58),
               repeat: -1,
               yoyo: true,
               ease: "none",
@@ -259,9 +267,20 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
           if (!motionSurface || !dvdTitle) return;
           if (hoverActiveRef.current) {
             stopDvd();
+            const titleVisual =
+              dvdTitle.querySelector<HTMLElement>("h2 > span") ?? dvdTitle;
+            const visualBounds = titleVisual.getBoundingClientRect();
             gsap.set(dvdTitle, {
-              x: Math.max(0, motionSurface.clientWidth - dvdTitle.offsetWidth) / 2,
-              y: Math.max(0, motionSurface.clientHeight - dvdTitle.offsetHeight) / 2,
+              x:
+                (Number(gsap.getProperty(dvdTitle, "x")) || 0) +
+                motionSurface.getBoundingClientRect().left +
+                motionSurface.clientWidth / 2 -
+                (visualBounds.left + visualBounds.width / 2),
+              y:
+                (Number(gsap.getProperty(dvdTitle, "y")) || 0) +
+                motionSurface.getBoundingClientRect().top +
+                motionSurface.clientHeight / 2 -
+                (visualBounds.top + visualBounds.height / 2),
             });
             return;
           }
