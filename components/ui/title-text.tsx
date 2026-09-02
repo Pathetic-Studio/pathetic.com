@@ -4,6 +4,7 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
+import { DISPLAY_OUTLINE_WIDTH } from "@/components/ui/text-styles";
 
 type TitleTextVariant = "normal" | "stretched";
 type TitleTextAnimation = "none" | "typeOn";
@@ -98,7 +99,7 @@ const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   "network-main": "text-[clamp(5.5rem,10vw,10.5rem)]",
   "network-reach": "text-[2.1rem] sm:text-[3rem] lg:text-[4rem]",
   "network-friends": "text-[3rem] sm:text-[4.5rem] lg:text-[6.4rem]",
-  belief: "text-[clamp(4.75rem,13.9vw,12.5rem)]",
+  belief: "text-[clamp(4.75rem,12vw,10.75rem)]",
   "contact-cta": "text-[clamp(4rem,11.8vw,11rem)]",
 };
 
@@ -219,7 +220,7 @@ export default function TitleText({
   textOutline = false,
   textColor,
   outlineColor = "white",
-  outlineWidth = 1.5,
+  outlineWidth = DISPLAY_OUTLINE_WIDTH,
   outlinePosition = "center",
   fontWeight = "bold",
   singleLine = false,

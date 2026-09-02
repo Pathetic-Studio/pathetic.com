@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { urlFor } from "@/sanity/lib/image";
 import { PAGE_QUERYResult, ColorVariant } from "@/sanity.types";
+import { TEXT_STYLES } from "@/components/ui/text-styles";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRow = Extract<Block, { _type: "grid-row" }>;
@@ -58,10 +59,10 @@ export default function GridCard({
           >
             {title && (
               <div className="flex justify-between uppercase items-center mb-4">
-                <h3 className="font-bold text-center text-2xl">{title}</h3>
+                <h3 className={`text-center ${TEXT_STYLES.cardTitle}`}>{title}</h3>
               </div>
             )}
-            {excerpt && <p>{excerpt}</p>}
+            {excerpt && <p className={TEXT_STYLES.body}>{excerpt}</p>}
           </div>
         </div>
         <Button

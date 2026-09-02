@@ -3,6 +3,7 @@ import SectionContainer from "@/components/ui/section-container";
 import { stegaClean } from "next-sanity";
 
 import { PAGE_QUERYResult } from "@/sanity.types";
+import { TEXT_STYLES, TEXT_WIDTHS } from "@/components/ui/text-styles";
 
 type SectionHeaderProps = Extract<
   NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number],
@@ -35,12 +36,12 @@ export default function SectionHeader({
         >
           {tagLine && (
             <h1 className="leading-[0] mb-4">
-              <span className="text-base font-semibold">{tagLine}</span>
+              <span className={TEXT_STYLES.eyebrow}>{tagLine}</span>
             </h1>
           )}
-          <h2 className="text-3xl md:text-5xl mb-4">{title}</h2>
+          <h2 className={`mb-4 ${TEXT_STYLES.subheading}`}>{title}</h2>
         </div>
-        <p>{description}</p>
+        <p className={`${TEXT_STYLES.body} ${TEXT_WIDTHS.body}`}>{description}</p>
       </div>
     </SectionContainer>
   );

@@ -5,15 +5,26 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import EyeFollow from "@/components/effects/eye-follow";
 import TitleText from "@/components/ui/title-text";
 import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
+import { splitTextAtWordRatio } from "@/components/blocks/shared/text-lines";
+import {
+  SECTION_HEADER_BODY_CLASS,
+  DISPLAY_OUTLINE_WIDTHS,
+  TEXT_STYLES,
+} from "@/components/ui/text-styles";
 
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type NetworkReachBlock = Extract<PageBlock, { _type: "network-reach-section" }>;
 type ReachPoint = NonNullable<NetworkReachBlock["reachPoints"]>[number];
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 const fallbackPoints: ReachPoint[] = [
   {
@@ -51,8 +62,16 @@ const fallbackDetailStats = [
 ];
 
 const NETWORK_FLOAT_EFFECTS = {
-  intro: { speed: 0.9, lag: 0.2 },
+  intro: { enabled: false, speed: 0.9, lag: 0.2 },
 } as const;
+
+const DETAIL_STAT_PLACEHOLDER_IMAGES = [
+  "/images/lifecycle/memes/performative-person.webp",
+  "/images/lifecycle/memes/coffee-mug.webp",
+  "/images/lifecycle/memes/grooming-cafe.webp",
+  "/images/lifecycle/memes/performative-bag.webp",
+  "/images/lifecycle/memes/reformative-matcha.webp",
+] as const;
 
 function cleanColor(
   color: { hex?: string | null } | null | undefined,
@@ -79,10 +98,12 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
   );
   const displayedFriends = friends.length
     ? Array.from(
-      { length: Math.max(10, friends.length) },
+      { length: 6 },
       (_, index) => friends[index % friends.length],
     )
     : [];
+  const cleanDescription = stegaClean(props.description) || "";
+  const descriptionLines = splitTextAtWordRatio(cleanDescription, 0.57);
   const orbitDuration = Math.min(
     90,
     Math.max(12, stegaClean(props.orbitDuration) || 28),
@@ -98,16 +119,176 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
 
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!root || !window.matchMedia("(pointer: fine)").matches) return;
+    if (!root) return;
     const listenerCleanups: Array<() => void> = [];
 
     const context = gsap.context(() => {
+      const finePointer = window.matchMedia("(pointer: fine)").matches;
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
       const friendItems = gsap.utils.toArray<HTMLElement>(
         "[data-network-friend]",
         root,
       );
+      const detailItems = gsap.utils.toArray<HTMLElement>(
+        "[data-network-detail]",
+        root,
+      );
+      const orbitStage = root.querySelector<HTMLElement>(
+        "[data-network-orbit-stage]",
+      );
+      const orbitPlane = root.querySelector<HTMLElement>(
+        "[data-network-orbit-plane]",
+      );
 
-      friendItems.forEach((item) => {
+      if (reduceMotion) {
+        gsap.set(detailItems, { autoAlpha: 1, scale: 1 });
+      } else if (detailItems.length) {
+        gsap.fromTo(
+          detailItems,
+          {
+            autoAlpha: 0,
+            scale: 0.2,
+          },
+          {
+            autoAlpha: 1,
+            scale: 1,
+            duration: 0.58,
+            stagger: 0.1,
+            ease: "back.out(1.8)",
+            scrollTrigger: {
+              trigger: detailItems[0]?.parentElement ?? root,
+              start: "top 84%",
+              once: true,
+            },
+          },
+        );
+      }
+
+      if (finePointer && orbitStage && orbitPlane && !reduceMotion) {
+        const tiltX = gsap.quickTo(orbitPlane, "rotationX", {
+          duration: 0.55,
+          ease: "power3.out",
+        });
+        const tiltY = gsap.quickTo(orbitPlane, "rotationY", {
+          duration: 0.55,
+          ease: "power3.out",
+        });
+        const onOrbitMove = (event: PointerEvent) => {
+          const bounds = orbitStage.getBoundingClientRect();
+          const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
+          const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
+          tiltX(orbitTilt - y * 4.5);
+          tiltY(x * 5.5);
+        };
+        const onOrbitLeave = () => {
+          tiltX(orbitTilt);
+          tiltY(0);
+        };
+        orbitStage.addEventListener("pointermove", onOrbitMove);
+        orbitStage.addEventListener("pointerleave", onOrbitLeave);
+        listenerCleanups.push(() => {
+          orbitStage.removeEventListener("pointermove", onOrbitMove);
+          orbitStage.removeEventListener("pointerleave", onOrbitLeave);
+        });
+      }
+
+      if (finePointer) {
+        detailItems.forEach((item) => {
+          const images = gsap.utils.toArray<HTMLElement>(
+            "[data-network-detail-image]",
+            item,
+          );
+          const detailStar = item.querySelector<HTMLElement>(
+            "[data-network-detail-star]",
+          );
+          const detailCopy = item.querySelector<HTMLElement>(
+            "[data-network-detail-copy]",
+          );
+          if (!images.length) return;
+          gsap.set(images, {
+            autoAlpha: 0,
+            scale: 0.16,
+            xPercent: -50,
+            yPercent: -50,
+            transformOrigin: "50% 50%",
+          });
+          let imageTimeline: gsap.core.Timeline | null = null;
+          const onEnter = () => {
+            imageTimeline?.kill();
+            gsap.killTweensOf(images);
+            gsap.to([detailStar, detailCopy].filter(Boolean), {
+              scale: 1.075,
+              duration: 0.3,
+              ease: "back.out(1.65)",
+              overwrite: "auto",
+            });
+            imageTimeline = gsap.timeline({
+              repeat: -1,
+              repeatDelay: 0.1,
+            });
+            images.forEach((image, index) => {
+              const moveToRandomSpot = () => {
+                const angle = gsap.utils.random(0, Math.PI * 2);
+                const radius = gsap.utils.random(0.28, 0.48);
+                gsap.set(image, {
+                  x: Math.cos(angle) * item.clientWidth * radius,
+                  y: Math.sin(angle) * item.clientHeight * radius,
+                  rotation: gsap.utils.random(-18, 18),
+                });
+              };
+              imageTimeline!
+                .call(moveToRandomSpot)
+                .fromTo(
+                  image,
+                  { autoAlpha: 0, scale: 0.16 },
+                  {
+                    autoAlpha: 1,
+                    scale: 1,
+                    duration: 0.34,
+                    ease: "back.out(1.65)",
+                  },
+                )
+                .to({}, { duration: 0.62 })
+                .to(image, {
+                  autoAlpha: 0,
+                  scale: 0.35,
+                  duration: 0.28,
+                  ease: "power2.in",
+                })
+                .to({}, { duration: index === images.length - 1 ? 0.08 : 0.02 });
+            });
+          };
+          const onLeave = () => {
+            imageTimeline?.kill();
+            imageTimeline = null;
+            gsap.to([detailStar, detailCopy].filter(Boolean), {
+              scale: 1,
+              duration: 0.26,
+              ease: "power3.out",
+              overwrite: "auto",
+            });
+            gsap.to(images, {
+              autoAlpha: 0,
+              scale: 0.28,
+              duration: 0.45,
+              delay: 0.08,
+              ease: "power2.out",
+              overwrite: "auto",
+            });
+          };
+          item.addEventListener("pointerenter", onEnter);
+          item.addEventListener("pointerleave", onLeave);
+          listenerCleanups.push(() => {
+            imageTimeline?.kill();
+            item.removeEventListener("pointerenter", onEnter);
+            item.removeEventListener("pointerleave", onLeave);
+          });
+        });
+      }
+
+      if (finePointer) friendItems.forEach((item) => {
         const tag = item.querySelector<HTMLElement>("[data-network-friend-tag]");
         const visual = item.querySelector<HTMLElement>(
           "[data-network-friend-visual]",
@@ -193,7 +374,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
       listenerCleanups.forEach((cleanup) => cleanup());
       context.revert();
     };
-  }, [displayedFriends.length]);
+  }, [displayedFriends.length, orbitTilt]);
 
   return (
     <section
@@ -202,7 +383,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
       className="relative isolate bg-background p-2.5 sm:p-4 lg:p-6"
     >
       <div
-        className="relative overflow-hidden rounded-none border border-current"
+        className="relative overflow-hidden rounded-none border border-current before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[100] before:h-px before:bg-current before:content-['']"
         style={{ backgroundColor, color: textColor }}
       >
         <div
@@ -228,8 +409,16 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
             data-network-intro
             data-typeon-trigger="true"
             data-network-float="intro"
-            data-speed={NETWORK_FLOAT_EFFECTS.intro.speed}
-            data-lag={NETWORK_FLOAT_EFFECTS.intro.lag}
+            data-speed={
+              NETWORK_FLOAT_EFFECTS.intro.enabled
+                ? NETWORK_FLOAT_EFFECTS.intro.speed
+                : undefined
+            }
+            data-lag={
+              NETWORK_FLOAT_EFFECTS.intro.enabled
+                ? NETWORK_FLOAT_EFFECTS.intro.lag
+                : undefined
+            }
             className="pointer-events-none relative z-20 mx-auto flex max-w-[54rem] flex-col items-center px-3 pb-[clamp(6rem,13vw,12rem)] pt-[clamp(5.75rem,12vw,10rem)] text-center will-change-transform sm:px-4"
           >
             <div
@@ -287,17 +476,29 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 {stegaClean(props.headlineMain) || "MILLIONS"}
               </TitleText>
             </div>
-            {props.description && (
+            {cleanDescription && (
               <p
                 data-network-intro-body
-                className="mt-5 max-w-[31rem] text-[.94rem] font-medium leading-[1.08] tracking-[-.025em] sm:mt-6 sm:text-[1.15rem] lg:max-w-[34rem] lg:text-[1.3rem]"
+                className={`mt-5 sm:mt-6 ${SECTION_HEADER_BODY_CLASS}`}
               >
-                <TypeOnText
-                  text={stegaClean(props.description) || ""}
-                  speed={TYPE_ON_SPEEDS.rapid}
-                  delay={0.42}
-                  start="top 90%"
-                />
+                {descriptionLines.map((line, index) => {
+                  const previousCharacters = descriptionLines
+                    .slice(0, index)
+                    .reduce((total, previousLine) => total + previousLine.length, 0);
+                  return (
+                    <span key={`${line}-${index}`} className="lg:block">
+                      <TypeOnText
+                        text={line}
+                        speed={TYPE_ON_SPEEDS.rapid}
+                        delay={0.42 + previousCharacters * (0.04 / TYPE_ON_SPEEDS.rapid)}
+                        start="top 90%"
+                      />
+                      {index < descriptionLines.length - 1 && (
+                        <span className="lg:hidden"> </span>
+                      )}
+                    </span>
+                  );
+                })}
               </p>
             )}
           </div>
@@ -305,10 +506,14 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
 
         <div className="relative mx-auto min-h-[54rem] max-w-[94rem] px-3 sm:min-h-[49rem] sm:px-6 lg:min-h-[50rem] lg:px-10">
           <div
+            data-network-orbit-stage
             className="network-orbit-stage absolute inset-x-0 top-0 h-[29rem] sm:h-[31rem] lg:h-[34rem]"
             style={orbitStyle}
           >
-            <div className="network-orbit-plane absolute left-1/2 top-[38%] h-px w-px">
+            <div
+              data-network-orbit-plane
+              className="network-orbit-plane absolute left-1/2 top-[38%] h-px w-px"
+            >
               <div className="network-orbit-ring absolute left-0 top-0 h-px w-px">
                 {reachPoints.map((point, index) => {
                   const cleanAngle = stegaClean(point.angle);
@@ -331,7 +536,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                       <div className="network-angle-counter absolute left-0 top-0">
                         <div className="network-time-counter absolute left-0 top-0">
                           <div className="network-orbit-billboard absolute left-0 top-0">
-                            <div className="w-[clamp(8rem,14vw,12rem)] -translate-x-1/2 -translate-y-1/2 text-center">
+                            <div className="mx-auto w-[clamp(8rem,14vw,12rem)] -translate-x-1/2 -translate-y-1/2 text-center">
                               <TitleText
                                 variant="stretched"
                                 size="network-reach"
@@ -344,7 +549,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                               >
                                 {stegaClean(point.value) || "0+"}
                               </TitleText>
-                              <p className="mt-1 text-[.68rem] font-bold uppercase leading-[.88] tracking-[-.025em] sm:text-[.82rem] lg:text-[.95rem]">
+                              <p className={`mt-1 ${TEXT_STYLES.label}`}>
                                 {stegaClean(point.label)}
                               </p>
                             </div>
@@ -389,25 +594,46 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
             </div>
           </div>
 
-          <div className="absolute inset-x-3 top-[30rem] z-30 flex flex-wrap items-center justify-center gap-x-2 gap-y-0 sm:inset-x-8 sm:top-[33rem] sm:gap-x-6 lg:inset-x-12 lg:top-[41rem] lg:-translate-y-1/2 lg:gap-x-12">
+          <div className="absolute inset-x-2 top-[30rem] z-30 flex flex-wrap items-center justify-center gap-x-1 gap-y-1 sm:inset-x-6 sm:top-[33rem] sm:gap-x-4 lg:inset-x-10 lg:top-[41rem] lg:-translate-y-1/2 lg:gap-x-8">
             {detailStats.slice(0, 5).map((stat, index) => (
               <div
                 key={stat._key || `${stat.title}-${index}`}
-                className="relative flex h-[clamp(7.5rem,27vw,10rem)] w-[clamp(7.5rem,27vw,10rem)] items-center justify-center px-3 text-center sm:h-[clamp(9rem,15vw,12rem)] sm:w-[clamp(9rem,15vw,12rem)] sm:px-6 lg:h-[clamp(10rem,15vw,13.5rem)] lg:w-[clamp(10rem,15vw,13.5rem)] lg:px-7"
+                data-network-detail
+                className="relative flex h-[clamp(8.5rem,28vw,10.5rem)] w-[clamp(9.25rem,31vw,11.5rem)] items-center justify-center px-3 text-center opacity-0 sm:h-[clamp(9.5rem,15vw,12.5rem)] sm:w-[clamp(10.5rem,18vw,14rem)] sm:px-5 lg:h-[clamp(10rem,15vw,13.5rem)] lg:w-[clamp(12rem,17vw,15rem)] lg:px-6"
               >
-                <div
-                  className="absolute inset-[8%] z-0 scale-x-[1.45] scale-y-[.9] blur-sm"
+                <span
+                  className="pointer-events-none absolute left-1/2 top-1/2 z-0 size-[clamp(5rem,10vw,8.5rem)]"
                   aria-hidden="true"
                 >
-                  <div className="h-full w-full bg-white [clip-path:polygon(50%_0%,61%_35%,98%_35%,68%_57%,79%_91%,50%_70%,21%_91%,32%_57%,2%_35%,39%_35%)]" />
+                  <span
+                    data-network-detail-image
+                    className="relative block h-full w-full will-change-transform"
+                  >
+                    <Image
+                      src={DETAIL_STAT_PLACEHOLDER_IMAGES[index % DETAIL_STAT_PLACEHOLDER_IMAGES.length]}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 136px, 96px"
+                      className="object-contain drop-shadow-[0_4px_7px_rgba(0,0,0,.2)]"
+                    />
+                  </span>
+                </span>
+                <div
+                  data-network-detail-star
+                  className="absolute inset-[8%] z-10 will-change-transform"
+                  aria-hidden="true"
+                >
+                  <div className="h-full w-full scale-x-[1.62] scale-y-[.9] bg-white blur-sm [clip-path:polygon(50%_0%,61%_35%,98%_35%,68%_57%,79%_91%,50%_70%,21%_91%,32%_57%,2%_35%,39%_35%)]" />
                 </div>
-                <div className="relative z-10 max-w-[7.5rem]">
-                  <p className="text-[clamp(.76rem,1vw,1rem)] font-bold uppercase leading-none">
+                <div className="relative z-20 w-full max-w-[10.75rem]">
+                  <div data-network-detail-copy className="will-change-transform">
+                  <p className={`whitespace-nowrap ${TEXT_STYLES.dataTitle}`}>
                     {stegaClean(stat.title)}
                   </p>
-                  <p className="mt-2 whitespace-pre-line text-[clamp(.7rem,.88vw,.92rem)] font-medium uppercase leading-[1.02]">
+                  <p className={`mx-auto mt-2 max-w-[11rem] whitespace-pre-line ${TEXT_STYLES.dataValue}`}>
                     {stegaClean(stat.value)}
                   </p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -425,7 +651,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
               textColor="#ffffff"
               textOutline
               outlineColor={textColor}
-              outlineWidth={1.25}
+              outlineWidth={DISPLAY_OUTLINE_WIDTHS.large}
               outlinePosition="outside"
               stretchScaleX={0.72}
               overallScale={1.04}
@@ -434,7 +660,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
               {stegaClean(props.friendsTitle) || "AND WE BRING FRIENDS"}
             </TitleText>
             {props.friendsDescription && (
-              <p className="mt-4 max-w-[31rem] text-[.94rem] font-medium leading-[1.08] tracking-[-.025em] sm:mt-6 sm:text-[1.15rem] lg:max-w-[34rem] lg:text-[1.3rem]">
+              <p className={`mt-4 sm:mt-6 ${SECTION_HEADER_BODY_CLASS}`}>
                 {stegaClean(props.friendsDescription)}
               </p>
             )}
@@ -468,7 +694,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                     <span
                       data-network-friend-tag
                       aria-hidden="true"
-                      className="pointer-events-none absolute left-0 top-0 z-30 whitespace-nowrap border border-white bg-black px-2 py-1 text-xs font-bold uppercase leading-none text-white opacity-0 sm:text-sm"
+                      className={`pointer-events-none absolute left-0 top-0 z-30 whitespace-nowrap border border-white bg-black px-2 py-1 text-white opacity-0 ${TEXT_STYLES.label}`}
                     >
                       {name}
                     </span>
@@ -512,7 +738,9 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
 
         .network-orbit-plane {
           transform: rotateX(var(--network-orbit-tilt));
+          transform-origin: 0 0;
           transform-style: preserve-3d;
+          will-change: transform;
         }
 
         .network-orbit-ring {
@@ -546,8 +774,11 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
         }
 
         .network-orbit-billboard {
+          display: grid;
+          place-items: center;
           transform: scaleX(var(--network-orbit-x-scale-inverse))
             rotateX(calc(var(--network-orbit-tilt) * -1));
+          transform-origin: 0 0;
           transform-style: preserve-3d;
         }
 
@@ -602,9 +833,9 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
 
         @media (max-width: 639px) {
           .network-orbit-ring {
-            --network-orbit-radius: clamp(9.5rem, 42vw, 11rem);
-            --network-orbit-x-scale: 0.76;
-            --network-orbit-x-scale-inverse: 1.316;
+            --network-orbit-radius: clamp(10rem, 45vw, 11.75rem);
+            --network-orbit-x-scale: 0.92;
+            --network-orbit-x-scale-inverse: 1.087;
             --network-line-label-gap: 3.5rem;
             --network-line-center-gap: 4.5rem;
           }

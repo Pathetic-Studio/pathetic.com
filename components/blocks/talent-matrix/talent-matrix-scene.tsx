@@ -169,32 +169,6 @@ function createMatrixTextureFrames({
   return textures.length === MATRIX_TEXTURE_FRAME_COUNT ? { textures } : null;
 }
 
-function createAvatarLabelTexture(label: string) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 128;
-  const context = canvas.getContext("2d");
-  if (!context) return null;
-
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.font = "700 48px 'Arial Narrow', Arial, sans-serif";
-  context.lineJoin = "round";
-  context.strokeStyle = "rgba(0, 0, 0, .88)";
-  context.lineWidth = 10;
-  context.strokeText(label.toUpperCase(), canvas.width / 2, canvas.height / 2);
-  context.fillStyle = "#f4fff6";
-  context.fillText(label.toUpperCase(), canvas.width / 2, canvas.height / 2);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.generateMipmaps = false;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  return texture;
-}
-
 export default function TalentMatrixScene({
   color = "#00ff46",
   cameraScrollProgress,
@@ -235,6 +209,16 @@ export default function TalentMatrixScene({
     renderer.setClearColor(0x000200, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
+    const avatarLabelLayer = document.createElement("div");
+    avatarLabelLayer.dataset.matrixAvatarLabels = "true";
+    Object.assign(avatarLabelLayer.style, {
+      position: "absolute",
+      inset: "0",
+      zIndex: "4",
+      overflow: "hidden",
+      pointerEvents: "none",
+    });
+    host.appendChild(avatarLabelLayer);
 
     const scene = new THREE.Scene();
     const sceneColor = new THREE.Color(color);
@@ -549,7 +533,12 @@ export default function TalentMatrixScene({
     const avatarGroup = new THREE.Group();
     avatarGroup.name = "Talent_Avatars_World";
     scene.add(avatarGroup);
-    const avatarLabelTextures: THREE.CanvasTexture[] = [];
+    const avatarLabelElements: Array<{
+      element: HTMLSpanElement;
+      worldPosition: THREE.Vector3;
+      projectedPosition: THREE.Vector3;
+      screenOffsetY: number;
+    }> = [];
     const resolvedAvatarLabels = avatarLabelsKey.split("\u0000");
     host.dataset.avatarLayout = "world";
 
@@ -638,6 +627,11 @@ export default function TalentMatrixScene({
           if (isBackdrop) {
             object.material = backgroundMaterial;
             object.renderOrder = -2;
+            // Extend only the vertical backdrop on touch layouts. Scaling the
+            // whole city changed the camera composition and avatar positions,
+            // while the authored desktop backdrop already fills its frame.
+            object.scale.y *=
+              quality === "mobile" ? 1.28 : quality === "tablet" ? 1.15 : 1;
           } else if (isFloor) {
             object.material = floorMaterial;
             object.renderOrder = -1;
@@ -761,32 +755,52 @@ export default function TalentMatrixScene({
 
             const label = resolvedAvatarLabels[index]?.trim();
             if (label) {
-              const labelTexture = createAvatarLabelTexture(label);
-              if (labelTexture) {
-                avatarLabelTextures.push(labelTexture);
-                renderer.initTexture(labelTexture);
-                const labelMaterial = new THREE.SpriteMaterial({
-                  map: labelTexture,
-                  transparent: true,
-                  depthWrite: false,
-                  toneMapped: false,
-                });
-                const labelSprite = new THREE.Sprite(labelMaterial);
-                const labelWidth = THREE.MathUtils.clamp(
-                  label.length * 0.52,
-                  4.8,
-                  8.8,
-                );
-                labelSprite.name = `Talent_Avatar_Label_${index + 1}`;
-                labelSprite.position.set(
+              const labelElement = document.createElement("span");
+              labelElement.dataset.matrixAvatarLabel = String(index + 1);
+              labelElement.textContent = label.toUpperCase();
+              Object.assign(labelElement.style, {
+                position: "absolute",
+                left: "0",
+                top: "0",
+                color: "#f4fff6",
+                fontFamily: "var(--font-sans), Arial, sans-serif",
+                fontSize:
+                  quality === "mobile"
+                    ? "clamp(19px, 5vw, 25px)"
+                    : quality === "tablet"
+                      ? "clamp(22px, 3vw, 30px)"
+                      : "clamp(16px, 1.25vw, 22px)",
+                fontWeight: "900",
+                fontStyle: "normal",
+                lineHeight: "1",
+                letterSpacing: "-0.045em",
+                whiteSpace: "nowrap",
+                WebkitTextStroke:
+                  quality === "mobile"
+                    ? "2.5px #000"
+                    : quality === "tablet"
+                      ? "3px #000"
+                      : "2px #000",
+                paintOrder: "stroke fill",
+                textShadow: "0 2px 0 #000, 0 0 8px rgba(0,0,0,.95)",
+                transform: "translate3d(-9999px,-9999px,0)",
+                transformOrigin: "50% 50%",
+                willChange: "transform, opacity",
+              });
+              avatarLabelLayer.appendChild(labelElement);
+              avatarLabelElements.push({
+                element: labelElement,
+                worldPosition: new THREE.Vector3(
                   worldPosition[0],
-                  AVATAR_WORLD_HEIGHT + 1.15,
+                  AVATAR_WORLD_HEIGHT + 1.7,
                   worldPosition[2],
-                );
-                labelSprite.scale.set(labelWidth, labelWidth / 4, 1);
-                labelSprite.renderOrder = 10;
-                avatarGroup.add(labelSprite);
-              }
+                ),
+                projectedPosition: new THREE.Vector3(),
+                screenOffsetY:
+                  quality === "tablet" && (index === 0 || index === 3)
+                    ? -42
+                    : 0,
+              });
             }
           }
 
@@ -853,8 +867,10 @@ export default function TalentMatrixScene({
       const aspect = width / height;
       activeCamera.aspect = aspect;
       const referenceAspect = 1440 / 900;
+      // Keep the portrait world intentionally closer. The previous fit widened
+      // the FOV until the city/background felt miniature on touch layouts.
       const maximumPortraitFit =
-        quality === "desktop" ? 1 : quality === "tablet" ? 1.42 : 1.64;
+        quality === "desktop" ? 1 : quality === "tablet" ? 1.22 : 1.34;
       const portraitFit = THREE.MathUtils.clamp(
         referenceAspect / Math.max(aspect, 0.01),
         1,
@@ -968,6 +984,36 @@ export default function TalentMatrixScene({
       activeCamera.position.z +=
         (cameraBasePosition.z - activeCamera.position.z) * 0.035;
       activeCamera.quaternion.slerp(cameraBaseQuaternion, 0.08);
+      activeCamera.updateMatrixWorld(true);
+      avatarLabelElements.forEach(
+        ({ element, worldPosition, projectedPosition, screenOffsetY }) => {
+          projectedPosition.copy(worldPosition).project(activeCamera);
+          const visible =
+            projectedPosition.z > -1 &&
+            projectedPosition.z < 1 &&
+            projectedPosition.x > -1.18 &&
+            projectedPosition.x < 1.18 &&
+            projectedPosition.y > -1.18 &&
+            projectedPosition.y < 1.18;
+          const projectedX =
+            (projectedPosition.x * 0.5 + 0.5) * host.clientWidth;
+          const y =
+            (-projectedPosition.y * 0.5 + 0.5) * host.clientHeight +
+            screenOffsetY;
+          const labelHalfWidth = element.offsetWidth / 2;
+          const edgePadding = 8;
+          const x = THREE.MathUtils.clamp(
+            projectedX,
+            labelHalfWidth + edgePadding,
+            Math.max(
+              labelHalfWidth + edgePadding,
+              host.clientWidth - labelHalfWidth - edgePadding,
+            ),
+          );
+          element.style.opacity = visible ? "1" : "0";
+          element.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+        },
+      );
       if (pointerInside && buildingPickPending) {
         updateBuildingHover();
         buildingPickPending = false;
@@ -1060,7 +1106,7 @@ export default function TalentMatrixScene({
         }
       });
       matrixTextures.forEach((texture) => texture.dispose());
-      avatarLabelTextures.forEach((texture) => texture.dispose());
+      avatarLabelLayer.remove();
       buildingHoverFillMaterial.dispose();
       buildingHoverShellMaterial.dispose();
       buildingHoverEdgeMaterial.dispose();

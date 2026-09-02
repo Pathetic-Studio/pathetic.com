@@ -75,7 +75,7 @@ export default function WorkContentViewer({
       role="dialog"
       aria-modal="true"
       aria-label={content.title}
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/95 p-3 text-white sm:p-6"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-white/96 p-3 text-black backdrop-blur-[2px] sm:p-6"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -83,14 +83,14 @@ export default function WorkContentViewer({
       <button
         type="button"
         onClick={onClose}
-        className="absolute right-4 top-4 z-20 border border-white bg-black px-4 py-2 text-sm font-bold uppercase tracking-[-.03em] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:right-6 sm:top-6"
+        className="absolute right-4 top-4 z-20 border border-black bg-white px-4 py-2 text-sm font-bold uppercase tracking-[-.03em] shadow-[3px_3px_0_#000] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black sm:right-6 sm:top-6"
       >
         Close
       </button>
 
       <div
         ref={panelRef}
-        className="relative flex h-full max-h-[92svh] w-full max-w-[96rem] items-center justify-center overflow-hidden"
+        className="relative flex h-[86svh] max-h-[86svh] w-full max-w-[92rem] items-center justify-center border border-black bg-white p-2 sm:p-4 lg:p-6"
       >
         {content.mediaType === "video" && content.videoUrl ? (
           <video
@@ -100,18 +100,20 @@ export default function WorkContentViewer({
             autoPlay
             controls
             playsInline
-            className="max-h-full max-w-full object-contain"
+            className="max-h-[calc(86svh-1rem)] max-w-full border border-black object-contain sm:max-h-[calc(86svh-2rem)] lg:max-h-[calc(86svh-3rem)]"
           />
         ) : content.imageUrl ? (
-          <Image
-            src={content.imageUrl}
-            alt={content.imageAlt || content.title}
-            fill
-            sizes="100vw"
-            className="object-contain"
-          />
+          <div className="relative h-full w-full border border-black">
+            <Image
+              src={content.imageUrl}
+              alt={content.imageAlt || content.title}
+              fill
+              sizes="100vw"
+              className="object-contain"
+            />
+          </div>
         ) : (
-          <div className="flex aspect-video w-full max-w-5xl items-center justify-center border border-white/30 bg-white/5 text-center text-lg font-bold uppercase">
+          <div className="flex aspect-video w-full max-w-5xl items-center justify-center border border-black bg-white text-center text-lg font-bold uppercase">
             Add fullscreen content in Sanity
           </div>
         )}

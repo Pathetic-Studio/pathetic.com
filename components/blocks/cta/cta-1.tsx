@@ -5,6 +5,7 @@ import { stegaClean } from "next-sanity";
 import Link from "next/link";
 import PortableTextRenderer from "@/components/portable-text-renderer";
 import { PAGE_QUERYResult } from "@/sanity.types";
+import { TEXT_STYLES, TEXT_WIDTHS } from "@/components/ui/text-styles";
 
 type Cta1Props = Extract<
   NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number],
@@ -38,11 +39,15 @@ export default function Cta1({
         >
           {tagLine && (
             <h1 className="leading-[0] mb-4">
-              <span className="text-base font-semibold">{tagLine}</span>
+              <span className={TEXT_STYLES.eyebrow}>{tagLine}</span>
             </h1>
           )}
-          <h2 className="mb-4">{title}</h2>
-          {body && <PortableTextRenderer value={body} />}
+          <h2 className={`mb-4 ${TEXT_STYLES.subheading}`}>{title}</h2>
+          {body && (
+            <div className={`${TEXT_STYLES.body} ${TEXT_WIDTHS.body}`}>
+              <PortableTextRenderer value={body} />
+            </div>
+          )}
         </div>
         {links && links.length > 0 && (
           <div

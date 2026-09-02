@@ -105,6 +105,11 @@ export default function WhatWeDoTalentSequence({
     const root = rootRef.current;
     if (!root || !viewportMode || viewportMode === "reduced") return;
 
+    // A breakpoint change destroys and rebuilds this section's triggers.
+    // Clear the old claim before measuring the new layout so a matrix nav
+    // cannot survive for a frame at an unrelated restored scroll position.
+    clearHeaderVisualTheme(headerThemeSource);
+
     const isDesktop = viewportMode === "desktop";
     const sequenceDuration = isDesktop
       ? duration

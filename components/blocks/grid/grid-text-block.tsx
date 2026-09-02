@@ -16,6 +16,7 @@ import PortableTitleText, {
 import { PAGE_QUERYResult, ColorVariant } from "@/sanity.types";
 import ContactFormTrigger from "@/components/contact/contact-form-trigger";
 import type { PortableTextProps } from "@portabletext/react";
+import { TEXT_STYLES } from "@/components/ui/text-styles";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRow = Extract<Block, { _type: "grid-row" }>;
@@ -149,7 +150,7 @@ function CardContent({
                 uppercase
               />
             ) : (
-              <div className="font-bold uppercase text-center text-2xl w-full [&_h1]:m-0 [&_h2]:m-0 [&_h3]:m-0 [&_h4]:m-0 [&_h5]:m-0 [&_p]:m-0">
+              <div className={`w-full text-center [&_h1]:m-0 [&_h2]:m-0 [&_h3]:m-0 [&_h4]:m-0 [&_h5]:m-0 [&_p]:m-0 ${TEXT_STYLES.cardTitle}`}>
                 <PortableTextRenderer value={safeTitle} />
               </div>
             )}
@@ -170,7 +171,7 @@ function CardContent({
                 uppercase={false}
               />
             ) : (
-              <div className="text-base w-full text-center [&_h1]:uppercase [&_h3]:uppercase [&_h3]:font-semibold [&_h4]:m-0!">
+              <div className={`w-full text-center [&_h1]:uppercase [&_h3]:uppercase [&_h3]:font-semibold [&_h4]:m-0! ${TEXT_STYLES.body}`}>
                 <PortableTextRenderer value={safeBody} />
               </div>
             )}

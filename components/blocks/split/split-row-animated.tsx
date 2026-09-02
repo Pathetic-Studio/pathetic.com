@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getSectionId } from "@/lib/section-id";
 import TitleText from "@/components/ui/title-text";
+import { TEXT_STYLES, TEXT_WIDTHS } from "@/components/ui/text-styles";
 
 gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
@@ -839,7 +840,7 @@ export default function SplitRowAnimated({
             <div className="max-w-8xl mx-auto">
               {tagLine && (
                 <h1 className="leading-[0] uppercase italic font-sans">
-                  <span className="text-base font-semibold opacity-50">
+                  <span className={`${TEXT_STYLES.eyebrow} opacity-50`}>
                     {tagLine}
                   </span>
                 </h1>
@@ -862,7 +863,7 @@ export default function SplitRowAnimated({
               )}
 
               {body && (
-                <div className="text-lg mt-6 max-w-2xl mx-auto">
+                <div className={`mx-auto mt-6 ${TEXT_STYLES.bodyLarge} ${TEXT_WIDTHS.body}`}>
                   <PortableTextRenderer value={body} />
                 </div>
               )}

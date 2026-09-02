@@ -42,6 +42,10 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
   const contentRef = useRef<HTMLDivElement>(null);
 
   const savedTabScrollRef = useRef<number>(0);
+  const savedScrollerRebuildRef = useRef<{
+    pathname: string;
+    y: number;
+  } | null>(null);
   const isFirstPathMountRef = useRef(true);
 
   // ScrollSmoother is reserved for fine-pointer desktop devices. Touch devices
@@ -258,8 +262,29 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       } catch { }
 
       restoreNativeScroller();
-      requestAnimationFrame(() => ScrollTrigger.refresh());
-      return;
+      const savedForPath =
+        savedScrollerRebuildRef.current?.pathname === pathname
+          ? savedScrollerRebuildRef.current.y
+          : null;
+      const firstMount = isFirstPathMountRef.current;
+      requestAnimationFrame(() => {
+        if (!firstMount && savedForPath !== null) {
+          window.scrollTo(0, savedForPath);
+        }
+        ScrollTrigger.refresh();
+        ScrollTrigger.update();
+      });
+      isFirstPathMountRef.current = false;
+      return () => {
+        savedScrollerRebuildRef.current = {
+          pathname,
+          y:
+            window.scrollY ||
+            window.pageYOffset ||
+            document.documentElement.scrollTop ||
+            0,
+        };
+      };
     }
 
     const smooth = isDesktop ? 1 : 0.001;
@@ -467,6 +492,11 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
       requestAnimationFrame(() => {
         const hasHash = !!window.location.hash;
+        const firstMount = isFirstPathMountRef.current;
+        const savedForPath =
+          savedScrollerRebuildRef.current?.pathname === pathname
+            ? savedScrollerRebuildRef.current.y
+            : null;
         const nativeHashScrollY =
           window.scrollY ||
           window.pageYOffset ||
@@ -482,12 +512,17 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
           }
         } else {
           setInitialHashReady(true);
-          setScrollY(0);
+          setScrollY(
+            !firstMount && savedForPath !== null ? savedForPath : 0,
+          );
         }
 
         isFirstPathMountRef.current = false;
 
-        requestAnimationFrame(() => ScrollTrigger.refresh());
+        requestAnimationFrame(() => {
+          ScrollTrigger.refresh();
+          ScrollTrigger.update();
+        });
       });
     } catch (err) {
       console.error("[SmoothScroller] ScrollSmoother.create failed", err);
@@ -501,6 +536,10 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     }
 
     return () => {
+      savedScrollerRebuildRef.current = {
+        pathname,
+        y: getScrollY(),
+      };
       cleanupHashStabilizer?.();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pageshow", onPageShow);

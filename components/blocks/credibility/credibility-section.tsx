@@ -60,10 +60,10 @@ function LogoBlob({
       data-credibility-blob={side}
       data-direction={direction}
       className={cn(
-        "relative h-[210px] w-full [perspective:850px] sm:h-[240px] lg:absolute lg:top-1/2 lg:h-[min(23vw,320px)] lg:w-[min(23vw,320px)] lg:-translate-y-1/2",
+        "absolute inset-x-[5%] h-[11rem] [perspective:850px] sm:inset-x-[8%] sm:h-[13rem] lg:inset-x-auto lg:top-1/2 lg:h-[min(23vw,320px)] lg:w-[min(23vw,320px)] lg:-translate-y-1/2",
         side === "left"
-          ? "lg:left-[4vw] xl:left-[6vw]"
-          : "lg:right-[4vw] xl:right-[6vw]",
+          ? "top-[2.5rem] lg:left-[4vw] lg:top-1/2 xl:left-[6vw]"
+          : "bottom-[2.5rem] lg:bottom-auto lg:right-[4vw] lg:top-1/2 xl:right-[6vw]",
       )}
     >
       <div className="absolute inset-0 [transform-style:preserve-3d]">
@@ -81,7 +81,7 @@ function LogoBlob({
               data-sphere-x={coordinate.x}
               data-sphere-y={coordinate.y}
               data-sphere-z={coordinate.z}
-              className="absolute left-1/2 top-1/2 h-[clamp(2rem,3.8vw,4rem)] w-[clamp(2rem,3.8vw,4rem)] transform-gpu will-change-transform"
+              className="absolute left-1/2 top-1/2 h-[clamp(2.6rem,8vw,4.5rem)] w-[clamp(2.6rem,8vw,4.5rem)] transform-gpu will-change-transform lg:h-[clamp(2rem,3.8vw,4rem)] lg:w-[clamp(2rem,3.8vw,4rem)]"
             >
               <div
                 data-credibility-logo
@@ -139,8 +139,9 @@ export default function CredibilitySection(props: CredibilityBlock) {
         "[data-credibility-blob]",
         root,
       );
-      const arrowPath = root.querySelector<SVGPathElement>(
+      const arrowPaths = gsap.utils.toArray<SVGPathElement>(
         "[data-credibility-arrow-path]",
+        root,
       );
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
@@ -157,7 +158,14 @@ export default function CredibilitySection(props: CredibilityBlock) {
           const angle = elapsed * ((Math.PI * 2) / duration) * direction;
           const cosine = Math.cos(angle);
           const sine = Math.sin(angle);
-          const radius = Math.min(blob.clientWidth, blob.clientHeight) * 0.36;
+          const touchLayout = window.innerWidth < 1024;
+          const radiusX = touchLayout
+            ? blob.clientWidth * 0.39
+            : Math.min(blob.clientWidth, blob.clientHeight) * 0.36;
+          const radiusY = touchLayout
+            ? blob.clientHeight * 0.28
+            : Math.min(blob.clientWidth, blob.clientHeight) * 0.36;
+          const radiusZ = Math.min(blob.clientWidth, blob.clientHeight) * 0.36;
           const positions = gsap.utils.toArray<HTMLElement>(
             "[data-credibility-logo-position]",
             blob,
@@ -174,9 +182,9 @@ export default function CredibilitySection(props: CredibilityBlock) {
             gsap.set(position, {
               xPercent: -50,
               yPercent: -50,
-              x: x * radius,
-              y: baseY * radius,
-              z: z * radius * 0.75,
+              x: x * radiusX,
+              y: baseY * radiusY,
+              z: z * radiusZ * 0.75,
               scale: 0.72 + depth * 0.34,
               opacity: 0.46 + depth * 0.54,
               zIndex: Math.round(10 + depth * 30),
@@ -198,15 +206,15 @@ export default function CredibilitySection(props: CredibilityBlock) {
 
       if (reduceMotion) {
         gsap.set(logoItems, { autoAlpha: 1, scale: 1 });
-        if (arrowPath) gsap.set(arrowPath, { strokeDashoffset: 0 });
+        gsap.set(arrowPaths, { strokeDashoffset: 0 });
       } else {
         gsap.set(logoItems, {
           autoAlpha: 1,
           scale: 0,
           transformOrigin: "50% 50%",
         });
-        if (arrowPath) {
-          gsap.set(arrowPath, {
+        if (arrowPaths.length) {
+          gsap.set(arrowPaths, {
             strokeDasharray: 1,
             strokeDashoffset: 1,
           });
@@ -220,9 +228,9 @@ export default function CredibilitySection(props: CredibilityBlock) {
           },
         });
 
-        if (arrowPath) {
+        if (arrowPaths.length) {
           entrance.to(
-            arrowPath,
+            arrowPaths,
             {
               strokeDashoffset: 0,
               duration: 0.34,
@@ -266,13 +274,31 @@ export default function CredibilitySection(props: CredibilityBlock) {
     >
       <BackgroundPanel background={background} />
 
-      <div className="relative mx-auto flex min-h-[780px] max-w-[1800px] flex-col items-center justify-center px-8 py-16 md:min-h-[680px] lg:h-[clamp(560px,43vw,680px)] lg:min-h-0 lg:px-8 lg:py-10">
+      <div className="relative mx-auto flex min-h-[790px] max-w-[1800px] flex-col items-center justify-center px-5 py-16 sm:min-h-[840px] sm:px-8 lg:h-[clamp(560px,43vw,680px)] lg:min-h-0 lg:px-8 lg:py-10">
+        <svg
+          data-credibility-arrow
+          aria-hidden="true"
+          viewBox="0 0 40 1000"
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute left-1/2 top-[24%] z-20 h-[52%] w-8 -translate-x-1/2 overflow-visible text-foreground lg:hidden"
+        >
+          <path
+            data-credibility-arrow-path
+            pathLength="1"
+            d="M20 20V980M20 20L8 34M20 20L32 34M20 980L8 966M20 980L32 966"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+
         <svg
           data-credibility-arrow
           aria-hidden="true"
           viewBox="0 0 1000 40"
           preserveAspectRatio="none"
-          className="pointer-events-none absolute left-[10%] top-[58%] z-20 h-8 w-[80%] -translate-y-1/2 overflow-visible text-foreground lg:left-[29%] lg:top-1/2 lg:w-[46%]"
+          className="pointer-events-none absolute left-[29%] top-1/2 z-20 hidden h-8 w-[46%] -translate-y-1/2 overflow-visible text-foreground lg:block"
         >
           <path
             data-credibility-arrow-path
@@ -285,7 +311,7 @@ export default function CredibilitySection(props: CredibilityBlock) {
           />
         </svg>
 
-        <div className="relative z-30 mx-auto w-full max-w-[960px] text-center">
+        <div className="relative z-30 mx-auto w-full max-w-[22rem] text-center sm:max-w-[28rem] lg:max-w-[960px]">
           {resolvedTitle && (
             <TitleText
               variant="stretched"
@@ -310,7 +336,7 @@ export default function CredibilitySection(props: CredibilityBlock) {
           )}
         </div>
 
-        <div className="relative z-10 mt-12 grid w-full grid-cols-2 gap-2 lg:contents">
+        <div className="pointer-events-none absolute inset-0 z-10 lg:contents">
           <LogoBlob logos={leftLogos} side="left" />
           <LogoBlob logos={rightLogos} side="right" />
         </div>

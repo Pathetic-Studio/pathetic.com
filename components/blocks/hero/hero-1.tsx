@@ -5,6 +5,7 @@ import { urlFor } from "@/sanity/lib/image";
 import { stegaClean } from "next-sanity";
 import PortableTextRenderer from "@/components/portable-text-renderer";
 import { PAGE_QUERYResult } from "@/sanity.types";
+import { TEXT_STYLES, TEXT_WIDTHS } from "@/components/ui/text-styles";
 
 type Hero1Props = Extract<
   NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number],
@@ -24,7 +25,7 @@ export default function Hero1({
         <div className="flex flex-col justify-center">
           {tagLine && (
             <h1 className="leading-[0] font-sans animate-fade-up [animation-delay:100ms] opacity-0">
-              <span className="text-base font-semibold">{tagLine}</span>
+              <span className={TEXT_STYLES.eyebrow}>{tagLine}</span>
             </h1>
           )}
           {title && (
@@ -33,7 +34,7 @@ export default function Hero1({
             </h2>
           )}
           {body && (
-            <div className="text-lg mt-6 animate-fade-up [animation-delay:300ms] opacity-0">
+            <div className={`mt-6 animate-fade-up opacity-0 [animation-delay:300ms] ${TEXT_STYLES.bodyLarge} ${TEXT_WIDTHS.body}`}>
               <PortableTextRenderer value={body} />
             </div>
           )}

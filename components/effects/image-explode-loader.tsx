@@ -238,6 +238,8 @@ export default function ImageExplodeLoader({
 
         let cancelled = false;
         let loopId: number | null = null;
+        let resizeFrame = 0;
+        let resizeSimulation: ((width: number, height: number) => void) | null = null;
 
         const setupWhenSized = async () => {
             for (let i = 0; i < 60; i++) {
@@ -245,7 +247,7 @@ export default function ImageExplodeLoader({
 
                 const rect = container.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
-                    return start(rect.width, rect.height, urls, runKey);
+                    return start(rect.width, rect.height, urls);
                 }
                 await new Promise<void>((r) => requestAnimationFrame(() => r()));
             }
@@ -254,11 +256,21 @@ export default function ImageExplodeLoader({
             console.warn("[ImageExplodeLoader] container still has no size:", rect, containerId);
         };
 
-        const start = async (width: number, height: number, spriteUrls: string[], runKeyLocal: string) => {
-            const isMobile = width < 640;
-            const isTablet = width >= 640 && width < 1024;
-
-            const imageSize = isMobile ? mobileSize : isTablet ? tabletSize : desktopSize;
+        const start = async (width: number, height: number, spriteUrls: string[]) => {
+            const resolveLayout = (nextWidth: number) => {
+                const isMobile = nextWidth < 640;
+                const isTablet = nextWidth >= 640 && nextWidth < 1024;
+                return {
+                    isMobile,
+                    isTablet,
+                    imageSize: isMobile ? mobileSize : isTablet ? tabletSize : desktopSize,
+                };
+            };
+            const initialLayout = resolveLayout(width);
+            const { isMobile, isTablet } = initialLayout;
+            let currentImageSize = initialLayout.imageSize;
+            let worldWidth = width;
+            let worldHeight = height;
 
             let gravityY = 3;
             if (isTablet) gravityY = 0.35;
@@ -268,13 +280,16 @@ export default function ImageExplodeLoader({
             engineRef.current = engine;
             engine.world.gravity.y = gravityY;
 
-            const wallThickness = 300;
-            const walls = [
-                Bodies.rectangle(width / 2, -wallThickness / 2, width, wallThickness, { isStatic: true }),
-                Bodies.rectangle(width / 2, height + wallThickness / 2, width, wallThickness, { isStatic: true }),
-                Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height, { isStatic: true }),
-                Bodies.rectangle(width + wallThickness / 2, height / 2, wallThickness, height, { isStatic: true }),
-            ];
+            const createWalls = (nextWidth: number, nextHeight: number) => {
+                const wallThickness = Math.max(300, Math.max(nextWidth, nextHeight) * 0.32);
+                return [
+                    Bodies.rectangle(nextWidth / 2, -wallThickness / 2, nextWidth, wallThickness, { isStatic: true }),
+                    Bodies.rectangle(nextWidth / 2, nextHeight + wallThickness / 2, nextWidth, wallThickness, { isStatic: true }),
+                    Bodies.rectangle(-wallThickness / 2, nextHeight / 2, wallThickness, nextHeight, { isStatic: true }),
+                    Bodies.rectangle(nextWidth + wallThickness / 2, nextHeight / 2, wallThickness, nextHeight, { isStatic: true }),
+                ];
+            };
+            let walls = createWalls(width, height);
             World.add(engine.world, walls);
 
             const cx = width / 2;
@@ -284,7 +299,7 @@ export default function ImageExplodeLoader({
             for (const url of spriteUrls) {
                 if (cancelled) return;
 
-                const body = await createBodyFromPng(url, cx, cy, imageSize);
+                const body = await createBodyFromPng(url, cx, cy, currentImageSize);
 
                 const ang = Math.random() * Math.PI * 2;
                 const speed = 12 + Math.random() * 10;
@@ -310,9 +325,67 @@ export default function ImageExplodeLoader({
                     x: b.position.x,
                     y: b.position.y,
                     angle: b.angle,
-                    size: imageSize,
+                    size: currentImageSize,
                 }))
             );
+
+            resizeSimulation = (nextWidth: number, nextHeight: number) => {
+                if (
+                    cancelled ||
+                    !nextWidth ||
+                    !nextHeight ||
+                    (Math.abs(nextWidth - worldWidth) < 0.5 &&
+                        Math.abs(nextHeight - worldHeight) < 0.5)
+                ) {
+                    return;
+                }
+
+                const nextLayout = resolveLayout(nextWidth);
+                const nextImageSize = nextLayout.imageSize;
+                const sizeScale = nextImageSize / Math.max(currentImageSize, 1);
+                engine.world.gravity.y = nextLayout.isMobile
+                    ? 0.75
+                    : nextLayout.isTablet
+                        ? 0.35
+                        : 3;
+                walls.forEach((wall) => World.remove(engine.world, wall));
+                walls = createWalls(nextWidth, nextHeight);
+                World.add(engine.world, walls);
+
+                bodies.forEach((body) => {
+                    const normalizedX = Math.max(0, Math.min(1, body.position.x / Math.max(worldWidth, 1)));
+                    const normalizedY = Math.max(0, Math.min(1, body.position.y / Math.max(worldHeight, 1)));
+                    if (Math.abs(sizeScale - 1) > 0.001) {
+                        Body.scale(body, sizeScale, sizeScale);
+                    }
+                    const halfSize = nextImageSize / 2;
+                    Body.setPosition(body, {
+                        x: Math.max(halfSize, Math.min(nextWidth - halfSize, normalizedX * nextWidth)),
+                        y: Math.max(halfSize, Math.min(nextHeight - halfSize, normalizedY * nextHeight)),
+                    });
+                    Body.setVelocity(body, {
+                        x: body.velocity.x * (nextWidth / Math.max(worldWidth, 1)),
+                        y: body.velocity.y * (nextHeight / Math.max(worldHeight, 1)),
+                    });
+                });
+
+                worldWidth = nextWidth;
+                worldHeight = nextHeight;
+                currentImageSize = nextImageSize;
+                setRenderItems(
+                    bodies.map((body, index) => ({
+                        id: `img-${index}`,
+                        url: (body as any).spriteUrl as string,
+                        x: body.position.x,
+                        y: body.position.y,
+                        angle: body.angle,
+                        size: currentImageSize,
+                    })),
+                );
+            };
+
+            const latestRect = container.getBoundingClientRect();
+            resizeSimulation(latestRect.width, latestRect.height);
 
             const loop = () => {
                 if (cancelled) return;
@@ -341,7 +414,7 @@ export default function ImageExplodeLoader({
                         x: b.position.x,
                         y: b.position.y,
                         angle: b.angle,
-                        size: imageSize,
+                        size: currentImageSize,
                     }))
                 );
 
@@ -351,6 +424,15 @@ export default function ImageExplodeLoader({
             loop();
         };
 
+        const resizeObserver = new ResizeObserver(([entry]) => {
+            const rect = entry?.contentRect ?? container.getBoundingClientRect();
+            if (resizeFrame) cancelAnimationFrame(resizeFrame);
+            resizeFrame = requestAnimationFrame(() => {
+                resizeFrame = 0;
+                resizeSimulation?.(rect.width, rect.height);
+            });
+        });
+        resizeObserver.observe(container);
         setupWhenSized();
 
         const handlePointerMove = (e: PointerEvent) => {
@@ -392,6 +474,8 @@ export default function ImageExplodeLoader({
 
         return () => {
             cancelled = true;
+            resizeObserver.disconnect();
+            if (resizeFrame) cancelAnimationFrame(resizeFrame);
 
             window.removeEventListener("pointermove", handlePointerMove as any);
             window.removeEventListener("pointerdown", handlePointerDown as any);

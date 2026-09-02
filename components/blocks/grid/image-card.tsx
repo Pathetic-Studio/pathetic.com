@@ -7,6 +7,7 @@ import PortableTextRenderer from "@/components/portable-text-renderer";
 import { urlFor } from "@/sanity/lib/image";
 import { PAGE_QUERYResult } from "@/sanity.types";
 import { cn } from "@/lib/utils";
+import { TEXT_STYLES } from "@/components/ui/text-styles";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRowImage = Extract<Block, { _type: "grid-row-image" }>;
@@ -47,7 +48,7 @@ export default function ImageCard({
 
       {title && (
         <div className="mx-auto">
-          <h3 className="mt-2 text-center text-sm font-semibold uppercase tracking-tight">
+          <h3 className={`mt-2 text-center ${TEXT_STYLES.label}`}>
             {title}
           </h3>
         </div>
@@ -78,7 +79,7 @@ export default function ImageCard({
                       href={link.href}
                       target={link.target ? "_blank" : undefined}
                       rel={link.target ? "noopener" : undefined}
-                      className="inline-flex items-center text-xs font-medium uppercase tracking-tight underline-offset-4 hover:underline"
+                      className={`inline-flex items-center underline-offset-4 hover:underline ${TEXT_STYLES.link}`}
                     >
                       {link.title || "Learn more"}
                     </Link>
@@ -139,7 +140,7 @@ function DesktopOverlayCard({ Header, body, link }: DesktopOverlayCardProps) {
                     href={link.href}
                     target={link.target ? "_blank" : undefined}
                     rel={link.target ? "noopener" : undefined}
-                    className="inline-flex items-center text-xs font-medium uppercase tracking-tight underline-offset-4 hover:underline"
+                    className={`inline-flex items-center underline-offset-4 hover:underline ${TEXT_STYLES.link}`}
                   >
                     {link.title || "Learn more"}
                   </Link>

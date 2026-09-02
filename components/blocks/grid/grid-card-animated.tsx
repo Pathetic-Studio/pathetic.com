@@ -8,6 +8,7 @@ import { urlFor } from "@/sanity/lib/image";
 import { PAGE_QUERYResult, ColorVariant } from "@/sanity.types";
 import CaptionBubble from "./caption-bubble";
 import type { GridCardParallaxConfig } from "./grid-row-animated-parallax";
+import { TEXT_STYLES } from "@/components/ui/text-styles";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRowAnimated = Extract<Block, { _type: "grid-row-animated" }>;
@@ -19,6 +20,8 @@ interface GridCardAnimatedProps
   color?: ColorVariant;
   parallaxConfig?: GridCardParallaxConfig; // NEW
   captionDesktopWidthRem?: number;
+  captionCenterOnTouch?: boolean;
+  captionTouchIndex?: number;
 }
 
 export default function GridCardAnimated({
@@ -30,6 +33,8 @@ export default function GridCardAnimated({
   caption,
   parallaxConfig,
   captionDesktopWidthRem,
+  captionCenterOnTouch,
+  captionTouchIndex,
 }: GridCardAnimatedProps) {
   const hasLink = !!link?.href;
   const captionText = stegaClean(caption?.text) || "";
@@ -77,6 +82,8 @@ export default function GridCardAnimated({
                 parallaxSpeed={captionSpeed ?? null} // NEW
                 parallaxLag={captionLag ?? null}
                 desktopWidthRem={captionDesktopWidthRem}
+                centerOnTouch={captionCenterOnTouch}
+                touchIndex={captionTouchIndex}
               />
             )}
           </div>
@@ -84,14 +91,14 @@ export default function GridCardAnimated({
 
         {title && (
           <div className="mb-2">
-            <h3 className="font-bold text-2xl uppercase"
+            <h3 className={TEXT_STYLES.cardTitle}
               data-speed={titleSpeed ?? undefined}>{title}</h3>
           </div>
         )}
 
         {excerpt && (
           <p
-            className="mx-auto max-w-2/3 md:max-w-prose"
+            className={`mx-auto max-w-2/3 md:max-w-prose ${TEXT_STYLES.body}`}
             data-speed={bodySpeed ?? undefined} // NEW
           >
             {excerpt}

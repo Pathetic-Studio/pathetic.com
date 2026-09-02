@@ -12,6 +12,7 @@ import EyeFollow from "@/components/effects/eye-follow";
 import ImageExplode from "@/components/effects/image-explode";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
+import { TEXT_STYLES, TEXT_WIDTHS } from "@/components/ui/text-styles";
 import { getSectionId } from "@/lib/section-id";
 
 type Hero2Props = Extract<
@@ -119,7 +120,7 @@ export default function Hero2({
         <div className="h-full flex flex-col justify-center py-20  text-center">
           {tagLine && (
             <h1 className="leading-[0] uppercase italic font-sans animate-fade-up [animation-delay:100ms]">
-              <span className="text-base font-semibold opacity-50">
+              <span className={`${TEXT_STYLES.eyebrow} opacity-50`}>
                 {tagLine}
               </span>
             </h1>
@@ -140,7 +141,7 @@ export default function Hero2({
           )}
 
           {body && (
-            <div className="text-lg lg:text-2xl mt-6 max-w-2xl px-6 mx-auto animate-fade-up [animation-delay:300ms] opacity-0">
+            <div className={`mx-auto mt-6 px-6 animate-fade-up opacity-0 [animation-delay:300ms] ${TEXT_STYLES.bodyLarge} ${TEXT_WIDTHS.body}`}>
               <PortableTextRenderer value={body} />
             </div>
           )}

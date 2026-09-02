@@ -5,6 +5,7 @@ import Link from "next/link";
 import { stegaClean } from "next-sanity";
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -14,6 +15,10 @@ import type { PAGE_QUERYResult } from "@/sanity.types";
 import TypeOnText from "@/components/ui/type-on-text";
 import { urlFor } from "@/sanity/lib/image";
 import TitleText from "@/components/ui/title-text";
+import {
+  SECTION_HEADER_BODY_TYPE_CLASS,
+  TEXT_STYLES,
+} from "@/components/ui/text-styles";
 import { splitTextAtWordRatio } from "@/components/blocks/shared/text-lines";
 import FlyingPigeonScene from "@/components/blocks/what-we-do-grid/flying-pigeon-scene";
 import PizzaRatScene from "@/components/blocks/what-we-do-grid/pizza-rat-scene";
@@ -28,6 +33,45 @@ const safeNumber = (value: number | null | undefined, fallback: number) => {
   const clean = stegaClean(value);
   return typeof clean === "number" && Number.isFinite(clean) ? clean : fallback;
 };
+
+function splitTextIntoBalancedLines(value: string, lineCount: number) {
+  const words = value.trim().replace(/\s+/g, " ").split(" ").filter(Boolean);
+  if (lineCount <= 1 || words.length <= 1) return [words.join(" ")];
+
+  const lines: string[] = [];
+  let cursor = 0;
+  while (cursor < words.length && lines.length < lineCount - 1) {
+    const linesLeft = lineCount - lines.length;
+    const remaining = words.slice(cursor);
+    const targetLength =
+      (remaining.reduce((total, word) => total + word.length, 0) +
+        Math.max(0, remaining.length - 1)) /
+      linesLeft;
+    let bestEnd = cursor + 1;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    let currentLength = 0;
+
+    for (
+      let index = cursor;
+      index <= words.length - (linesLeft - 1);
+      index += 1
+    ) {
+      currentLength += words[index].length + (index > cursor ? 1 : 0);
+      const distance = Math.abs(currentLength - targetLength);
+      if (distance <= bestDistance) {
+        bestDistance = distance;
+        bestEnd = index + 1;
+      } else if (currentLength > targetLength) {
+        break;
+      }
+    }
+
+    lines.push(words.slice(cursor, bestEnd).join(" "));
+    cursor = bestEnd;
+  }
+  lines.push(words.slice(cursor).join(" "));
+  return lines;
+}
 
 function colorValue(
   color: { hex?: string | null } | null | undefined,
@@ -71,7 +115,7 @@ const REFERENCE_SCENE_OBJECTS = [
     src: "/images/what-we-do/trash-pile.png",
     alt: "",
     className:
-      "bottom-[4%] right-[-14%] w-[clamp(16rem,28vw,28rem)]",
+      "bottom-[4%] right-[-24%] w-[clamp(16rem,28vw,28rem)] sm:right-[-18%] lg:right-[-16%] lg:!z-[55]",
     depth: 0.72,
     endScale: 1.15,
     zIndex: 23,
@@ -309,18 +353,31 @@ function ServiceCard({
   const verticalOffset = safeNumber(service.verticalOffset, 0);
   const objectDetectHover = Boolean(stegaClean(service.objectDetectHover));
   const textColor = colorValue(service.accentTextColor, "#ffffff");
+  const cleanServiceDescription = (stegaClean(service.description) || "")
+    .replace(/\s+/g, " ")
+    .trim();
   const cardActive = pantsActive || touchActive;
   const imageFrame = (() => {
     const width = service.image?.asset?.metadata?.dimensions?.width;
     const height = service.image?.asset?.metadata?.dimensions?.height;
-    if (!width || !height) return { width: 190, height: 300, sourceWidth: 240 };
+    if (!width || !height) {
+      return {
+        width: 190,
+        height: 300,
+        sourceWidth: 240,
+        aspectRatio: 190 / 300,
+      };
+    }
     const sourceWidth = (300 * width) / height;
     return {
       width: Math.max(110, Math.min(280, sourceWidth)),
       height: 300,
       sourceWidth,
+      aspectRatio: width / height,
     };
   })();
+  const mobileFrameWidth = `clamp(${15 * 16 * imageFrame.aspectRatio}px, ${34 * imageFrame.aspectRatio}svh, ${19 * 16 * imageFrame.aspectRatio}px)`;
+  const tabletFrameWidth = `clamp(${17 * 16 * imageFrame.aspectRatio}px, ${32 * imageFrame.aspectRatio}svh, ${21 * 16 * imageFrame.aspectRatio}px)`;
 
   const updateDetector = (event: ReactPointerEvent<HTMLElement>) => {
     if (!objectDetectHover || !detectorRef.current) return;
@@ -351,6 +408,8 @@ function ServiceCard({
       className={`relative flex h-full min-w-0 flex-col items-start justify-start text-left will-change-transform ${cardActive ? "z-[60]" : "z-40"}`}
       style={{
         "--service-image-width": `${imageFrame.width}px`,
+        "--service-mobile-width": mobileFrameWidth,
+        "--service-tablet-width": tabletFrameWidth,
       } as CSSProperties}
     >
       <div
@@ -373,10 +432,13 @@ function ServiceCard({
             updateDetector(event);
           }
         }}
-        className="relative h-[clamp(15rem,34svh,19rem)] w-[min(100%,var(--service-image-width))] origin-bottom overflow-hidden sm:h-[clamp(17rem,36svh,23rem)] lg:h-[var(--service-image-height)] lg:w-[var(--service-image-width)] lg:max-w-none"
+        className="relative mx-0 h-[clamp(15rem,34svh,19rem)] w-[min(72vw,var(--service-mobile-width))] origin-bottom overflow-hidden sm:h-[clamp(17rem,32svh,21rem)] sm:w-[min(39vw,var(--service-tablet-width))] lg:h-[var(--service-image-height)] lg:w-[var(--service-image-width)] lg:max-w-none"
         style={{
           "--service-image-width": `${imageFrame.width}px`,
           "--service-image-height": `${imageFrame.height}px`,
+          "--service-mobile-width": mobileFrameWidth,
+          "--service-tablet-width": tabletFrameWidth,
+          aspectRatio: String(imageFrame.aspectRatio),
           transform: `translateY(${verticalOffset}%) scale(${imageScale})`,
         } as CSSProperties}
       >
@@ -391,7 +453,7 @@ function ServiceCard({
               fill
               sizes="(min-width: 1024px) 25vw, 50vw"
               className={`object-contain object-bottom ${
-                desktopFill ? "lg:object-cover lg:object-center" : ""
+                desktopFill ? "object-cover object-center" : ""
               }`}
             />
           </div>
@@ -411,7 +473,7 @@ function ServiceCard({
                 fill
                 sizes="(min-width: 1024px) 25vw, 50vw"
                 className={`object-contain object-bottom ${
-                  desktopFill ? "lg:object-cover lg:object-center" : ""
+                  desktopFill ? "object-cover object-center" : ""
                 }`}
               />
               <div className="absolute inset-0 bg-[var(--service-accent)] opacity-30 mix-blend-soft-light" style={{ "--service-accent": accent } as CSSProperties} />
@@ -453,31 +515,41 @@ function ServiceCard({
 
       <div
         data-what-service-copy
-        className="relative z-10 -mt-[2px] flex w-full flex-col items-start lg:w-auto lg:max-w-[19rem]"
+        className="relative z-10 mx-0 -mt-[2px] flex w-[min(72vw,19rem)] max-w-none flex-col items-start sm:w-[min(39vw,20rem)] lg:w-auto lg:max-w-[19rem]"
       >
         <h3
-          className="inline-flex max-w-full px-3 py-1 text-base font-semibold uppercase leading-none tracking-tight text-white"
+          className={`inline-block w-fit max-w-none whitespace-nowrap px-3 py-1 text-white ${TEXT_STYLES.link}`}
           style={{ backgroundColor: accent, color: textColor }}
         >
           {stegaClean(service.title)}
         </h3>
-        {service.description && (
-          <div
-            className={`relative inline-block w-full max-w-xs text-base leading-tight sm:max-w-none sm:text-[1.15rem] lg:w-auto lg:max-w-xs lg:text-base ${touchActive ? "block" : "hidden lg:block"}`}
-          >
-            <div className="invisible whitespace-pre-wrap px-3 py-2">{stegaClean(service.description)}</div>
+        {cleanServiceDescription && (
+          touchActive ? (
             <div
-              className={`pointer-events-none absolute inset-0 origin-top-left whitespace-pre-wrap px-3 py-2 transition-all duration-200 ${cardActive ? "scale-100 opacity-100 ease-out" : "scale-80 opacity-0 ease-in"}`}
+              className={`w-full min-w-0 origin-top-left animate-[what-touch-copy-in_220ms_cubic-bezier(.22,1,.36,1)_both] whitespace-normal break-normal px-3 py-2 [hyphens:none] [overflow-wrap:normal] [text-wrap:pretty] ${TEXT_STYLES.body}`}
               style={{ backgroundColor: accent, color: textColor }}
             >
-              <TypeOnText
-                text={stegaClean(service.description) || ""}
-                trigger={touchActive ? "immediate" : "hover"}
-                speed={1.8}
-                hoverTargetRef={detectorRef}
-              />
+              {cleanServiceDescription}
             </div>
-          </div>
+          ) : (
+            <div className={`relative hidden w-auto max-w-xs lg:block ${TEXT_STYLES.body}`}>
+              <div className="invisible whitespace-normal break-words px-3 py-2">
+                {cleanServiceDescription}
+              </div>
+              <div
+                className={`pointer-events-none absolute inset-0 origin-top-left whitespace-normal break-words px-3 py-2 transition-all duration-200 ${cardActive ? "scale-100 opacity-100 ease-out" : "scale-80 opacity-0 ease-in"}`}
+                style={{ backgroundColor: accent, color: textColor }}
+              >
+                <TypeOnText
+                  text={cleanServiceDescription}
+                  trigger="hover"
+                  speed={1.8}
+                  hoverTargetRef={detectorRef}
+                  className="!whitespace-normal break-words"
+                />
+              </div>
+            </div>
+          )
         )}
       </div>
     </article>
@@ -502,6 +574,8 @@ export function WhatWeDoGridView({
   const accent = colorValue(block.accentColor, "#ff00d9");
   const background = colorValue(block.backgroundColor, "#e7e7e2");
   const services = (block.services || []).slice(0, 4);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const headingRef = useRef<HTMLDivElement | null>(null);
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const scrollEndTimerRef = useRef(0);
   const pointerDragRef = useRef({
@@ -516,6 +590,51 @@ export function WhatWeDoGridView({
   const [touchLayout, setTouchLayout] = useState(false);
   const cleanDescription = stegaClean(block.description) || "";
   const descriptionLines = splitTextAtWordRatio(cleanDescription, 0.6);
+  const mobileDescriptionLines = splitTextIntoBalancedLines(
+    cleanDescription,
+    3,
+  );
+  const tabletDescriptionLines = splitTextIntoBalancedLines(
+    cleanDescription,
+    2,
+  );
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const heading = headingRef.current;
+    if (!root || !heading) return;
+
+    let frame = 0;
+    const syncRailPosition = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (window.innerWidth >= 1024) {
+          root.style.removeProperty("--what-touch-rail-top");
+          return;
+        }
+        const rootBounds = root.getBoundingClientRect();
+        const headingBounds = heading.getBoundingClientRect();
+        const gap = window.innerWidth < 640 ? 38 : 58;
+        root.style.setProperty(
+          "--what-touch-rail-top",
+          `${Math.ceil(headingBounds.bottom - rootBounds.top + gap)}px`,
+        );
+      });
+    };
+
+    const observer = new ResizeObserver(syncRailPosition);
+    observer.observe(root);
+    observer.observe(heading);
+    window.addEventListener("resize", syncRailPosition);
+    syncRailPosition();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", syncRailPosition);
+      root.style.removeProperty("--what-touch-rail-top");
+    };
+  }, [cleanDescription]);
 
   const commitNearestTouchCard = () => {
     const carousel = carouselRef.current;
@@ -543,7 +662,7 @@ export function WhatWeDoGridView({
           Math.min(bounds.right, carouselBounds.right) -
             Math.max(bounds.left, carouselBounds.left),
         );
-        return visibleWidth / Math.max(1, bounds.width) >= 0.45
+        return visibleWidth / Math.max(1, bounds.width) >= 0.18
           ? [index]
           : [];
       });
@@ -659,6 +778,7 @@ export function WhatWeDoGridView({
 
   return (
     <div
+      ref={rootRef}
       className={`relative h-full min-h-[100svh] overflow-hidden text-black ${className}`}
       style={{ backgroundColor: background }}
     >
@@ -667,6 +787,7 @@ export function WhatWeDoGridView({
       <PizzaRatScene />
 
       <div
+        ref={headingRef}
         data-what-heading
         className="absolute inset-x-3 top-[10%] z-40 flex flex-col items-center text-center sm:inset-x-4 sm:top-[12%] lg:top-[16.5%]"
         style={{ "--what-accent": accent } as CSSProperties}
@@ -686,17 +807,30 @@ export function WhatWeDoGridView({
         </TitleText>
         {cleanDescription && (
           <p
-            className="mt-2 w-[92vw] max-w-[34rem] px-3 py-2 text-[clamp(.9rem,1.3vw,1.3rem)] leading-[1.08] text-white sm:mt-3 sm:w-[86vw] sm:px-4 sm:text-[1.15rem] lg:w-[clamp(31rem,37vw,34rem)] lg:text-[clamp(.9rem,1.3vw,1.3rem)]"
+            className={`mt-2 inline-block w-fit max-w-[min(86vw,36rem)] px-3 py-2 text-white sm:mt-3 sm:max-w-[min(84vw,36rem)] sm:px-4 lg:max-w-[36rem] ${SECTION_HEADER_BODY_TYPE_CLASS}`}
             style={{ backgroundColor: accent }}
           >
-            {descriptionLines.map((line, index) => (
-              <span key={`${line}-${index}`} className="lg:block">
-                {line}
-                {index < descriptionLines.length - 1 && (
-                  <span className="lg:hidden"> </span>
-                )}
-              </span>
-            ))}
+            <span className="sm:hidden">
+              {mobileDescriptionLines.map((line, index) => (
+                <span key={`${line}-${index}`} className="block">
+                  {line}
+                </span>
+              ))}
+            </span>
+            <span className="hidden sm:inline lg:hidden">
+              {tabletDescriptionLines.map((line, index) => (
+                <span key={`${line}-${index}`} className="block">
+                  {line}
+                </span>
+              ))}
+            </span>
+            <span className="hidden lg:inline">
+              {descriptionLines.map((line, index) => (
+                <span key={`${line}-${index}`} className="block">
+                  {line}
+                </span>
+              ))}
+            </span>
           </p>
         )}
       </div>
@@ -715,13 +849,13 @@ export function WhatWeDoGridView({
           }
         }}
         onDragStart={(event) => event.preventDefault()}
-        className="absolute inset-x-0 bottom-[1%] top-[38%] z-[60] flex cursor-grab snap-x snap-mandatory scroll-px-[6vw] gap-[6vw] overflow-x-scroll overflow-y-hidden px-[6vw] pb-8 pt-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:top-[40%] sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] md:top-[41%] lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:bottom-[4%] lg:top-[40%] lg:z-auto lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
+        className="absolute inset-x-0 bottom-[1%] top-[var(--what-touch-rail-top,30%)] z-[60] flex cursor-grab snap-x snap-mandatory scroll-px-[14vw] gap-[4vw] overflow-x-scroll overflow-y-hidden px-[14vw] pb-8 pt-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:bottom-[4%] lg:top-[40%] lg:z-auto lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
       >
         {services.map((service, index) => (
           <div
             key={service._key}
             data-what-service-slide
-            className="h-full w-[80vw] shrink-0 snap-start [scroll-snap-stop:always] sm:w-[40vw] lg:w-auto"
+            className="h-full w-[72vw] shrink-0 snap-start [scroll-snap-stop:always] sm:w-[39vw] lg:w-auto"
           >
             <ServiceCard
               service={service}
@@ -737,6 +871,17 @@ export function WhatWeDoGridView({
       </div>
 
       <style jsx global>{`
+        @keyframes what-touch-copy-in {
+          from {
+            opacity: 0;
+            transform: scale(0.92);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
         @media (max-width: 1023px) {
           [data-what-service-image] {
             transform: none !important;

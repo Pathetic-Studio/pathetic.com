@@ -20,6 +20,7 @@ import ImageCard from "./image-card";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
 import DraggableGridItem from "./draggable-grid-item";
+import { TEXT_STYLES, TEXT_WIDTHS } from "@/components/ui/text-styles";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRowGrabBlock = Extract<Block, { _type: "grid-row-grab" }>;
@@ -146,7 +147,7 @@ export default function GridRowGrab(props: GridRowGrabBlock) {
                 <div className={cn("container text-center", introPaddingClass)}>
                   {tagLine && (
                     <h1 className="leading-[0] uppercase italic font-sans">
-                      <span className="text-base font-semibold opacity-50">
+                      <span className={`${TEXT_STYLES.eyebrow} opacity-50`}>
                         {tagLine}
                       </span>
                     </h1>
@@ -167,7 +168,7 @@ export default function GridRowGrab(props: GridRowGrabBlock) {
                   )}
 
                   {body && (
-                    <div className="mt-6 mx-auto max-w-2xl text-lg">
+                    <div className={`mx-auto mt-6 ${TEXT_STYLES.bodyLarge} ${TEXT_WIDTHS.body}`}>
                       <PortableTextRenderer value={body} />
                     </div>
                   )}

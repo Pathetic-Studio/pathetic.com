@@ -19,6 +19,11 @@ import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
 import { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
 import {
+  DISPLAY_OUTLINE_WIDTHS,
+  TEXT_STYLES,
+  TEXT_WIDTHS,
+} from "@/components/ui/text-styles";
+import {
   GRID_ROW_ANIMATED_PARALLAX,
   type GridCardParallaxConfig,
 } from "./grid-row-animated-parallax"; // NEW
@@ -116,7 +121,9 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   }, []);
 
   const gridColsClass =
-    gridColsValue === "grid-cols-2"
+    isBeliefSection
+      ? "sm:grid-cols-2 lg:grid-cols-3"
+      : gridColsValue === "grid-cols-2"
       ? "lg:grid-cols-2"
       : gridColsValue === "grid-cols-3"
         ? "lg:grid-cols-3"
@@ -277,7 +284,17 @@ export default function GridRowAnimated(props: GridRowAnimated) {
       : "px-4 py-8 sm:px-8 sm:py-10 lg:p-12";
 
   const animatedCardClass =
-    "animated-card relative opacity-0 translate-y-10 will-change-transform";
+    "animated-card relative opacity-0 will-change-transform";
+  const beliefResponsiveLayoutClass = (index: number) => {
+    if (!isBeliefSection) return "";
+    if (index % 3 === 1) {
+      return "mt-8 w-[86%] justify-self-end sm:mt-0 sm:w-[84%] sm:translate-y-20 lg:w-full lg:translate-y-0";
+    }
+    if (index % 3 === 2) {
+      return "mt-8 w-[86%] justify-self-start translate-x-[4%] sm:mt-0 sm:w-[84%] sm:translate-x-[14%] lg:w-full lg:translate-x-0 lg:translate-y-0";
+    }
+    return "w-[86%] justify-self-start sm:w-[84%] lg:w-full";
+  };
 
   return (
     <section
@@ -292,7 +309,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
         >
           <BackgroundPanel background={background as any} />
 
-          <div className="relative z-20">
+          <div className={cn("relative z-20", isBeliefSection && "z-[30]")}>
             {introHasContent && (
               <div
                 data-belief-intro={isBeliefSection ? "true" : undefined}
@@ -307,7 +324,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
               >
                 {tagLine && (
                   <h1 className="leading-[0] uppercase italic font-sans">
-                    <span className="text-base font-semibold opacity-50">
+                    <span className={`${TEXT_STYLES.eyebrow} opacity-50`}>
                       {tagLine}
                     </span>
                   </h1>
@@ -331,7 +348,11 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                     textColor={isBeliefSection ? "#ffffff" : undefined}
                     textOutline={isBeliefSection}
                     outlineColor="#050505"
-                    outlineWidth={1.5}
+                    outlineWidth={
+                      isBeliefSection
+                        ? DISPLAY_OUTLINE_WIDTHS.heavy
+                        : DISPLAY_OUTLINE_WIDTHS.standard
+                    }
                     outlinePosition="outside"
                     fontWeight="bold"
                     singleLine={isBeliefSection && !isMobile}
@@ -346,7 +367,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                 )}
 
                 {body && (
-                  <div className="text-lg mt-6 max-w-2xl mx-auto">
+                  <div className={`mx-auto mt-6 ${TEXT_STYLES.bodyLarge} ${TEXT_WIDTHS.body}`}>
                     <PortableTextRenderer value={body} />
                   </div>
                 )}
@@ -405,6 +426,8 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                 <div
                   className={cn(
                     "grid grid-cols-1 gap-6 relative z-10",
+                    isBeliefSection && "z-[40]",
+                    isBeliefSection && "gap-y-8 sm:gap-x-8 sm:gap-y-24 lg:gap-y-0",
                     baseGridPaddingClasses,
                     gridColsClass,
                   )}
@@ -433,7 +456,10 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                           return (
                             <div
                               key={column._key}
-                              className="relative"
+                              className={cn(
+                                "relative",
+                                beliefResponsiveLayoutClass(index),
+                              )}
                               style={offsetStyle}
                             >
                               <div
@@ -474,7 +500,10 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                           return (
                             <div
                               key={column._key}
-                              className="relative"
+                              className={cn(
+                                "relative",
+                                beliefResponsiveLayoutClass(index),
+                              )}
                               style={offsetStyle}
                             >
                               <div
@@ -498,6 +527,8 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                                           ]
                                         : undefined
                                     }
+                                    captionCenterOnTouch={isBeliefSection}
+                                    captionTouchIndex={animatedCardIndex}
                                   />
                                 </div>
                               </div>
@@ -508,7 +539,10 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                         return (
                           <div
                             key={column._key}
-                            className="relative"
+                            className={cn(
+                              "relative",
+                              beliefResponsiveLayoutClass(index),
+                            )}
                             style={offsetStyle}
                           >
                             <div

@@ -8,7 +8,7 @@ export default defineType({
   icon: Sparkles,
   initialValue: {
     title: "WORK WITH US",
-    buttonLabel: "START A PROJECT",
+    buttonLabel: "Incredible Fortune Ahead Button",
     panelColor: { hex: "#93A7FF" },
     textColor: { hex: "#FFFFFF" },
     outlineColor: { hex: "#050505" },

@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { Bodies, Body, Engine, Sleeping, World } from "matter-js";
-import type { Body as MatterBody, Vector } from "matter-js";
+import type { Body as MatterBody } from "matter-js";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import gsap from "gsap";
 import { stegaClean } from "next-sanity";
@@ -112,6 +119,13 @@ const POPUP_BY_PRESET: Record<string, BasketPopupType> = {
   portal: "abyss",
 };
 
+const MOBILE_BASKET_STARTS = [
+  { x: 33, y: 23 },
+  { x: 68, y: 39 },
+  { x: 34, y: 62 },
+  { x: 66, y: 77 },
+] as const;
+
 const FALLBACK_ITEMS: BasketItem[] = [
   { _key: "pigeon", title: "Newsletter", localAsset: "pigeon", size: 23, startX: 28, startY: 34 },
   { _key: "hoodie", title: "Shop", localAsset: "hoodie", size: 23, startX: 48, startY: 39 },
@@ -138,8 +152,6 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
   const matterBodiesRef = useRef<MatterBody[]>([]);
   const frozenPopupBodyRef = useRef<{
     body: MatterBody;
-    velocity: Vector;
-    angularVelocity: number;
     collisionMask: number;
   } | null>(null);
   const popupSourceRef = useRef<HTMLElement | null>(null);
@@ -186,15 +198,14 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
 
     // The popup's reverse FLIP finishes before this callback. Keeping the
     // Matter body static until now means its live DOM destination cannot drift
-    // away from the rectangle the artwork is animating toward.
+    // away from the rectangle the artwork is animating toward. Resume it at
+    // rest: restoring its pre-popup velocity made the revealed source take a
+    // second, visibly separate trip immediately after the clone landed.
     Body.setStatic(frozen.body, false);
     frozen.body.collisionFilter.mask = frozen.collisionMask;
-    Body.setVelocity(frozen.body, {
-      x: frozen.velocity.x * 0.32,
-      y: frozen.velocity.y * 0.32,
-    });
-    Body.setAngularVelocity(frozen.body, frozen.angularVelocity * 0.24);
-    Sleeping.set(frozen.body, false);
+    Body.setVelocity(frozen.body, { x: 0, y: 0 });
+    Body.setAngularVelocity(frozen.body, 0);
+    Sleeping.set(frozen.body, true);
   }, []);
 
   const openPopup = useCallback((type: BasketPopupType, event: React.MouseEvent<HTMLElement>) => {
@@ -204,8 +215,6 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
     if (body) {
       frozenPopupBodyRef.current = {
         body,
-        velocity: { x: body.velocity.x, y: body.velocity.y },
-        angularVelocity: body.angularVelocity,
         collisionMask: body.collisionFilter.mask ?? 0xffffffff,
       };
       Body.setVelocity(body, { x: 0, y: 0 });
@@ -223,43 +232,53 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
     const elements = itemRefs.current.slice(0, items.length);
     if (!root || !stage || !elements.length || elements.some((element) => !element)) return;
 
-    const width = stage.clientWidth;
-    const height = stage.clientHeight;
-    if (!width || !height) return;
+    let worldWidth = stage.clientWidth;
+    let worldHeight = stage.clientHeight;
+    if (!worldWidth || !worldHeight) return;
 
     const engine = Engine.create({ enableSleeping: true });
     engine.world.gravity.x = 0;
     engine.world.gravity.y = 0.12;
     engine.world.gravity.scale = 0.001;
 
-    const bounds = {
+    const wallOptions = { isStatic: true, render: { visible: false } } as const;
+    const createBounds = (width: number, height: number) => ({
       left: width * 0.075,
       right: width * 0.925,
       top: height * 0.08,
       bottom: height * 0.92,
+    });
+    const createWalls = (
+      width: number,
+      height: number,
+      nextBounds: ReturnType<typeof createBounds>,
+    ) => {
+      const wallThickness = Math.max(width, height) * 0.35;
+      return [
+        Bodies.rectangle((nextBounds.left + nextBounds.right) / 2, nextBounds.top - wallThickness / 2, nextBounds.right - nextBounds.left, wallThickness, wallOptions),
+        Bodies.rectangle((nextBounds.left + nextBounds.right) / 2, nextBounds.bottom + wallThickness / 2, nextBounds.right - nextBounds.left, wallThickness, wallOptions),
+        Bodies.rectangle(nextBounds.left - wallThickness / 2, (nextBounds.top + nextBounds.bottom) / 2, wallThickness, nextBounds.bottom - nextBounds.top, wallOptions),
+        Bodies.rectangle(nextBounds.right + wallThickness / 2, (nextBounds.top + nextBounds.bottom) / 2, wallThickness, nextBounds.bottom - nextBounds.top, wallOptions),
+      ];
     };
-    const wallThickness = Math.max(width, height) * 0.35;
-    const wallOptions = { isStatic: true, render: { visible: false } } as const;
-    const walls = [
-      Bodies.rectangle((bounds.left + bounds.right) / 2, bounds.top - wallThickness / 2, bounds.right - bounds.left, wallThickness, wallOptions),
-      Bodies.rectangle((bounds.left + bounds.right) / 2, bounds.bottom + wallThickness / 2, bounds.right - bounds.left, wallThickness, wallOptions),
-      Bodies.rectangle(bounds.left - wallThickness / 2, (bounds.top + bounds.bottom) / 2, wallThickness, bounds.bottom - bounds.top, wallOptions),
-      Bodies.rectangle(bounds.right + wallThickness / 2, (bounds.top + bounds.bottom) / 2, wallThickness, bounds.bottom - bounds.top, wallOptions),
-    ];
+    let bounds = createBounds(worldWidth, worldHeight);
+    let walls = createWalls(worldWidth, worldHeight, bounds);
+    const collisionSizes: Array<{ width: number; height: number }> = [];
 
     const bodies = elements.map((element, index) => {
       const item = items[index];
+      const mobileStart = worldWidth < 640 ? MOBILE_BASKET_STARTS[index] : null;
       const itemWidth = element!.offsetWidth;
       const itemHeight = element!.offsetHeight;
       const halfWidth = itemWidth / 2;
       const halfHeight = itemHeight / 2;
       const x = clamp(
-        width * ((stegaClean(item.startX) || 24 + index * 9) / 100),
+        worldWidth * ((mobileStart?.x ?? stegaClean(item.startX) ?? 24 + index * 9) / 100),
         bounds.left + halfWidth,
         bounds.right - halfWidth,
       );
       const y = clamp(
-        height * ((stegaClean(item.startY) || 25 + (index % 3) * 22) / 100),
+        worldHeight * ((mobileStart?.y ?? stegaClean(item.startY) ?? 25 + (index % 3) * 22) / 100),
         bounds.top + halfHeight,
         bounds.bottom - halfHeight,
       );
@@ -275,6 +294,10 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       Body.setAngle(body, 0);
       Body.setVelocity(body, { x: 0, y: 0 });
       Body.setAngularVelocity(body, 0);
+      collisionSizes[index] = {
+        width: itemWidth * 0.72,
+        height: itemHeight * 0.72,
+      };
       return body;
     });
     matterBodiesRef.current = bodies;
@@ -307,6 +330,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         const element = elements[index];
         if (!element) return;
         element.style.transform = `translate3d(${body.position.x - element.offsetWidth / 2}px, ${body.position.y - element.offsetHeight / 2}px, 0) rotate(${body.angle}rad)`;
+        element.dataset.basketRotation = String(body.angle);
       });
     };
 
@@ -327,6 +351,85 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
 
     renderBodies();
     startLoop();
+
+    let resizeFrame = 0;
+    const resizeWorld = () => {
+      resizeFrame = 0;
+      const nextWidth = stage.clientWidth;
+      const nextHeight = stage.clientHeight;
+      if (
+        !nextWidth ||
+        !nextHeight ||
+        (Math.abs(nextWidth - worldWidth) < 0.5 &&
+          Math.abs(nextHeight - worldHeight) < 0.5)
+      ) {
+        return;
+      }
+
+      const previousBounds = bounds;
+      const nextBounds = createBounds(nextWidth, nextHeight);
+      const previousSpanX = Math.max(1, previousBounds.right - previousBounds.left);
+      const previousSpanY = Math.max(1, previousBounds.bottom - previousBounds.top);
+
+      walls.forEach((wall) => World.remove(engine.world, wall));
+      walls = createWalls(nextWidth, nextHeight, nextBounds);
+      World.add(engine.world, walls);
+
+      bodies.forEach((body, index) => {
+        const element = elements[index];
+        if (!element) return;
+
+        const normalizedX = clamp(
+          (body.position.x - previousBounds.left) / previousSpanX,
+          0,
+          1,
+        );
+        const normalizedY = clamp(
+          (body.position.y - previousBounds.top) / previousSpanY,
+          0,
+          1,
+        );
+        const previousCollision = collisionSizes[index];
+        const nextCollision = {
+          width: Math.max(1, element.offsetWidth * 0.72),
+          height: Math.max(1, element.offsetHeight * 0.72),
+        };
+        if (previousCollision) {
+          Body.scale(
+            body,
+            nextCollision.width / Math.max(previousCollision.width, 1),
+            nextCollision.height / Math.max(previousCollision.height, 1),
+          );
+        }
+        collisionSizes[index] = nextCollision;
+
+        const halfWidth = element.offsetWidth / 2;
+        const halfHeight = element.offsetHeight / 2;
+        Body.setPosition(body, {
+          x: clamp(
+            nextBounds.left + normalizedX * (nextBounds.right - nextBounds.left),
+            nextBounds.left + halfWidth,
+            nextBounds.right - halfWidth,
+          ),
+          y: clamp(
+            nextBounds.top + normalizedY * (nextBounds.bottom - nextBounds.top),
+            nextBounds.top + halfHeight,
+            nextBounds.bottom - halfHeight,
+          ),
+        });
+        Sleeping.set(body, false);
+      });
+
+      worldWidth = nextWidth;
+      worldHeight = nextHeight;
+      bounds = nextBounds;
+      renderBodies();
+    };
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(resizeWorld);
+    });
+    resizeObserver.observe(stage);
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -460,6 +563,8 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
 
     return () => {
       disposed = true;
+      resizeObserver.disconnect();
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
       observer.disconnect();
       scrollTrigger.kill();
       if (animationFrame) cancelAnimationFrame(animationFrame);
@@ -527,25 +632,31 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       <h2 className="sr-only">{title}</h2>
       <div
         ref={stageRef}
-        className={`relative aspect-[1151/768] w-[min(96vw,112svh,78rem)] touch-none select-none transition-[filter] ${activePopup === "abyss" ? "duration-[3000ms] ease-in brightness-0" : "duration-700 ease-out"}`}
+        className={`relative aspect-[2/3] w-[min(92vw,58svh)] touch-none select-none transition-[filter] sm:aspect-[1151/768] sm:w-[min(96vw,112svh,78rem)] ${activePopup === "abyss" ? "duration-[3000ms] ease-in brightness-0" : "duration-700 ease-out"}`}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={basketSrc}
-          alt={stegaClean(props.basketImage?.alt) || "Red shopping basket"}
-          draggable={false}
-          className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-contain"
-        />
+        <span className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[66.666%] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-90 sm:inset-0 sm:h-full sm:w-full sm:translate-x-0 sm:translate-y-0 sm:rotate-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={basketSrc}
+            alt={stegaClean(props.basketImage?.alt) || "Red shopping basket"}
+            draggable={false}
+            className="h-full w-full select-none object-fill sm:object-contain"
+          />
+        </span>
 
         {items.map((item, index) => {
           const size = clamp((stegaClean(item.size) || 20) * 1.16, 10, 44);
-          const commonClass = "group absolute left-0 top-0 z-10 aspect-square cursor-grab touch-none select-none border-0 bg-transparent p-0 will-change-transform active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+          const mobileSize = clamp(size * 1.34, 18, 49);
+          const commonClass = "group absolute left-0 top-0 z-10 aspect-square w-[var(--basket-mobile-size)] cursor-grab touch-none select-none border-0 bg-transparent p-0 will-change-transform active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-[var(--basket-size)]";
           const commonProps = {
             ref: (node: HTMLElement | null) => { itemRefs.current[index] = node; },
             "data-basket-body": "true",
             "data-basket-index": String(index),
             className: commonClass,
-            style: { width: `${size}%` },
+            style: {
+              "--basket-size": `${size}%`,
+              "--basket-mobile-size": `${mobileSize}%`,
+            } as CSSProperties,
           };
           return (
             <button

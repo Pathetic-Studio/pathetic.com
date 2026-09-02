@@ -20,6 +20,7 @@ import EyeFollow from "@/components/effects/eye-follow";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
 import { getSectionId } from "@/lib/section-id";
+import { TEXT_STYLES, TEXT_WIDTHS } from "@/components/ui/text-styles";
 
 type Block = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type GridRow = Extract<Block, { _type: "grid-row" }>;
@@ -208,7 +209,7 @@ export default function GridRow({
                 <div className={cn("container text-center", introPaddingClass)}>
                   {tagLine && (
                     <h1 className="leading-[0] uppercase italic font-sans">
-                      <span className="text-base font-semibold opacity-50">
+                      <span className={`${TEXT_STYLES.eyebrow} opacity-50`}>
                         {tagLine}
                       </span>
                     </h1>
@@ -231,7 +232,7 @@ export default function GridRow({
                   )}
 
                   {body && (
-                    <div className="text-lg mt-6 max-w-2xl mx-auto">
+                    <div className={`mx-auto mt-6 ${TEXT_STYLES.bodyLarge} ${TEXT_WIDTHS.body}`}>
                       <PortableTextRenderer value={body} />
                     </div>
                   )}

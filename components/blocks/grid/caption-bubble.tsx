@@ -18,6 +18,8 @@ export interface CaptionBubbleProps {
   parallaxSpeed?: number | null;
   parallaxLag?: number | null;
   desktopWidthRem?: number;
+  centerOnTouch?: boolean;
+  touchIndex?: number;
 }
 
 // Default desktop max width
@@ -42,6 +44,8 @@ export default function CaptionBubble({
   parallaxSpeed,
   parallaxLag,
   desktopWidthRem,
+  centerOnTouch = false,
+  touchIndex = 0,
 }: CaptionBubbleProps) {
   const cleanText = stegaClean(text) || "";
   const cleanBgColor = stegaClean(bgColor) || "rgba(0,0,0,0.85)";
@@ -58,6 +62,8 @@ export default function CaptionBubble({
 
   const [dynamicMaxWidth, setDynamicMaxWidth] = useState<string | undefined>();
   const [computedX, setComputedX] = useState<number>(clampedX);
+  const [computedY, setComputedY] = useState<number>(clampedY);
+  const [touchPositioned, setTouchPositioned] = useState(false);
 
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
@@ -85,9 +91,51 @@ export default function CaptionBubble({
       // Desktop: use defaults, no nudging
       if (vw >= MOBILE_MAX_WIDTH) {
         setComputedX(clampedX);
+        setComputedY(clampedY);
         setDynamicMaxWidth(undefined);
+        setTouchPositioned(false);
         return;
       }
+
+      if (centerOnTouch) {
+        const touchCapPx = (vw < 640 ? 9.25 : 10.5) * oneRem;
+        const touchWidthPx = Math.max(
+          0,
+          Math.min(baseMaxPx, touchCapPx, containerWidth - edgePadPx * 2),
+        );
+        const containerBounds = container?.getBoundingClientRect();
+        let edgeSafeX = clampedX;
+        if (containerBounds && containerWidth > 0) {
+          const authoredAnchorX =
+            containerBounds.left + (clampedX / 100) * containerWidth;
+          const authoredLeft = effectiveSide === "left"
+            ? authoredAnchorX - touchWidthPx
+            : authoredAnchorX;
+          const authoredRight = effectiveSide === "left"
+            ? authoredAnchorX
+            : authoredAnchorX + touchWidthPx;
+          let viewportCorrectionPx = 0;
+          if (authoredLeft < edgePadPx) {
+            viewportCorrectionPx += edgePadPx - authoredLeft;
+          }
+          if (authoredRight > vw - edgePadPx) {
+            viewportCorrectionPx -= authoredRight - (vw - edgePadPx);
+          }
+          edgeSafeX += (viewportCorrectionPx / containerWidth) * 100;
+        }
+
+        // Preserve the exact authored desktop tail anchor on touch layouts.
+        // The bubble may intentionally overhang its painting; only move it
+        // when that overhang would leave the viewport itself.
+        setComputedX(Math.min(100, Math.max(0, edgeSafeX)));
+        setComputedY(clampedY);
+        setDynamicMaxWidth(`${touchWidthPx}px`);
+        setTouchPositioned(true);
+        return;
+      }
+
+      setComputedY(clampedY);
+      setTouchPositioned(false);
 
       let nextX = clampedX;
 
@@ -133,12 +181,11 @@ export default function CaptionBubble({
       window.removeEventListener("resize", updateLayout);
       ro?.disconnect();
     };
-  }, [clampedX, desktopWidthRem, effectiveSide]);
+  }, [centerOnTouch, clampedX, clampedY, desktopWidthRem, effectiveSide, touchIndex]);
 
   // IMPORTANT:
   // - Use `translate` (not `transform`) so parallax (transform) can't clobber anchoring.
-  const horizontalPosition: CSSProperties =
-    effectiveSide === "left"
+  const horizontalPosition: CSSProperties = effectiveSide === "left"
       ? {
         left: `${computedX}%`,
         translate: "-100% 0", // anchor right edge at x%
@@ -149,11 +196,13 @@ export default function CaptionBubble({
       };
 
   const bubbleStyle: CSSProperties = {
-    top: `${clampedY}%`,
+    top: `${computedY}%`,
     ...horizontalPosition,
     backgroundColor: cleanBgColor,
     color: cleanTextColor,
-    transformOrigin: effectiveSide === "left" ? "top right" : "top left",
+    transformOrigin: effectiveSide === "left"
+        ? "top right"
+        : "top left",
 
     // The containing card supplies the entrance state. Keeping the bubble
     // visible here prevents a Presentation refresh from permanently stranding
@@ -162,6 +211,7 @@ export default function CaptionBubble({
     visibility: "visible",
 
     // Desktop keeps a clean cap; mobile/tablet only shrinks (never grows wider than desktop)
+    width: touchPositioned ? dynamicMaxWidth : undefined,
     maxWidth:
       dynamicMaxWidth ?? `${desktopWidthRem ?? BUBBLE_MAX_REM}rem`,
     willChange: "transform, opacity",
@@ -181,8 +231,8 @@ export default function CaptionBubble({
         desktopWidthRem && "lg:w-[var(--caption-desktop-width)]",
       )}
       style={bubbleStyle}
-      data-speed={parallaxSpeed ?? undefined}
-      data-lag={parallaxLag ?? undefined}
+      data-speed={touchPositioned ? undefined : parallaxSpeed ?? undefined}
+      data-lag={touchPositioned ? undefined : parallaxLag ?? undefined}
     >
       <span className="block text-left break-words leading-snug">{cleanText}</span>
 

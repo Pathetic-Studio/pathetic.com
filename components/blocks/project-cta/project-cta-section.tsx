@@ -8,6 +8,7 @@ import { Physics2DPlugin } from "gsap/Physics2DPlugin";
 import { stegaClean } from "next-sanity";
 import ContactFormTrigger from "@/components/contact/contact-form-trigger";
 import TitleText from "@/components/ui/title-text";
+import { DISPLAY_OUTLINE_WIDTHS } from "@/components/ui/text-styles";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, Physics2DPlugin);
@@ -34,7 +35,6 @@ const SPARKLE_COUNT = 20;
 const CANNON_STAR_COUNT = 36;
 const CANNON_STARS_PER_VOLLEY = 6;
 const CANNON_VOLLEY_INTERVAL_MS = 260;
-const CTA_STAR_COLOR = "#D8FF56";
 const CANNON_STAR_COLORS = ["#F22978", "#168CF2", "#40ED78"] as const;
 
 function GreenStarSvg({ className = "" }: { className?: string }) {
@@ -51,28 +51,6 @@ function GreenStarSvg({ className = "" }: { className?: string }) {
         fill="currentColor"
       />
     </svg>
-  );
-}
-
-function CtaStar({
-  delay = "0s",
-}: {
-  delay?: string;
-}) {
-  return (
-    <span
-      data-project-cta-reveal
-      aria-hidden="true"
-      className="block [perspective:700px]"
-    >
-      <span
-        data-header-feature-image-rotator
-        className="block text-[#D8FF56] [transform-style:preserve-3d]"
-        style={{ animationDelay: delay, color: CTA_STAR_COLOR }}
-      >
-        <GreenStarSvg className="block aspect-[71/37] w-[clamp(5rem,10vw,9rem)] drop-shadow-[0_2px_0_rgba(0,0,0,.14)]" />
-      </span>
-    </span>
   );
 }
 
@@ -141,15 +119,24 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
   const hoverTimelineRef = useRef<gsap.core.Timeline | null>(null);
   const cannonIntervalRef = useRef<number | null>(null);
   const cannonIndexRef = useRef(0);
-  const cannonPointerRef = useRef({ x: 0, y: 0 });
+  const cannonPointerRef = useRef({ x: 0.5, y: 0.5 });
   const raySpinTweenRef = useRef<gsap.core.Tween | null>(null);
+  const dvdTweenRefs = useRef<Array<gsap.core.Animation>>([]);
+  const resumeDvdRef = useRef<(() => void) | null>(null);
+  const hoverActiveRef = useRef(false);
+  const hoverEffectsActiveRef = useRef(false);
   const reduceMotionRef = useRef(false);
+  const canHoverRef = useRef(false);
   const sparkleRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const sparkleIndexRef = useRef(0);
   const lastSparkleRef = useRef({ x: -100, y: -100, time: 0 });
 
   const title = stegaClean(props.title) || "WORK WITH US";
-  const buttonLabel = stegaClean(props.buttonLabel) || "START A PROJECT";
+  const authoredButtonLabel = stegaClean(props.buttonLabel);
+  const buttonLabel =
+    !authoredButtonLabel || authoredButtonLabel === "START A PROJECT"
+      ? "Incredible Fortune Ahead Button"
+      : authoredButtonLabel;
   const panelColor = stegaClean(props.panelColor?.hex) || "#93A7FF";
   const textColor = stegaClean(props.textColor?.hex) || "#FFFFFF";
   const outlineColor = stegaClean(props.outlineColor?.hex) || "#050505";
@@ -162,12 +149,16 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
     if (!root) return;
 
     const context = gsap.context(() => {
-      const reveal = gsap.utils.toArray<HTMLElement>("[data-project-cta-reveal]", root);
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
       const rainbow = root.querySelector<HTMLElement>("[data-project-cta-rainbow]");
       const rays = root.querySelector<HTMLElement>("[data-project-cta-rays]");
       const rayWheel = root.querySelector<HTMLElement>("[data-project-cta-ray-wheel]");
+      const motionSurface = root.querySelector<HTMLElement>("[data-project-cta-motion-surface]");
+      const dvdTitle = root.querySelector<HTMLElement>("[data-project-cta-dvd-title]");
+      const button = root.querySelector<HTMLElement>("[data-project-cta-button]");
       reduceMotionRef.current = reduceMotion;
+      canHoverRef.current = canHover;
 
       if (rainbow) {
         gsap.set(rainbow, {
@@ -181,25 +172,114 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
         });
       }
       if (rayWheel) gsap.set(rayWheel, { rotation: -8, transformOrigin: "50% 50%" });
-
-      if (reduceMotion) {
-        gsap.set(reveal, { clearProps: "opacity,transform" });
-        return;
+      if (button) {
+        gsap.set(button, {
+          scale: canHover ? 0 : 1,
+          visibility: "visible",
+          transformOrigin: "50% 50%",
+        });
       }
 
-      gsap.fromTo(
-        reveal,
-        { autoAlpha: 0, scale: 0.72, rotation: (index) => (index % 2 ? 20 : -20) },
-        {
-          autoAlpha: 1,
-          scale: 1,
-          rotation: 0,
-          duration: 0.8,
-          stagger: 0.09,
-          ease: "back.out(1.7)",
-          scrollTrigger: { trigger: root, start: "top 76%", once: true },
-        },
-      );
+      const stopDvd = () => {
+        dvdTweenRefs.current.forEach((tween) => tween.kill());
+        dvdTweenRefs.current = [];
+      };
+
+      const layoutDvd = (preservePosition = false) => {
+        if (!motionSurface || !dvdTitle) return;
+        const previousX = Number(gsap.getProperty(dvdTitle, "x")) || 0;
+        const previousY = Number(gsap.getProperty(dvdTitle, "y")) || 0;
+        stopDvd();
+        const titleWidth = dvdTitle.offsetWidth;
+        const titleHeight = dvdTitle.offsetHeight;
+        const maxX = Math.max(0, motionSurface.clientWidth - titleWidth);
+        const maxY = Math.max(0, motionSurface.clientHeight - titleHeight);
+        const currentX = preservePosition
+          ? gsap.utils.clamp(0, maxX, previousX)
+          : 0;
+        const currentY = preservePosition
+          ? gsap.utils.clamp(0, maxY, previousY)
+          : 0;
+        gsap.set(dvdTitle, { x: currentX, y: currentY });
+
+        if (reduceMotion) {
+          gsap.set(dvdTitle, {
+            x: maxX / 2,
+            y: maxY / 2,
+          });
+          return;
+        }
+
+        if (maxX > 1) {
+          const targetX = currentX >= maxX / 2 ? 0 : maxX;
+          const oppositeX = targetX === maxX ? 0 : maxX;
+          const xTimeline = gsap.timeline();
+          xTimeline
+            .to(dvdTitle, {
+              x: targetX,
+              duration: Math.max(0.2, Math.abs(targetX - currentX) / 75),
+              ease: "none",
+            })
+            .to(dvdTitle, {
+              x: oppositeX,
+              duration: Math.max(4.6, maxX / 75),
+              repeat: -1,
+              yoyo: true,
+              ease: "none",
+            });
+          dvdTweenRefs.current.push(xTimeline);
+        }
+        if (maxY > 1) {
+          const targetY = currentY >= maxY / 2 ? 0 : maxY;
+          const oppositeY = targetY === maxY ? 0 : maxY;
+          const yTimeline = gsap.timeline();
+          yTimeline
+            .to(dvdTitle, {
+              y: targetY,
+              duration: Math.max(0.2, Math.abs(targetY - currentY) / 58),
+              ease: "none",
+            })
+            .to(dvdTitle, {
+              y: oppositeY,
+              duration: Math.max(3.7, maxY / 58),
+              repeat: -1,
+              yoyo: true,
+              ease: "none",
+            });
+          dvdTweenRefs.current.push(yTimeline);
+        }
+      };
+
+      layoutDvd();
+      resumeDvdRef.current = () => layoutDvd(true);
+      let resizeFrame = 0;
+      const relayoutDvd = () => {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => {
+          if (!motionSurface || !dvdTitle) return;
+          if (hoverActiveRef.current) {
+            stopDvd();
+            gsap.set(dvdTitle, {
+              x: Math.max(0, motionSurface.clientWidth - dvdTitle.offsetWidth) / 2,
+              y: Math.max(0, motionSurface.clientHeight - dvdTitle.offsetHeight) / 2,
+            });
+            return;
+          }
+          layoutDvd(true);
+        });
+      };
+      const resizeObserver = new ResizeObserver(relayoutDvd);
+      if (motionSurface) resizeObserver.observe(motionSurface);
+      if (dvdTitle) resizeObserver.observe(dvdTitle);
+      window.addEventListener("resize", relayoutDvd);
+
+      return () => {
+        cancelAnimationFrame(resizeFrame);
+        resizeObserver.disconnect();
+        window.removeEventListener("resize", relayoutDvd);
+        resumeDvdRef.current = null;
+        stopDvd();
+      };
     }, root);
 
     return () => {
@@ -209,6 +289,8 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
         cannonIntervalRef.current = null;
       }
       raySpinTweenRef.current?.kill();
+      dvdTweenRefs.current.forEach((tween) => tween.kill());
+      dvdTweenRefs.current = [];
       context.revert();
     };
   }, []);
@@ -220,14 +302,23 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
     if (!panel) return;
 
     const panelWidth = panel.clientWidth;
-    const horizontalSpeed = gsap.utils.clamp(245, 390, panelWidth * 0.3);
-    const pointerBias = cannonPointerRef.current.x * panelWidth * 0.15;
-    const verticalBias = cannonPointerRef.current.y * 38;
+    const panelHeight = panel.clientHeight;
+    const targetX = cannonPointerRef.current.x * panelWidth;
+    const targetY = cannonPointerRef.current.y * panelHeight;
     const volleyIndex = cannonIndexRef.current;
     cannonIndexRef.current += CANNON_STARS_PER_VOLLEY;
 
     (["left", "right"] as const).forEach((side) => {
-      const direction = side === "left" ? 1 : -1;
+      const originX = panelWidth * (side === "left" ? 0.035 : 0.965);
+      const originY = panelHeight * 0.5;
+      const deltaX = targetX - originX;
+      const deltaY = targetY - originY;
+      const aimedAngle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+      const aimedVelocity = gsap.utils.clamp(
+        250,
+        430,
+        Math.hypot(deltaX, deltaY) * 0.72,
+      );
       const stars = gsap.utils.toArray<HTMLElement>(
         `[data-project-cta-cannon-star="${side}"]`,
         root,
@@ -236,12 +327,8 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
 
       Array.from({ length: CANNON_STARS_PER_VOLLEY }, (_, offset) => {
         const star = stars[(volleyIndex + offset) % stars.length];
-        const velocityX =
-          direction * horizontalSpeed * gsap.utils.random(0.82, 1.08) +
-          pointerBias;
-        const velocityY = -gsap.utils.random(215, 305) + verticalBias;
-        const velocity = Math.hypot(velocityX, velocityY);
-        const angle = Math.atan2(velocityY, velocityX) * (180 / Math.PI);
+        const velocity = aimedVelocity * gsap.utils.random(0.82, 1.08);
+        const angle = aimedAngle + gsap.utils.random(-13, 13);
         const duration = gsap.utils.random(1.22, 1.48);
 
         gsap.killTweensOf(star);
@@ -275,27 +362,42 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
     });
   };
 
-  const setProjectHover = (active: boolean) => {
+  const setProjectHoverEffects = (active: boolean) => {
     const root = rootRef.current;
     if (!root) return;
 
     const rainbow = root.querySelector<HTMLElement>("[data-project-cta-rainbow]");
     const rays = root.querySelector<HTMLElement>("[data-project-cta-rays]");
     const rayWheel = root.querySelector<HTMLElement>("[data-project-cta-ray-wheel]");
-    if (!rainbow || !rays || !rayWheel) return;
+    const button = root.querySelector<HTMLElement>("[data-project-cta-button]");
+    if (!rainbow || !rays || !rayWheel || !button) return;
 
-    const cannonStars = gsap.utils.toArray<HTMLElement>(
-      "[data-project-cta-cannon-star]",
-      root,
-    );
-    const cannonOrigins = gsap.utils.toArray<HTMLElement>(
-      "[data-project-cta-cannon-origin]",
-      root,
-    );
-
+    hoverEffectsActiveRef.current = active;
     hoverTimelineRef.current?.kill();
     raySpinTweenRef.current?.kill();
-    gsap.killTweensOf([rainbow, rays, rayWheel, ...cannonStars]);
+    gsap.killTweensOf([rainbow, rays, rayWheel, button]);
+
+    if (canHoverRef.current) {
+      if (active) {
+        gsap.fromTo(
+          button,
+          { scale: 0 },
+          {
+            scale: 1,
+            duration: 0.34,
+            ease: "back.out(1.75)",
+            overwrite: "auto",
+          },
+        );
+      } else {
+        gsap.to(button, {
+          scale: 0,
+          duration: 0.2,
+          ease: "power2.in",
+          overwrite: "auto",
+        });
+      }
+    }
 
     if (reduceMotionRef.current) {
       gsap.set(rainbow, {
@@ -303,8 +405,6 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
         clipPath: active ? "inset(0% 0% 0% 0%)" : "inset(0% 50% 0% 50%)",
       });
       gsap.set(rays, { opacity: active ? 1 : 0 });
-      gsap.set(cannonStars, { autoAlpha: 0 });
-      gsap.set(cannonOrigins, { x: 0, y: 0, rotation: 0 });
       return;
     }
 
@@ -349,7 +449,7 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
       window.clearInterval(cannonIntervalRef.current);
       cannonIntervalRef.current = null;
     }
-    cannonPointerRef.current = { x: 0, y: 0 };
+    cannonPointerRef.current = { x: 0.5, y: 0.5 };
 
     timeline
       .to(rays, { opacity: 0, duration: 0.24, ease: "power2.in" }, 0)
@@ -363,56 +463,67 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
         },
         0.02,
       );
-    gsap.to(cannonStars, {
-      autoAlpha: 0,
-      duration: 0.14,
-      ease: "power2.out",
-      overwrite: true,
-    });
-    gsap.to(cannonOrigins, {
-      x: 0,
-      y: 0,
-      rotation: 0,
-      duration: 0.24,
-      ease: "power3.out",
+  };
+
+  const setProjectHover = (active: boolean) => {
+    const root = rootRef.current;
+    if (!root) return;
+    const panel = root.querySelector<HTMLElement>("[data-project-cta-motion-surface]");
+    const dvdTitle = root.querySelector<HTMLElement>("[data-project-cta-dvd-title]");
+    if (!panel || !dvdTitle) return;
+
+    hoverActiveRef.current = active;
+    gsap.killTweensOf(dvdTitle);
+
+    if (!active) {
+      setProjectHoverEffects(false);
+      resumeDvdRef.current?.();
+      return;
+    }
+
+    dvdTweenRefs.current.forEach((animation) => animation.kill());
+    dvdTweenRefs.current = [];
+    const panelBounds = panel.getBoundingClientRect();
+    const titleBounds = dvdTitle.getBoundingClientRect();
+    const currentX = Number(gsap.getProperty(dvdTitle, "x")) || 0;
+    const currentY = Number(gsap.getProperty(dvdTitle, "y")) || 0;
+    const centeredX =
+      currentX + panelBounds.left + panelBounds.width / 2 -
+      (titleBounds.left + titleBounds.width / 2);
+    const centeredY =
+      currentY + panelBounds.top + panelBounds.height / 2 -
+      (titleBounds.top + titleBounds.height / 2);
+
+    gsap.to(dvdTitle, {
+      x: centeredX,
+      y: centeredY,
+      duration: reduceMotionRef.current ? 0 : 0.42,
+      ease: "power3.inOut",
       overwrite: "auto",
+      onComplete: () => {
+        if (hoverActiveRef.current) setProjectHoverEffects(true);
+      },
     });
   };
 
-  const moveProjectCannons = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const moveProjectCannons = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerType === "touch" || reduceMotionRef.current) return;
     const root = rootRef.current;
     if (!root) return;
 
     const bounds = event.currentTarget.getBoundingClientRect();
-    const normalizedX = Math.max(
-      -1,
-      Math.min(1, ((event.clientX - bounds.left) / bounds.width - 0.5) * 2),
-    );
-    const normalizedY = Math.max(
-      -1,
-      Math.min(1, ((event.clientY - bounds.top) / bounds.height - 0.5) * 2),
-    );
-    const origins = gsap.utils.toArray<HTMLElement>(
-      "[data-project-cta-cannon-origin]",
-      root,
-    );
-    cannonPointerRef.current = { x: normalizedX, y: normalizedY };
-
-    origins.forEach((origin) => {
-      gsap.to(origin, {
-        x: normalizedX * 28,
-        y: normalizedY * 34,
-        rotation: normalizedX * 6 + normalizedY * 2.5,
-        duration: 0.28,
-        ease: "power3.out",
-        overwrite: "auto",
-      });
-    });
+    cannonPointerRef.current = {
+      x: gsap.utils.clamp(0, 1, (event.clientX - bounds.left) / bounds.width),
+      y: gsap.utils.clamp(0, 1, (event.clientY - bounds.top) / bounds.height),
+    };
   };
 
   const emitSparkle = (event: ReactPointerEvent<HTMLElement>) => {
-    if (!sparklesEnabled || event.pointerType === "touch") return;
+    if (
+      !sparklesEnabled ||
+      event.pointerType === "touch" ||
+      !hoverEffectsActiveRef.current
+    ) return;
     const root = rootRef.current;
     if (!root) return;
 
@@ -456,11 +567,20 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
     <section
       ref={rootRef}
       id={sectionId}
-      onPointerMove={emitSparkle}
       className="relative isolate bg-background p-3 sm:p-4 lg:p-6"
     >
       <div
         data-project-cta-panel
+        onPointerEnter={(event) => {
+          if (event.pointerType !== "touch") setProjectHover(true);
+        }}
+        onPointerLeave={(event) => {
+          if (event.pointerType !== "touch") setProjectHover(false);
+        }}
+        onPointerMove={(event) => {
+          emitSparkle(event);
+          moveProjectCannons(event);
+        }}
         className="relative min-h-[clamp(14rem,24vw,20rem)] overflow-hidden border border-current"
         style={{ backgroundColor: panelColor, borderColor: outlineColor }}
       >
@@ -510,45 +630,38 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
           ))}
         </div>
 
-        <div className="relative z-20 flex min-h-[clamp(14rem,24vw,20rem)] w-full items-center justify-center px-[clamp(3.5rem,14vw,13rem)] py-8">
-          <span className="pointer-events-none absolute left-[3.5%] top-1/2 -translate-y-1/2">
-            <CtaStar />
+        <div
+          data-project-cta-motion-surface
+          className="relative z-20 min-h-[clamp(14rem,24vw,20rem)] w-full"
+        >
+          <span
+            data-project-cta-dvd-title
+            className="pointer-events-none absolute left-0 top-0 block w-fit will-change-transform"
+          >
+            <TitleText
+              as="h2"
+              variant="stretched"
+              size="contact-cta"
+              maxChars={30}
+              singleLine
+              fontWeight="bold"
+              textColor={textColor}
+              textOutline
+              outlineColor={outlineColor}
+              outlineWidth={DISPLAY_OUTLINE_WIDTHS.monumental}
+              outlinePosition="outside"
+              animation="none"
+              className="!w-max [&_h2]:leading-[.78] [&_h2]:tracking-[-.055em]"
+            >
+              {title}
+            </TitleText>
           </span>
-          <span className="pointer-events-none absolute right-[3.5%] top-1/2 -translate-y-1/2">
-            <CtaStar delay="-9s" />
-          </span>
-
-          <span className="relative flex w-full flex-col items-center gap-4">
-            <span data-typeon-trigger="true" className="block w-full">
-              <TitleText
-                as="h2"
-                variant="stretched"
-                size="contact-cta"
-                maxChars={30}
-                singleLine
-                fontWeight="bold"
-                textColor={textColor}
-                textOutline
-                outlineColor={outlineColor}
-                outlineWidth={1.5}
-                outlinePosition="outside"
-                animation="typeOn"
-                animationSpeed={2.4}
-                typeOnStart="top 76%"
-                typeOnDelay={0.04}
-                className="[&_h2]:leading-[.78] [&_h2]:tracking-[-.055em]"
-              >
-                {title}
-              </TitleText>
-            </span>
+          <span className="absolute left-1/2 top-1/2 z-40 -translate-x-1/2 translate-y-[clamp(3.75rem,5.3vw,4.75rem)]">
             <ContactFormTrigger
-              data-project-cta-reveal
-              onPointerEnter={() => setProjectHover(true)}
-              onPointerLeave={() => setProjectHover(false)}
-              onPointerMove={moveProjectCannons}
+              data-project-cta-button
               onFocus={() => setProjectHover(true)}
               onBlur={() => setProjectHover(false)}
-              className="relative z-40 inline-flex h-10 items-center justify-center border border-current bg-background px-6 font-sans text-sm font-semibold uppercase leading-none text-foreground transition-transform duration-200 hover:scale-110 focus-visible:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="inline-flex h-10 items-center justify-center border border-current bg-background px-6 font-sans text-sm font-semibold uppercase leading-none text-foreground will-change-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               {buttonLabel}
             </ContactFormTrigger>

@@ -375,6 +375,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
   useEffect(() => {
     const update = () =>
       setTouchLayout(
+        window.innerWidth < 1024 ||
         window.matchMedia("(pointer: coarse)").matches ||
           navigator.maxTouchPoints > 0,
       );
@@ -542,17 +543,18 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       "(prefers-reduced-motion: reduce)",
     ).matches;
     const hasFinePointer = window.matchMedia("(pointer: fine)").matches;
+    const enableDesktopFloat = hasFinePointer && window.innerWidth >= 1024;
     const context = gsap.context(() => {
       gsap.set(floatingLayers, { rotation: 0, rotationX: 0, rotationY: 0 });
       gsap.set(revealLayers, {
         autoAlpha: 1,
-        scale: reduceMotion ? 1 : hasFinePointer ? 0.12 : 0.68,
+        scale: reduceMotion ? 1 : enableDesktopFloat ? 0.12 : 0.68,
         transformOrigin: "50% 50%",
       });
       gsap.set(scrollLagLayers, { y: 0 });
 
       if (!reduceMotion) {
-        if (hasFinePointer) scrollLagLayers.forEach((layer) => {
+        if (enableDesktopFloat) scrollLagLayers.forEach((layer) => {
           const speed = Number(layer.dataset.scrollSpeed || 0.14);
           const rate = Number(layer.dataset.scrollRate);
           const lag = Number(layer.dataset.scrollLag || 0.9);
@@ -587,21 +589,21 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
 
         ScrollTrigger.create({
           trigger: root,
-          start: hasFinePointer ? "top 72%" : "top 88%",
+          start: enableDesktopFloat ? "top 72%" : "top 88%",
           once: true,
           onEnter: () => {
             gsap.to(revealLayers, {
               scale: 1,
-              duration: hasFinePointer ? 0.44 : 0.22,
-              delay: hasFinePointer ? 0.14 : 0,
-              stagger: hasFinePointer ? 0.06 : 0.055,
-              ease: hasFinePointer ? "back.out(1.9)" : "back.out(1.35)",
+              duration: enableDesktopFloat ? 0.44 : 0.22,
+              delay: enableDesktopFloat ? 0.14 : 0,
+              stagger: enableDesktopFloat ? 0.06 : 0.055,
+              ease: enableDesktopFloat ? "back.out(1.9)" : "back.out(1.35)",
               overwrite: "auto",
             });
           },
         });
 
-        if (hasFinePointer) floatingLayers.forEach((layer, index) => {
+        if (enableDesktopFloat) floatingLayers.forEach((layer, index) => {
           const amount = Number(layer.dataset.floatAmount || 12);
           const duration = Number(layer.dataset.floatDuration || 5);
           const direction = index % 2 === 0 ? 1 : -1;
@@ -1250,7 +1252,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       id={cleanAnchor || "work"}
       data-typeon-trigger="true"
       className={cn(
-        "relative isolate z-[3] h-[100svh] min-h-[100svh] overflow-visible",
+        "relative isolate z-[3] h-auto min-h-[82rem] overflow-visible sm:min-h-[72rem] lg:h-[100svh] lg:min-h-[100svh]",
         getSectionSurfaceClass(cleanColor),
         padding?.top ? "pt-16 xl:pt-20" : undefined,
         padding?.bottom ? "pb-16 xl:pb-20" : undefined,
@@ -1258,7 +1260,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     >
       <BackgroundPanel background={background} className="!border-0" />
 
-      <div className="relative mx-auto h-full min-h-0 max-w-[1800px]">
+      <div className="relative mx-auto min-h-[82rem] max-w-[1800px] sm:min-h-[72rem] lg:h-full lg:min-h-0">
         {heading && (
           <div
             className="pointer-events-none absolute inset-x-0 top-[22%] z-20 flex justify-center md:top-[28%]"
@@ -1347,12 +1349,16 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                       </div>
                     ) : (
                       <span className="pointer-events-none absolute left-1/2 top-full mt-2 w-max min-w-max -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase md:text-base">
-                        <TypeOnText
-                          text={title}
-                          trigger="hover"
-                          speed={1.35}
-                          className="!whitespace-nowrap"
-                        />
+                        {touchLayout ? (
+                          title
+                        ) : (
+                          <TypeOnText
+                            text={title}
+                            trigger="hover"
+                            speed={1.35}
+                            className="!whitespace-nowrap"
+                          />
+                        )}
                       </span>
                     )}
                   </div>
@@ -1370,7 +1376,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                 target={item.target ? "_blank" : undefined}
                 rel={item.target ? "noopener noreferrer" : undefined}
                 data-what-we-do-project
-                data-typeon-hover="true"
+                data-typeon-hover={touchLayout ? undefined : "true"}
                 className={projectClassName}
                 style={style}
                 aria-label={`View ${title}`}
@@ -1386,7 +1392,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                   type="button"
                   key={item._key}
                   data-what-we-do-project
-                  data-typeon-hover="true"
+                  data-typeon-hover={touchLayout ? undefined : "true"}
                   className={projectClassName}
                   style={style}
                   aria-expanded={isRevealActive}
@@ -1408,7 +1414,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                   type="button"
                   key={item._key}
                   data-what-we-do-project
-                  data-typeon-hover="true"
+                  data-typeon-hover={touchLayout ? undefined : "true"}
                   className={projectClassName}
                   style={style}
                   aria-label={`Open ${title} fullscreen`}
@@ -1433,7 +1439,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               <div
                 key={item._key}
                 data-what-we-do-project
-                data-typeon-hover="true"
+                data-typeon-hover={touchLayout ? undefined : "true"}
                 className={projectClassName}
                 style={style}
               >

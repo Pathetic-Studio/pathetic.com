@@ -99,7 +99,7 @@ function SlideCopy({
             textColor={textStyle?.fillColor?.hex || undefined}
             textOutline
             outlineColor="#ffffff"
-            outlineWidth={2}
+            outlineWidth={1.5}
             outlinePosition="outside"
             fontWeight={textStyle?.fontWeight ?? undefined}
           >

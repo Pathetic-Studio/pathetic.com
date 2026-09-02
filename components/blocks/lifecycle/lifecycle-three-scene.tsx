@@ -406,8 +406,10 @@ export default function LifecycleThreeScene({
       scene.add(accentLight);
       const baseAccentColor = new THREE.Color(0xff2d20);
       const surgeAccentColor = new THREE.Color(0x3fa7ff);
-      const responsiveModelScale =
-        window.innerWidth < 640 ? 0.68 : window.innerWidth < 1024 ? 0.84 : 1;
+      const getResponsiveModelScale = () =>
+        window.innerWidth < 640 ? 0.44 : window.innerWidth < 1024 ? 0.84 : 1;
+      let visibleObjectScaleBase = Math.max(0.1, modelScale || 1);
+      let visibleObjectResponsiveScale = getResponsiveModelScale();
 
       function disposeObject(object: InstanceType<typeof THREE.Object3D>) {
         object.traverse((child) => {
@@ -433,7 +435,7 @@ export default function LifecycleThreeScene({
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.scale.setScalar(
-          Math.max(0.1, modelScale || 1) * responsiveModelScale,
+          visibleObjectScaleBase * visibleObjectResponsiveScale,
         );
         root.add(mesh);
         return mesh;
@@ -520,10 +522,10 @@ export default function LifecycleThreeScene({
             const initialBox = new THREE.Box3().setFromObject(model);
             const size = initialBox.getSize(new THREE.Vector3());
             const largestAxis = Math.max(size.x, size.y, size.z) || 1;
+            visibleObjectScaleBase =
+              (5 / largestAxis) * Math.max(0.1, modelScale || 1);
             model.scale.setScalar(
-              (5 / largestAxis) *
-                Math.max(0.1, modelScale || 1) *
-                responsiveModelScale,
+              visibleObjectScaleBase * visibleObjectResponsiveScale,
             );
 
             const centeredBox = new THREE.Box3().setFromObject(model);
@@ -557,6 +559,19 @@ export default function LifecycleThreeScene({
         bloomComposer.setSize(width, height);
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
+        const nextResponsiveScale = getResponsiveModelScale();
+        visibleObject.scale.setScalar(
+          visibleObjectScaleBase * nextResponsiveScale,
+        );
+        // The imported GLTF is centred after its responsive scale is applied.
+        // Keep that offset proportional when a live resize crosses a
+        // breakpoint, otherwise the glasses grow away from the canvas centre.
+        if (visibleObjectResponsiveScale > 0) {
+          visibleObject.position.multiplyScalar(
+            nextResponsiveScale / visibleObjectResponsiveScale,
+          );
+        }
+        visibleObjectResponsiveScale = nextResponsiveScale;
 
         const cameraDistance = Math.abs(
           camera.position.z - lightningGroup.position.z,

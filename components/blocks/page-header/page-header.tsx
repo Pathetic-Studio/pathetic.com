@@ -15,6 +15,7 @@ import ImageExplode from "@/components/effects/image-explode";
 
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TitleText from "@/components/ui/title-text";
+import { TEXT_STYLES, TEXT_WIDTHS } from "@/components/ui/text-styles";
 
 
 type PageHeaderProps = Extract<
@@ -143,7 +144,7 @@ export default function PageHeader(props: PageHeaderProps) {
                 <div className="h-full flex flex-col justify-center py-20 lg:pt-40 text-center">
                     {tagLine && (
                         <h1 className="leading-[0] uppercase italic font-sans animate-fade-up [animation-delay:100ms]">
-                            <span className="text-base font-semibold opacity-50">
+                            <span className={`${TEXT_STYLES.eyebrow} opacity-50`}>
                                 {tagLine}
                             </span>
                         </h1>
@@ -163,7 +164,7 @@ export default function PageHeader(props: PageHeaderProps) {
                     )}
 
                     {body && (
-                        <div className="text-lg lg:text-2xl mt-6 max-w-2xl mx-auto animate-fade-up [animation-delay:300ms] opacity-0">
+                        <div className={`mx-auto mt-6 animate-fade-up opacity-0 [animation-delay:300ms] ${TEXT_STYLES.bodyLarge} ${TEXT_WIDTHS.body}`}>
                             <PortableTextRenderer value={body} />
                         </div>
                     )}

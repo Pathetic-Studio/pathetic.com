@@ -5,6 +5,7 @@ import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import { Button } from "@/components/ui/button";
 import TitleText from "@/components/ui/title-text";
+import { SECTION_HEADER_BODY_CLASS } from "@/components/ui/text-styles";
 import { splitTextAtWordRatio } from "@/components/blocks/shared/text-lines";
 import TalentMatrixScene from "./talent-matrix-scene";
 
@@ -133,7 +134,7 @@ export function TalentMatrixView({
           </TitleText>
         </div>
         {cleanDescription && (
-          <p className="pointer-events-auto mt-4 w-[88vw] max-w-[34rem] select-text text-[clamp(.92rem,1.3vw,1.3rem)] leading-[1.08] text-white sm:mt-5 sm:text-[1.15rem] lg:mt-6 lg:w-[clamp(31rem,37vw,34rem)] lg:text-[clamp(.92rem,1.3vw,1.3rem)] [text-shadow:0_2px_8px_#000]">
+          <p className={`pointer-events-auto mt-4 select-text text-white sm:mt-5 lg:mt-6 [text-shadow:0_2px_8px_#000] ${SECTION_HEADER_BODY_CLASS}`}>
             {descriptionLines.map((line, index) => (
               <span key={`${line}-${index}`} className="lg:block">
                 {line}

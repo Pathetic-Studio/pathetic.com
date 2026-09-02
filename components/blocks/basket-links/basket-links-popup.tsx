@@ -238,12 +238,34 @@ function ShopPopup({ href, onClose }: { href?: string; onClose: () => void }) {
   );
 }
 
-function NewsletterPopup({ onClose }: { onClose: () => void }) {
+function NewsletterPopup({
+  onClose,
+  flapping,
+  heroVisible,
+  onFlapSettled,
+}: {
+  onClose: () => void;
+  flapping: boolean;
+  heroVisible: boolean;
+  onFlapSettled: () => void;
+}) {
+  const sceneRef = useRef<HTMLDivElement | null>(null);
   const pigeonRigRef = useRef<HTMLDivElement | null>(null);
+  const paperRef = useRef<HTMLDivElement | null>(null);
+  const flapTimerRef = useRef<gsap.core.Tween | null>(null);
+  const settleTimerRef = useRef<gsap.core.Tween | null>(null);
+  const flapFrameIndexRef = useRef(0);
+  const flapReadyRef = useRef(false);
+  const flapRequestedRef = useRef(flapping);
+  const motionEnabledRef = useRef(flapping);
+  const startFlapRef = useRef<() => void>(() => undefined);
+  const resetMotionRef = useRef<() => void>(() => undefined);
+  const onFlapSettledRef = useRef(onFlapSettled);
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [error, setError] = useState("");
+  onFlapSettledRef.current = onFlapSettled;
 
   useLayoutEffect(() => {
     const rig = pigeonRigRef.current;
@@ -263,15 +285,50 @@ function NewsletterPopup({ onClose }: { onClose: () => void }) {
         gsap.set(layer, {
           ...newsletterWingTransformVars(frame[side]),
           opacity: frame.id === "up" ? 1 : 0,
-          visibility: "visible",
         });
       }
     }
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
     let cancelled = false;
-    let flap: gsap.core.Timeline | null = null;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    const showFrame = (frameIndex: number) => {
+      const frame = NEWSLETTER_WING_FRAMES[frameIndex];
+      gsap.set(wingLayers, { opacity: 0 });
+      gsap.set(
+        wingLayers.filter(
+          (layer) => layer.dataset.newsletterWingFrame === frame.id,
+        ),
+        { opacity: 1 },
+      );
+      flapFrameIndexRef.current = frameIndex;
+    };
+
+    const scheduleNextFrame = () => {
+      if (cancelled || reduceMotion || flapTimerRef.current) return;
+      flapTimerRef.current = gsap.delayedCall(
+        NEWSLETTER_WING_FRAME_DURATION,
+        () => {
+          flapTimerRef.current = null;
+          const nextFrame =
+            (flapFrameIndexRef.current + 1) % NEWSLETTER_WING_FRAMES.length;
+          showFrame(nextFrame);
+          if (flapRequestedRef.current || nextFrame !== 0) {
+            scheduleNextFrame();
+          } else {
+            settleTimerRef.current?.kill();
+            settleTimerRef.current = gsap.delayedCall(0.26, () => {
+              settleTimerRef.current = null;
+              onFlapSettledRef.current();
+            });
+          }
+        },
+      );
+    };
+
+    startFlapRef.current = scheduleNextFrame;
 
     // Hold on the complete up pose while the other sprites decode. That keeps
     // a first visit on a slower connection from flashing empty wing frames.
@@ -279,28 +336,257 @@ function NewsletterPopup({ onClose }: { onClose: () => void }) {
       wingLayers.map((layer) => layer.decode().catch(() => undefined)),
     ).then(() => {
       if (cancelled) return;
-
-      // These are registered raster poses, so each pair changes as a single
-      // sprite frame. No tweening or dissolve is used between wing shapes.
-      flap = gsap.timeline({ repeat: -1 });
-      NEWSLETTER_WING_FRAMES.forEach((frame, index) => {
-        const frameLayers = wingLayers.filter(
-          (layer) => layer.dataset.newsletterWingFrame === frame.id,
-        );
-        const position = index * NEWSLETTER_WING_FRAME_DURATION;
-        flap?.set(wingLayers, { opacity: 0 }, position);
-        flap?.set(frameLayers, { opacity: 1 }, position);
-      });
-      flap.to(
-        {},
-        { duration: NEWSLETTER_WING_FRAME_DURATION },
-        (NEWSLETTER_WING_FRAMES.length - 1) * NEWSLETTER_WING_FRAME_DURATION,
-      );
+      flapReadyRef.current = true;
+      showFrame(0);
+      if (flapRequestedRef.current && !reduceMotion) scheduleNextFrame();
     });
 
     return () => {
       cancelled = true;
-      flap?.kill();
+      flapReadyRef.current = false;
+      flapTimerRef.current?.kill();
+      flapTimerRef.current = null;
+      settleTimerRef.current?.kill();
+      settleTimerRef.current = null;
+      startFlapRef.current = () => undefined;
+    };
+  }, []);
+
+  useEffect(() => {
+    flapRequestedRef.current = flapping;
+    motionEnabledRef.current = flapping;
+    if (!flapReadyRef.current) return;
+
+    if (flapping) {
+      settleTimerRef.current?.kill();
+      settleTimerRef.current = null;
+      startFlapRef.current();
+      return;
+    }
+
+    resetMotionRef.current();
+    if (flapFrameIndexRef.current === 0) {
+      flapTimerRef.current?.kill();
+      flapTimerRef.current = null;
+      settleTimerRef.current?.kill();
+      settleTimerRef.current = gsap.delayedCall(0.26, () => {
+        settleTimerRef.current = null;
+        onFlapSettledRef.current();
+      });
+    }
+  }, [flapping]);
+
+  useLayoutEffect(() => {
+    const scene = sceneRef.current;
+    const pigeon = pigeonRigRef.current;
+    const paper = paperRef.current;
+    const pigeonMotionLayers = pigeon
+      ? Array.from(
+          pigeon.querySelectorAll<HTMLElement>(
+            "[data-newsletter-pigeon-motion]",
+          ),
+        )
+      : [];
+    if (
+      !scene ||
+      !pigeon ||
+      !pigeonMotionLayers.length ||
+      !paper ||
+      !window.matchMedia("(pointer: fine)").matches ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    gsap.set(paper, { transformOrigin: "50% 6%" });
+    const pigeonX = gsap.quickTo(pigeonMotionLayers, "x", {
+      duration: 0.2,
+      ease: "power3.out",
+    });
+    const pigeonY = gsap.quickTo(pigeonMotionLayers, "y", {
+      duration: 0.24,
+      ease: "power3.out",
+    });
+    const pigeonRotation = gsap.quickTo(pigeonMotionLayers, "rotation", {
+      duration: 0.28,
+      ease: "power3.out",
+    });
+    // The card follows the bird's *previous* position inside a full 200px
+    // movement field. The short delay establishes the bird as the leader,
+    // while the spring-like catch-up keeps the sheet visibly in motion.
+    const paperDelayMs = 55;
+    const paperSamples: Array<{
+      time: number;
+      x: number;
+      y: number;
+    }> = [{ time: performance.now() - paperDelayMs, x: 0, y: 0 }];
+    const paperState = { x: 0, y: 0, rotation: 0 };
+    let lastPaperUpdate = performance.now();
+    let paperHovered = false;
+    let paperFocused = false;
+    let interactionHoldRequested = false;
+    let interactionLocked = false;
+    const lastTravelTarget = { x: 0, y: 0 };
+
+    const updatePaper = () => {
+      const now = performance.now();
+      const deltaSeconds = Math.min(0.05, (now - lastPaperUpdate) / 1000);
+      lastPaperUpdate = now;
+      if (!motionEnabledRef.current) return;
+
+      if (interactionLocked) {
+        const rotationFollow = 1 - Math.exp(-deltaSeconds * 12);
+        paperState.rotation += (0 - paperState.rotation) * rotationFollow;
+        gsap.set(paper, { rotation: paperState.rotation });
+        return;
+      }
+
+      const delayedTime = now - paperDelayMs;
+      while (
+        paperSamples.length > 1 &&
+        paperSamples[1].time <= delayedTime
+      ) {
+        paperSamples.shift();
+      }
+      const target = paperSamples[0];
+      const follow = 1 - Math.exp(-deltaSeconds * 5.4);
+      paperState.x += (target.x - paperState.x) * follow;
+      paperState.y += (target.y - paperState.y) * follow;
+      // Rotation is produced by the distance between the pull point and the
+      // trailing card—not by its final position. It therefore leans while it
+      // is being dragged and naturally straightens once it catches up.
+      const dragRotation = Math.max(
+        -8,
+        Math.min(8, (target.x - paperState.x) * 0.055),
+      );
+      const rotationFollow = 1 - Math.exp(-deltaSeconds * 9);
+      paperState.rotation +=
+        (dragRotation - paperState.rotation) * rotationFollow;
+      gsap.set(paper, {
+        x: paperState.x,
+        y: paperState.y,
+        rotation: paperState.rotation,
+      });
+
+      if (interactionHoldRequested) {
+        const remainingTravel = Math.hypot(
+          target.x - paperState.x,
+          target.y - paperState.y,
+        );
+        if (remainingTravel < 0.75 && Math.abs(paperState.rotation) < 0.12) {
+          paperState.x = target.x;
+          paperState.y = target.y;
+          paperState.rotation = 0;
+          gsap.set(paper, {
+            x: paperState.x,
+            y: paperState.y,
+            rotation: 0,
+          });
+          interactionLocked = true;
+          if (!paperHovered && !paperFocused) {
+            interactionHoldRequested = false;
+            interactionLocked = false;
+          }
+        }
+      }
+    };
+    gsap.ticker.add(updatePaper);
+
+    const moveTo = (travelX: number, travelY: number) => {
+      lastTravelTarget.x = travelX;
+      lastTravelTarget.y = travelY;
+      pigeonX(travelX);
+      pigeonY(travelY);
+      pigeonRotation(
+        Math.max(-4, Math.min(4, travelX / Math.max(90, window.innerWidth * 0.12))),
+      );
+      paperSamples.push({
+        time: performance.now(),
+        x: travelX,
+        y: travelY,
+      });
+      if (paperSamples.length > 80) paperSamples.splice(0, paperSamples.length - 80);
+    };
+    const holdForInteraction = () => {
+      interactionHoldRequested = true;
+      interactionLocked = false;
+      // Stop accepting new mouse targets, but keep the destination that was
+      // already in flight. The paper completes that pull and straightens
+      // before updatePaper marks it as interaction-locked.
+      paperSamples.splice(0, paperSamples.length, {
+        time: performance.now() - paperDelayMs,
+        x: lastTravelTarget.x,
+        y: lastTravelTarget.y,
+      });
+    };
+    const releaseInteraction = () => {
+      interactionHoldRequested = false;
+      interactionLocked = false;
+      paperSamples.splice(0, paperSamples.length, {
+        time: performance.now() - paperDelayMs,
+        x: paperState.x,
+        y: paperState.y,
+      });
+    };
+    resetMotionRef.current = () => {
+      gsap.to(pigeonMotionLayers, {
+        x: 0,
+        y: 0,
+        rotation: 0,
+        duration: 0.18,
+        ease: "power2.out",
+        overwrite: true,
+      });
+      gsap.to(paper, {
+        x: 0,
+        y: 0,
+        rotation: 0,
+        duration: 0.24,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!motionEnabledRef.current || interactionHoldRequested) return;
+      // Use the whole viewport as the control surface. At the viewport edges
+      // the rig can travel roughly a third of the viewport in either
+      // direction, rather than being confined to the newsletter itself.
+      moveTo(
+        (event.clientX - window.innerWidth / 2) * 0.68,
+        (event.clientY - window.innerHeight / 2) * 0.55,
+      );
+    };
+    const onPaperPointerEnter = () => {
+      paperHovered = true;
+      holdForInteraction();
+    };
+    const onPaperPointerLeave = () => {
+      paperHovered = false;
+      if (!paperFocused && interactionLocked) releaseInteraction();
+    };
+    const onPaperFocusIn = () => {
+      paperFocused = true;
+      holdForInteraction();
+    };
+    const onPaperFocusOut = () => {
+      paperFocused = false;
+      if (!paperHovered && interactionLocked) releaseInteraction();
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    paper.addEventListener("pointerenter", onPaperPointerEnter);
+    paper.addEventListener("pointerleave", onPaperPointerLeave);
+    paper.addEventListener("focusin", onPaperFocusIn);
+    paper.addEventListener("focusout", onPaperFocusOut);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      paper.removeEventListener("pointerenter", onPaperPointerEnter);
+      paper.removeEventListener("pointerleave", onPaperPointerLeave);
+      paper.removeEventListener("focusin", onPaperFocusIn);
+      paper.removeEventListener("focusout", onPaperFocusOut);
+      gsap.ticker.remove(updatePaper);
+      gsap.killTweensOf([...pigeonMotionLayers, paper]);
+      resetMotionRef.current = () => undefined;
     };
   }, []);
 
@@ -327,50 +613,95 @@ function NewsletterPopup({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div data-basket-popup-surface className="relative mx-auto w-[min(88vw,35rem)] pt-[clamp(7rem,23vw,10rem)]">
-      <CloseButton onClose={onClose} />
-      <div ref={pigeonRigRef} data-basket-popup-hero className="pointer-events-none absolute left-1/2 top-[-2.4rem] z-30 size-[clamp(10rem,31vw,15rem)] -translate-x-1/2">
-        {/* Every frame keeps its rear wing behind the body and its front wing above it. */}
-        {NEWSLETTER_WING_FRAMES.map((frame) => (
-          // eslint-disable-next-line @next/next/no-img-element
+    <div ref={sceneRef} data-basket-popup-surface className="relative mx-auto w-[min(88vw,35rem)] pt-[clamp(5rem,17vw,8rem)]">
+      <div
+        ref={pigeonRigRef}
+        data-basket-popup-hero
+        data-newsletter-pigeon-rig
+        className="pointer-events-none absolute top-[-2.4rem] size-[clamp(10rem,31vw,15rem)]"
+        style={{
+          left: "calc(50% - clamp(5rem, 15.5vw, 7.5rem))",
+          opacity: heroVisible ? 1 : 0,
+          visibility: heroVisible ? "visible" : "hidden",
+        }}
+      >
+        <div
+          data-newsletter-pigeon-motion
+          className="absolute inset-0 z-10 scale-[.94] will-change-transform"
+        >
+          {NEWSLETTER_WING_FRAMES.map((frame) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={`${frame.id}-rear`}
+              data-newsletter-wing-frame={frame.id}
+              data-newsletter-wing-side="rear"
+              src={frame.rearSrc}
+              alt=""
+              aria-hidden="true"
+              className={`absolute inset-0 h-full w-full object-contain will-change-[opacity,transform] ${frame.id === "up" ? "" : "opacity-0"}`}
+            />
+          ))}
+        </div>
+
+        <div
+          data-newsletter-pigeon-motion
+          className="absolute inset-0 z-20 scale-[.94] will-change-transform"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            key={`${frame.id}-rear`}
-            data-newsletter-wing-frame={frame.id}
-            data-newsletter-wing-side="rear"
-            src={frame.rearSrc}
-            alt=""
-            aria-hidden="true"
-            className={`absolute inset-0 z-10 h-full w-full object-contain will-change-[opacity,transform] ${frame.id === "up" ? "" : "opacity-0"}`}
+            src="/images/basket-links/pigeon-body-side.png"
+            alt="Pigeon holding the newsletter"
+            className="absolute inset-0 h-full w-full object-contain"
           />
-        ))}
-        {NEWSLETTER_WING_FRAMES.map((frame) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={`${frame.id}-front`}
-            data-newsletter-wing-frame={frame.id}
-            data-newsletter-wing-side="front"
-            src={frame.frontSrc}
-            alt=""
-            aria-hidden="true"
-            className={`absolute inset-0 z-40 h-full w-full object-contain will-change-[opacity,transform] ${frame.id === "up" ? "" : "opacity-0"}`}
-          />
-        ))}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/basket-links/pigeon-body-side.png"
-          alt="Pigeon holding the newsletter"
-          className="absolute inset-0 z-30 h-full w-full object-contain"
-        />
+        </div>
+
+        <div
+          data-newsletter-pigeon-motion
+          className="absolute inset-0 z-40 scale-[.94] will-change-transform"
+        >
+          {NEWSLETTER_WING_FRAMES.map((frame) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={`${frame.id}-front`}
+              data-newsletter-wing-frame={frame.id}
+              data-newsletter-wing-side="front"
+              src={frame.frontSrc}
+              alt=""
+              aria-hidden="true"
+              className={`absolute inset-0 h-full w-full object-contain will-change-[opacity,transform] ${frame.id === "up" ? "" : "opacity-0"}`}
+            />
+          ))}
+        </div>
+
+        <div
+          data-newsletter-pigeon-motion
+          className="absolute inset-0 z-50 scale-[.94] will-change-transform"
+        >
+          <div
+            data-newsletter-feet
+            className="absolute inset-0 origin-top-left translate-x-[30%] translate-y-[45%] scale-[.46]"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/basket-links/pigeon-feet-v2.png"
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-contain"
+            />
+          </div>
+        </div>
       </div>
 
       <div
-        className="relative border-2 border-black bg-[#f1f0e8] px-[clamp(1.25rem,5vw,3rem)] pb-[clamp(1.4rem,5vw,2.6rem)] pt-[clamp(2.4rem,8vw,4.5rem)] text-center shadow-[9px_10px_0_rgba(0,0,0,.28)]"
+        ref={paperRef}
+        data-newsletter-paper
+        className="relative z-30 border-2 border-black bg-[#f1f0e8] bg-cover bg-center px-[clamp(1.25rem,5vw,3rem)] pb-[clamp(1.4rem,5vw,2.6rem)] pt-[clamp(2.4rem,8vw,4.5rem)] text-center shadow-[9px_10px_0_rgba(0,0,0,.28)] will-change-transform"
         style={{
           backgroundImage:
-            "linear-gradient(25deg,transparent 46%,rgba(0,0,0,.045) 48%,transparent 51%),linear-gradient(155deg,transparent 45%,rgba(0,0,0,.04) 48%,transparent 51%)",
-          backgroundSize: "58px 48px",
+            "url('/images/basket-links/newsletter-paper.png')",
         }}
       >
+        <CloseButton onClose={onClose} />
         <h3 className="text-[clamp(2.5rem,9vw,5rem)] font-black italic uppercase leading-[.83] tracking-[-.065em] text-white [paint-order:stroke_fill] [-webkit-text-stroke:clamp(1.5px,.25vw,3px)_#000]">
           Join our<br />mailing<br />list
         </h3>
@@ -447,6 +778,46 @@ function AbyssPopup({ onClose }: { onClose: () => void }) {
   );
 }
 
+type BasketTransitionPose = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  rotation: number;
+};
+
+function getBasketTransitionPose(element: HTMLElement): BasketTransitionPose {
+  const rect = element.getBoundingClientRect();
+  const width = element.offsetWidth || rect.width;
+  const height = element.offsetHeight || rect.height;
+  const dataAngle = Number(element.dataset.basketRotation);
+  let rotation = Number.isFinite(dataAngle)
+    ? THREE_RAD_TO_DEG * dataAngle
+    : 0;
+
+  if (!Number.isFinite(dataAngle)) {
+    const transform = window.getComputedStyle(element).transform;
+    if (transform && transform !== "none") {
+      try {
+        const matrix = new DOMMatrixReadOnly(transform);
+        rotation = Math.atan2(matrix.b, matrix.a) * THREE_RAD_TO_DEG;
+      } catch {
+        rotation = 0;
+      }
+    }
+  }
+
+  return {
+    left: rect.left + rect.width / 2 - width / 2,
+    top: rect.top + rect.height / 2 - height / 2,
+    width,
+    height,
+    rotation,
+  };
+}
+
+const THREE_RAD_TO_DEG = 180 / Math.PI;
+
 export default function BasketLinksPopup({ active, onClose, origin, sourceElement, shopHref }: BasketLinksPopupProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -455,6 +826,8 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
   const transitionCloneRef = useRef<HTMLElement | null>(null);
   const transitionTargetRef = useRef<HTMLElement | null>(null);
   const transitionBusyRef = useRef(false);
+  const [newsletterFlapping, setNewsletterFlapping] = useState(false);
+  const [newsletterHeroVisible, setNewsletterHeroVisible] = useState(false);
 
   const removeTransitionClone = useCallback(() => {
     transitionCloneRef.current?.remove();
@@ -462,12 +835,13 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
   }, []);
 
   const revealSource = useCallback(() => {
-    if (sourceElement) sourceElement.style.visibility = "";
+    if (sourceElement) {
+      sourceElement.style.opacity = "";
+      sourceElement.style.visibility = "";
+    }
   }, [sourceElement]);
 
-  const closeWithTransition = useCallback(() => {
-    if (transitionBusyRef.current) return;
-
+  const runCloseTransition = useCallback(() => {
     const panel = panelRef.current;
     const backdrop = backdropRef.current;
     const target = transitionTargetRef.current;
@@ -478,21 +852,36 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
     }
 
     const from = target.getBoundingClientRect();
-    const to = sourceElement.getBoundingClientRect();
+    const to = getBasketTransitionPose(sourceElement);
     if (!from.width || !from.height || !to.width || !to.height) {
       revealSource();
       onClose();
       return;
     }
 
-    transitionBusyRef.current = true;
-    // Use the basket item itself for the return flight. It already contains
-    // the exact artwork scale, authored angle and label that must exist at the
-    // destination, so there is no visual re-composition halfway through close.
-    const clone = sourceElement.cloneNode(true) as HTMLElement;
+    const isNewsletter = active === "newsletter";
+    // Keep the newsletter in its registered flying pose for the return trip.
+    // Swapping to a large clone of the Matter artwork at the start of close
+    // produced the visible doubled bird / dissolve the user was seeing.
+    const cloneTemplate = isNewsletter ? target : sourceElement;
+    const clone = cloneTemplate.cloneNode(true) as HTMLElement;
     transitionCloneRef.current = clone;
     clone.setAttribute("aria-hidden", "true");
     clone.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+    if (isNewsletter) {
+      const originalWings = Array.from(
+        target.querySelectorAll<HTMLElement>("[data-newsletter-wing-frame]"),
+      );
+      const clonedWings = Array.from(
+        clone.querySelectorAll<HTMLElement>("[data-newsletter-wing-frame]"),
+      );
+      clonedWings.forEach((wing, index) => {
+        const original = originalWings[index];
+        if (!original || Number(getComputedStyle(original).opacity) < 0.5) {
+          wing.remove();
+        }
+      });
+    }
     Object.assign(clone.style, {
       position: "fixed",
       left: `${from.left}px`,
@@ -503,18 +892,38 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
       transform: "none",
       transformOrigin: "50% 50%",
       pointerEvents: "none",
+      opacity: "1",
       visibility: "visible",
       zIndex: "10060",
     });
     document.body.appendChild(clone);
+    // The popup hero is centred with Tailwind's -translate-x-1/2. GSAP can
+    // preserve that percentage translate when it starts animating rotation,
+    // which made the clone land half its width left of the real Matter item
+    // before snapping across at the handoff. The fixed clone already uses the
+    // hero's resolved viewport rect, so all inherited translation must be zero.
+    gsap.set(clone, {
+      x: 0,
+      y: 0,
+      xPercent: 0,
+      yPercent: 0,
+      rotation: 0,
+      transformOrigin: "50% 50%",
+    });
+    target.style.opacity = "0";
     target.style.visibility = "hidden";
+    if (isNewsletter) setNewsletterHeroVisible(false);
     const cloneLabel = clone.querySelector<HTMLElement>("[data-basket-label]");
-    if (cloneLabel) gsap.set(cloneLabel, { opacity: 0, scale: 0.82 });
+    if (cloneLabel) gsap.set(cloneLabel, { visibility: "hidden", opacity: 0 });
 
     const timeline = gsap.timeline({
       onComplete: () => {
-        removeTransitionClone();
+        // One-frame handoff: the travelling bird disappears in the same
+        // callback that the frozen Matter item becomes visible again.
+        clone.style.opacity = "0";
+        clone.style.visibility = "hidden";
         revealSource();
+        removeTransitionClone();
         transitionBusyRef.current = false;
         onClose();
       },
@@ -529,16 +938,44 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
           top: to.top,
           width: to.width,
           height: to.height,
-          rotation: 0,
+          rotation: to.rotation,
           duration: 0.62,
           ease: "expo.inOut",
         },
         0,
       );
-    if (cloneLabel) {
-      timeline.to(cloneLabel, { opacity: 1, scale: 1, duration: 0.18, ease: "power1.out" }, 0.4);
+  }, [active, onClose, removeTransitionClone, revealSource, sourceElement]);
+
+  const closeWithTransition = useCallback(() => {
+    if (transitionBusyRef.current) return;
+    transitionBusyRef.current = true;
+
+    if (active === "newsletter" && newsletterFlapping) {
+      // Finish the current sprite cycle at its registered up pose. The popup
+      // calls runCloseTransition from onFlapSettled, so no wing frame snaps.
+      setNewsletterFlapping(false);
+      return;
     }
-  }, [onClose, removeTransitionClone, revealSource, sourceElement]);
+
+    runCloseTransition();
+  }, [active, newsletterFlapping, runCloseTransition]);
+
+  useEffect(() => {
+    if (active !== "newsletter") {
+      setNewsletterFlapping(false);
+      setNewsletterHeroVisible(false);
+    }
+  }, [active]);
+
+  const handleNewsletterFlapSettled = useCallback(() => {
+    if (
+      active === "newsletter" &&
+      transitionBusyRef.current &&
+      !newsletterFlapping
+    ) {
+      runCloseTransition();
+    }
+  }, [active, newsletterFlapping, runCloseTransition]);
 
   useEffect(() => {
     if (!active) return;
@@ -598,26 +1035,52 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
     const target = panel.querySelector<HTMLElement>("[data-basket-popup-hero]");
     transitionTargetRef.current = target;
     const surface = panel.querySelector<HTMLElement>("[data-basket-popup-surface]");
+    const isNewsletter = active === "newsletter";
+    if (isNewsletter) {
+      target?.style.setProperty("opacity", "0");
+      target?.style.setProperty("visibility", "hidden");
+      setNewsletterHeroVisible(false);
+    }
     const context = gsap.context(() => {
       gsap.set(backdrop, { opacity: 0 });
       gsap.set(panel, { opacity: 1 });
-      if (surface) gsap.set(surface, { opacity: 0 });
+      if (surface) gsap.set(surface, { opacity: isNewsletter ? 1 : 0 });
 
       if (!target || !sourceElement || !sourceElement.isConnected) {
         gsap.fromTo(panel, { scale: 0.86 }, { scale: 1, duration: 0.4, ease: "back.out(1.45)" });
         gsap.to(backdrop, { opacity: 1, duration: 0.22, ease: "power1.out" });
-        if (surface) gsap.to(surface, { opacity: 1, duration: 0.2, ease: "power1.out" });
+        if (surface && !isNewsletter) {
+          gsap.to(surface, {
+            opacity: 1,
+            duration: 0.2,
+            ease: "power1.out",
+          });
+        } else if (isNewsletter) {
+          gsap.delayedCall(0.4, () => {
+            setNewsletterHeroVisible(true);
+            setNewsletterFlapping(true);
+          });
+        }
         return;
       }
 
-      const from = sourceElement.getBoundingClientRect();
+      const from = getBasketTransitionPose(sourceElement);
       const to = target.getBoundingClientRect();
       if (!from.width || !from.height || !to.width || !to.height) {
         gsap.set([backdrop, surface], { opacity: 1 });
+        if (isNewsletter) {
+          setNewsletterHeroVisible(true);
+          setNewsletterFlapping(true);
+        }
         return;
       }
 
+      sourceElement.style.opacity = "0";
       sourceElement.style.visibility = "hidden";
+      if (isNewsletter) {
+        target.style.opacity = "0";
+        target.style.visibility = "hidden";
+      }
       const clone = sourceElement.cloneNode(true) as HTMLElement;
       transitionCloneRef.current = clone;
       clone.setAttribute("aria-hidden", "true");
@@ -629,24 +1092,29 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
         width: `${from.width}px`,
         height: `${from.height}px`,
         margin: "0",
-        transform: "none",
+        transform: `rotate(${from.rotation}deg)`,
         transformOrigin: "50% 50%",
         pointerEvents: "none",
+        opacity: "1",
         visibility: "visible",
         zIndex: "10060",
       });
       const cloneLabel = clone.querySelector<HTMLElement>("[data-basket-label]");
+      if (isNewsletter && cloneLabel) {
+        // The label belongs to the resting Matter object, not the flying
+        // pigeon. Remove it immediately instead of fading it during flight.
+        gsap.set(cloneLabel, { visibility: "hidden", opacity: 0 });
+      }
       document.body.appendChild(clone);
 
       const timeline = gsap.timeline({
         onComplete: () => {
           removeTransitionClone();
+          if (isNewsletter) setNewsletterFlapping(true);
         },
       });
       timeline
         .to(backdrop, { opacity: 1, duration: 0.22, ease: "power1.out" }, 0)
-        .to(surface, { opacity: 1, duration: 0.18, ease: "power1.out" }, 0.55)
-        .to(cloneLabel, { opacity: 0, scale: 0.82, duration: 0.16, ease: "power2.in" }, 0)
         .to(
           clone,
           {
@@ -659,8 +1127,34 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
             ease: "expo.inOut",
           },
           0,
-        )
-        .to(clone, { opacity: 0, duration: 0.12, ease: "power1.out" }, 0.64);
+        );
+      if (isNewsletter) {
+        // The clone and registered up-pose occupy the same box. Swap their
+        // visibility on one frame instead of dissolving between two birds.
+        timeline
+          .call(
+            () => {
+              target.style.opacity = "1";
+              target.style.visibility = "visible";
+              setNewsletterHeroVisible(true);
+              clone.style.opacity = "0";
+              clone.style.visibility = "hidden";
+            },
+            undefined,
+            0.72,
+          );
+      } else {
+        if (cloneLabel) {
+          timeline.to(
+            cloneLabel,
+            { opacity: 0, scale: 0.82, duration: 0.16, ease: "power2.in" },
+            0,
+          );
+        }
+        timeline
+          .to(surface, { opacity: 1, duration: 0.18, ease: "power1.out" }, 0.55)
+          .to(clone, { opacity: 0, duration: 0.12, ease: "power1.out" }, 0.64);
+      }
     }, rootRef);
 
     return () => {
@@ -709,7 +1203,14 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
       <button ref={backdropRef} type="button" onClick={closeWithTransition} className={`absolute inset-0 z-10 ${active === "abyss" ? "bg-transparent" : "bg-[#181818]/88 backdrop-blur-[2px]"}`} aria-label="Close popup backdrop" />
       <div ref={panelRef} className="relative z-20 max-h-[92svh] max-w-[94vw]" onClick={(event) => event.stopPropagation()}>
         {active === "shop" && <ShopPopup href={shopHref} onClose={closeWithTransition} />}
-        {active === "newsletter" && <NewsletterPopup onClose={closeWithTransition} />}
+        {active === "newsletter" && (
+          <NewsletterPopup
+            onClose={closeWithTransition}
+            flapping={newsletterFlapping}
+            heroVisible={newsletterHeroVisible}
+            onFlapSettled={handleNewsletterFlapSettled}
+          />
+        )}
         {active === "jobs" && <JobsPopup onClose={closeWithTransition} />}
         {active === "abyss" && <AbyssPopup onClose={closeWithTransition} />}
       </div>

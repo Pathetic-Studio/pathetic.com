@@ -4,6 +4,7 @@ import { stegaClean } from "next-sanity";
 
 import PortableTextRenderer from "@/components/portable-text-renderer";
 import TitleText from "@/components/ui/title-text";
+import { DISPLAY_OUTLINE_WIDTHS } from "@/components/ui/text-styles";
 import { cn } from "@/lib/utils";
 
 type CaseStudyData = {
@@ -88,7 +89,7 @@ export default function CaseStudyPage({ data }: { data: CaseStudyData }) {
           singleLine
           textOutline
           outlineColor="#050505"
-          outlineWidth={1.5}
+          outlineWidth={DISPLAY_OUTLINE_WIDTHS.large}
           outlinePosition="outside"
           stretchScaleX={0.76}
           overallScale={1.08}

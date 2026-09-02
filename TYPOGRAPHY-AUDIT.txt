@@ -1,0 +1,362 @@
+PATHETIC WEBSITE — TYPOGRAPHY AUDIT
+===================================
+Audit date: 2026-09-01
+Scope: customer-facing website, case-study/careers/privacy routes, navigation,
+modals, footer, and Meme Booth UI. Sanity Studio and temporary debug/test pages
+are excluded because they are authoring/development tools rather than site UI.
+
+
+1. FOUNDATIONS
+--------------
+
+Typeface
+  Arial Narrow (local WOFF2), normal/italic at 400 and 700.
+  Source: app/layout.tsx
+  Global Tailwind family: font-sans / --font-sans.
+
+Root sizing
+  Browser root is 16px. Rem conversions below therefore use 1rem = 16px.
+
+Responsive bands used by the current site
+  Mobile: 0–639px
+  Tablet: 640–1023px
+  Desktop: 1024px+
+  Note: TitleText's transform presets call 0–767px mobile and 768–1023px
+  tablet; some legacy components also switch at md/768px or xl/1280px.
+
+Canonical semantic scale (components/ui/text-styles.ts)
+  micro          10px mobile / 12px tablet+
+  label/caption  12px mobile / 14px tablet+
+  nav/link       14px mobile / 16px tablet+ (nav remains 14px)
+  body compact   14px mobile / 16px tablet+
+  body           16px mobile / 18px tablet+
+  body large     18px mobile / 20px tablet+
+  section body   18px mobile / 20px tablet+
+  card title     20px mobile / 24px tablet+
+  subheading     24px mobile / 32px tablet+
+  data title     16px mobile / 18px tablet / 20px desktop
+  data value     14px mobile / 16px tablet / 18px desktop
+
+  These roles are exported as TEXT_STYLES. Shared maximum line lengths are
+  exported as TEXT_WIDTHS. Art-directed display headings remain TitleText
+  presets because their transformed geometry is part of the scene design.
+
+Shared section-header body role
+  Mobile: 18px / line-height 1.08 / weight 500 / tracking -0.025em
+  Tablet: 20px / line-height 1.08 / weight 500 / tracking -0.025em
+  Desktop: 20px / line-height 1.08 / weight 500 / tracking -0.025em
+  Width: min(86vw, 36rem) mobile; min(84vw, 36rem) tablet+;
+         hard maximum 36rem / 576px.
+  Token: SECTION_HEADER_BODY_CLASS
+  Source: components/ui/text-styles.ts
+  Current users: What We Do, Matrix, Network intro, And We Bring Friends.
+
+
+2. TITLETEXT HIERARCHY — ALL AVAILABLE PRESETS
+----------------------------------------------
+
+Preset                 Mobile                     Tablet                     Desktop
+md                     30px                       30px                       30px
+lg                     48px                       48px                       48px
+xl                     60px                       60px                       60px
+xxl                    48px                       48px                       96px
+display                32px                       40px                       56px
+display-compact        26.4px                     38.4px                     46.4px
+what-we-do             clamp(52, 6.6vw, 115.2)    clamp(88, 10vw, 168)       clamp(52, 6.6vw, 115.2)
+matrix-eyebrow         clamp(20.8, 2vw, 34.4)     same                       same
+matrix-accent          clamp(41.6, 4vw, 72)       same                       same
+matrix-talent          clamp(70.4, 7.2vw, 116)    same                       same
+matrix-matrix          clamp(80, 8vw, 128)        same                       same
+network-eyebrow        clamp(18.4, 1.55vw, 27.2)  same                       same
+network-lead           clamp(40, 4.6vw, 76.8)     same                       same
+network-main           clamp(88, 10vw, 168)       same                       same
+network-reach          33.6px                     48px                       64px
+network-friends        48px                       72px                       102.4px
+belief                 clamp(76, 12vw, 172)       same                       same
+contact-cta            clamp(64, 11.8vw, 176)     same                       same
+
+All presets inherit:
+  uppercase; base line-height 1.1; default bold weight; centred by default.
+  Individual sections commonly override line-height and tracking.
+Source: components/ui/title-text.tsx
+
+Important implementation note
+  The “stretched” variant applies scaleX and optional overall scale after the
+  listed font size. The listed font size is the CSS type size, not the final
+  visual width/height after transform.
+
+
+3. STROKE COMPARISON
+--------------------
+
+TitleText supports centre strokes and outside strokes. For outside strokes it
+renders twice the supplied outlineWidth behind the fill, so the visible outward
+thickness remains approximately the requested value without eating the glyph.
+
+Use                                      Input      Rendered CSS stroke   Position
+Page loader / intro title                1.5px      3px                   outside
+Lifecycle slide centre titles            1.5px      3px                   outside
+Credibility title                        CMS        CMS x2 if outside      CMS-selectable
+Network “And We Bring Friends”            2px        4px                   outside
+What We Believe                           3px        6px                   outside
+Work With Us                              2.5px      5px                   outside
+Case-study hero                           2px        4px                   outside
+Newsletter modal heading                 2px        2px                   centre/default
+Network editable brand label              2px        2px                   direct CSS
+Basket labels                             2–3px      2–3px                 direct CSS
+Basket Shop heading                       2–4px      2–4px                 direct CSS
+Basket newsletter heading                 1.5–3px    1.5–3px               direct CSS
+Legacy bendy-arm/meme copy                2px        2px                   direct CSS
+
+Implemented rule
+  Display strokes now scale with the display hierarchy rather than applying one
+  visually thinner value to every heading:
+    standard / intro-sized: 1.5px outside (3px CSS paint)
+    large:                  2px outside (4px CSS paint)
+    monumental:            2.5px outside (5px CSS paint)
+  Intro and lifecycle titles use standard. And We Bring Friends and case-study
+  hero titles use large. What We Believe and Work With Us use monumental.
+  Credibility keeps its CMS-selectable stroke because its current authored
+  result is the second approved reference. Small decorative labels keep their
+  direct 2–3px white keyline.
+
+
+4. HOMEPAGE SECTION INVENTORY
+-----------------------------
+
+Loader / intro
+  Tagline: 16px semibold, uppercase, 50% opacity.
+  Main title: TitleText xl (60px), bold; 1.5px outside white outline.
+  Optional body: shared body-large role, 18px mobile / 20px tablet+;
+  max-width 42rem.
+  Links: shared Button hierarchy, size lg.
+
+Lifecycle slides
+  Top note: 12px mobile, 14px tablet, 16px desktop; bold italic uppercase.
+  Main title: TitleText display; bold; 1.5px outside white outline.
+  Meme microcopy: 6–9px or 9–17px depending on meme role.
+  Fun button: 10px mobile, 12px desktop; bold uppercase.
+
+Credibility
+  Main title: TitleText display-compact; type-on; fill/weight/stroke are CMS
+  selectable. Default TitleText stroke is 1.5px if outline is enabled without a
+  CMS override.
+
+Work projects
+  Section title: 16px mobile, 20px md; bold uppercase.
+  Project title strips: 16px semibold uppercase.
+  Project descriptions: 14px, line-height 1.08.
+  Hover tag/link: 14px mobile, 16px md; bold uppercase.
+  Sizzle/control title: clamp(19.2px, 2.25vw, 44.8px), bold italic uppercase,
+  direct 2px red stroke.
+
+What We Do
+  Main title: TitleText what-we-do, bold, no outline.
+  Header body: shared section-header body role; max-width 36rem. Its coloured
+  panel remains content-width rather than being forced to the full max width.
+  Service title: shared link role, 14px mobile / 16px tablet+.
+  Service body: shared body role, 16px mobile / 18px tablet+.
+  Touch rail body width is tied to the accompanying image width with a 15rem
+  maximum, rather than expanding to the whole carousel slide.
+  Detector coordinates: 10px monospace.
+
+Matrix
+  Eyebrow: TitleText matrix-eyebrow, bold.
+  Accent: TitleText matrix-accent, bold, overall scale 1.2.
+  Talent: TitleText matrix-talent, bold, overall scale 1.3.
+  Matrix line: TitleText matrix-matrix, bold, overall scale 1.38.
+  Header body: shared section-header body role; max-width 36rem.
+  CTA: 14px semibold uppercase, shared Button size lg.
+
+Network intro
+  Eyebrow: TitleText network-eyebrow, bold.
+  Lead: TitleText network-lead, bold.
+  Main: TitleText network-main, bold.
+  Header body: shared section-header body role; max-width 36rem.
+
+Network orbit
+  Reach values: TitleText network-reach, bold.
+  Reach labels: shared label role, 12px mobile / 14px tablet+.
+  Editable brand: clamp(24.8px, 2.35vw, 41.6px), bold uppercase; 2px black stroke.
+  Detail star titles: shared data-title role, 16/18/20px; bold uppercase,
+  forced to one line.
+  Detail star values: shared data-value role, 14/16/18px; medium uppercase,
+  max-width 11rem.
+
+And We Bring Friends
+  Title: TitleText network-friends, bold; 2px outside outline.
+  Body: shared section-header body role; max-width 36rem.
+  Hover name: 12px mobile, 14px tablet+; bold uppercase.
+  Displayed cutouts: six total.
+
+What We Believe
+  Title: TitleText belief, bold; 3px outside outline, matching the currently
+  authored Credibility title treatment.
+  Message bubbles: 12px, tracking-wide, line-height snug.
+  Card title: shared card-title role, 20px mobile / 24px tablet+.
+  Card excerpt: shared body role, 16px mobile / 18px tablet+.
+
+Work With Us
+  Title: TitleText contact-cta, bold; 2.5px outside outline.
+  Button: 14px semibold uppercase, 40px control height.
+  Default state contains only the moving title. The button scales into the
+  shared control size when the panel is hovered or keyboard-focused.
+
+Basket
+  Object labels: clamp(16.8px, 2.3vw, 32.8px), black italic uppercase,
+  2–3px white stroke.
+  Hint: clamp(11.52px, 1.05vw, 15.2px), bold italic uppercase.
+  Shop popup title: clamp(44.8px, 9vw, 83.2px), black, 2–4px stroke.
+  Shop link burst: clamp(9.28px, 1.7vw, 14.4px), black uppercase.
+  Newsletter popup title: clamp(40px, 9vw, 80px), black italic,
+  1.5–3px stroke.
+  Newsletter fields/buttons/status: 14px.
+  Careers title: 24px; link 14px; window bar 12px.
+  Abyss title: clamp(33.6px, 8vw, 64px); unavailable line 20px;
+  supporting note 12px.
+
+Bingo footer
+  Links/cells: clamp(10.24px, 1.25vw, 16.8px), bold italic uppercase.
+  Star cell: clamp(35.2px, 5vw, 75.2px).
+
+
+5. SHARED CONTENT BLOCKS AND SECONDARY PAGES
+--------------------------------------------
+
+Generic hero/page-header family
+  Tagline: 16px semibold.
+  Title: normally TitleText xl (60px) or legacy 36/48/60px hero ladder.
+  Body: shared body-large role, 18px mobile / 20px tablet+; max-width 42rem.
+
+Grid and split content
+  Section tagline: 16px semibold.
+  Section title: generally TitleText xxl (48px mobile/tablet, 96px desktop).
+  Section body: 18px; max-width 42rem.
+  Grid card/title-block title: shared card-title role, 20px mobile / 24px tablet+.
+  Grid card/title-block body: shared body role, 16px mobile / 18px tablet+.
+  Pricing card title: 20px; price 30px; period 14px.
+  Split card title/value: 24px, 30px desktop where configured.
+  Split info title: 20px semibold.
+
+Case study
+  Eyebrow: 16px mobile, 20px tablet+; bold italic uppercase.
+  Hero: TitleText matrix-talent; 1.5px outside outline.
+  Intro: clamp(17.6px, 1.65vw, 23.2px); line-height 1.22.
+  Story body: clamp(16.8px, 1.45vw, 20.8px); line-height 1.25.
+  Related title: TitleText matrix-accent.
+  Related project links: 14px mobile, 16px tablet+; bold uppercase.
+
+Careers
+  Window bar: 14px bold.
+  Main heading: clamp(40px, 9vw, 96px), black uppercase.
+  Body: 16px.
+  CTA link: 14px bold uppercase.
+
+Privacy
+  H1: 36px bold.
+  H2: 24px semibold.
+  Body: inherited 16px.
+
+Posts/blog
+  Post hero H1: 30px mobile/tablet, 48px desktop.
+  Post meta: 14px mobile, 16px md+.
+  Grid post title: 24px, line-height 1.2.
+
+
+6. LINKS, BUTTONS, NAVIGATION, AND FORM TEXT
+--------------------------------------------
+
+Shared Button base
+  Base text: 14px, Arial Narrow, nowrap.
+  default: semibold uppercase.
+  outline: 20px semibold uppercase with 1.5px border.
+  menu: semibold uppercase at base 14px.
+  footer: 20px semibold uppercase.
+  link/underline: inherited 14px unless a caller overrides it.
+  Heights: sm 32px; default 36px; lg 40px.
+  Source: components/ui/button-variants.ts
+
+Desktop navigation
+  Shared Button menu, size sm: 14px semibold uppercase.
+  Social icon/link follows the same control hierarchy.
+
+Mobile navigation
+  Open-menu links: 20px on mobile; return to 14px at md.
+  Trigger uses shared menu Button size sm.
+
+Old footer
+  Primary links: shared footer variant, 20px semibold uppercase.
+  Secondary/copyright links: 12px.
+  Bingo footer is the current bespoke footer hierarchy listed above.
+
+Contact modal/form
+  Window title: 14px semibold uppercase.
+  Modal content and form fields: 14px.
+  Help/status text: 12px.
+  Form actions: 12px medium.
+  Close icon glyph: 36px.
+
+Newsletter modal/form
+  Modal heading: TitleText lg / 48px with 2px centre stroke.
+  Subheading: 18px normal uppercase.
+  Field label/input/status: 20px.
+  Fine print: 12px.
+  Submit: 18px normal.
+  Close glyph: 36px.
+
+Portable text links
+  Inherit their containing body size and use underline decoration.
+  Portable headings currently inherit their container’s font size; the renderer
+  adds margins but no independent h1–h5 scale. This is an inconsistency worth
+  correcting if rich-text heading hierarchy will be used by editors.
+
+
+7. MEME BOOTH UI
+----------------
+
+The booth intentionally uses a compact product-UI hierarchy rather than the
+marketing display hierarchy:
+  Micro/status/fine print: 10px.
+  Labels, errors, credit controls: 12px.
+  Fields, toggles, actions: 14px.
+  Camera actions: 16px semibold italic uppercase.
+  Modal headings: 20px bold uppercase.
+  Prices: 18px bold.
+No text strokes are used in the booth controls.
+
+
+8. CURRENT CONSISTENCY FINDINGS
+-------------------------------
+
+Resolved in this pass
+  • What We Do, Matrix, Network intro, and And We Bring Friends now share one
+    section-header body type role and the same 36rem max width.
+  • And We Bring Friends no longer uses its smaller .94/1.15rem one-off body.
+  • Shared page headers, hero support copy, section headers, CTA copy, grid
+    cards, animated grid cards, grid text blocks, and image-card links now use
+    TEXT_STYLES/TEXT_WIDTHS instead of defining parallel local ladders.
+  • Network reach labels and detail stars now use the shared label/data roles.
+  • Primary display outlines use DISPLAY_OUTLINE_WIDTH (1.5px outside) unless
+    a CMS-authored or deliberately decorative treatment overrides it.
+
+Still deliberately bespoke
+  • Lifecycle scene titles and meme typography.
+  • Basket object labels and retro popup typography.
+  • Bingo footer grid labels.
+  • Meme Booth compact application UI.
+
+Remaining hierarchy debt found by the audit
+  • PortableText h1–h5 have no intrinsic hierarchy and inherit body size.
+  • Legacy Hero 1 uses direct 36/48/60px headings instead of TitleText.
+  • The old footer and Bingo footer intentionally use different link scales.
+  • Several object-detection and work-card labels are direct local styles.
+
+Rules for future additions
+  1. Use TitleText only for display/art-directed headings.
+  2. Use TEXT_STYLES for all supporting copy, labels and links.
+  3. Use TEXT_WIDTHS for readable line length; do not create a new viewport
+     width inside an individual section unless the layout genuinely requires it.
+  4. Use DISPLAY_OUTLINE_WIDTH with outside paint for primary display titles.
+  5. Preserve bespoke scene/decorative exceptions and document new ones here.
+  6. If rich-text heading hierarchy becomes editor-facing, add explicit
+     PortableText heading roles rather than allowing body-size inheritance.
