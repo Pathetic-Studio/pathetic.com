@@ -69,6 +69,8 @@ export default function WorkContentViewer({
 
   if (!mounted || !content) return null;
 
+  const isVideo = content.mediaType === "video" && Boolean(content.videoUrl);
+
   return createPortal(
     <div
       ref={overlayRef}
@@ -90,9 +92,13 @@ export default function WorkContentViewer({
 
       <div
         ref={panelRef}
-        className="relative flex h-[86svh] max-h-[86svh] w-full max-w-[92rem] items-center justify-center border border-black bg-white p-2 sm:p-4 lg:p-6"
+        className={
+          isVideo
+            ? "relative flex max-h-[86svh] w-fit max-w-[calc(100vw-1.5rem)] items-center justify-center border border-black bg-white p-2 sm:max-w-[calc(100vw-3rem)] sm:p-4 lg:p-6"
+            : "relative flex h-[86svh] max-h-[86svh] w-full max-w-[92rem] items-center justify-center border border-black bg-white p-2 sm:p-4 lg:p-6"
+        }
       >
-        {content.mediaType === "video" && content.videoUrl ? (
+        {isVideo ? (
           <video
             key={content.videoUrl}
             src={content.videoUrl}
@@ -100,7 +106,7 @@ export default function WorkContentViewer({
             autoPlay
             controls
             playsInline
-            className="max-h-[calc(86svh-1rem)] max-w-full border border-black object-contain sm:max-h-[calc(86svh-2rem)] lg:max-h-[calc(86svh-3rem)]"
+            className="block h-auto w-auto max-h-[calc(86svh-1rem)] max-w-full border border-black object-contain sm:max-h-[calc(86svh-2rem)] lg:max-h-[calc(86svh-3rem)]"
           />
         ) : content.imageUrl ? (
           <div className="relative h-full w-full border border-black">

@@ -27,6 +27,8 @@ const BUBBLE_MAX_REM = 12;
 
 // Breakpoint for “mobile/tablet” behaviour
 const MOBILE_MAX_WIDTH = 1024;
+const LARGE_TABLET_MAX_WIDTH = 1280;
+const LARGE_TABLET_BUBBLE_SCALE = 0.88;
 
 // Keep a little breathing room from the edge
 const EDGE_PADDING_REM = 1;
@@ -92,7 +94,11 @@ export default function CaptionBubble({
       if (vw >= MOBILE_MAX_WIDTH) {
         setComputedX(clampedX);
         setComputedY(clampedY);
-        setDynamicMaxWidth(undefined);
+        setDynamicMaxWidth(
+          centerOnTouch && vw < LARGE_TABLET_MAX_WIDTH
+            ? `${baseMaxPx * LARGE_TABLET_BUBBLE_SCALE}px`
+            : undefined,
+        );
         setTouchPositioned(false);
         return;
       }

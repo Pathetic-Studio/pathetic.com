@@ -192,6 +192,8 @@ And We Bring Friends
 What We Believe
   Title: TitleText belief, bold; 3px outside outline, matching the currently
   authored Credibility title treatment.
+  Title line-height: 0.84 for the forced two-line mobile composition; 0.76 from
+  640px upward where the title remains on one line.
   Message bubbles: 12px, tracking-wide, line-height snug.
   Card title: shared card-title role, 20px mobile / 24px tablet+.
   Card excerpt: shared body role, 16px mobile / 18px tablet+.

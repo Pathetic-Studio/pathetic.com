@@ -268,14 +268,23 @@ export default function GridRowAnimated(props: GridRowAnimated) {
       gridStyle.paddingTop = cleanGridPaddingTop as string;
     if (cleanGridPaddingBottom)
       gridStyle.paddingBottom = cleanGridPaddingBottom as string;
-    if (cleanGridPaddingLeft)
-      gridStyle.paddingLeft = cleanGridPaddingLeft as string;
-    if (cleanGridPaddingRight)
-      gridStyle.paddingRight = cleanGridPaddingRight as string;
+    if (cleanGridPaddingLeft) {
+      gridStyle.paddingLeft = isBeliefSection
+        ? `clamp(2rem, calc(38.4615vw - 22.6154rem), ${cleanGridPaddingLeft})`
+        : (cleanGridPaddingLeft as string);
+    }
+    if (cleanGridPaddingRight) {
+      gridStyle.paddingRight = isBeliefSection
+        ? `clamp(2rem, calc(38.4615vw - 22.6154rem), ${cleanGridPaddingRight})`
+        : (cleanGridPaddingRight as string);
+    }
 
     if (cleanGridRowGap) gridStyle.rowGap = cleanGridRowGap as string;
-    if (cleanGridColumnGap)
-      gridStyle.columnGap = cleanGridColumnGap as string;
+    if (cleanGridColumnGap) {
+      gridStyle.columnGap = isBeliefSection
+        ? `clamp(3rem, calc(11.5385vw - 4.3846rem), ${cleanGridColumnGap})`
+        : (cleanGridColumnGap as string);
+    }
   }
 
   const baseGridPaddingClasses =
@@ -288,12 +297,12 @@ export default function GridRowAnimated(props: GridRowAnimated) {
   const beliefResponsiveLayoutClass = (index: number) => {
     if (!isBeliefSection) return "";
     if (index % 3 === 1) {
-      return "mt-8 w-[86%] justify-self-end sm:mt-0 sm:w-[84%] sm:translate-y-20 lg:w-full lg:translate-y-0";
+      return "mt-8 w-[min(88%,22rem)] justify-self-center sm:mt-0 sm:w-[84%] sm:justify-self-end sm:translate-y-40 lg:w-full lg:translate-y-0";
     }
     if (index % 3 === 2) {
-      return "mt-8 w-[86%] justify-self-start translate-x-[4%] sm:mt-0 sm:w-[84%] sm:translate-x-[14%] lg:w-full lg:translate-x-0 lg:translate-y-0";
+      return "mt-8 w-[min(88%,22rem)] justify-self-center sm:mt-0 sm:w-[84%] sm:justify-self-start sm:translate-x-[34%] lg:w-full lg:translate-x-0 lg:translate-y-0";
     }
-    return "w-[86%] justify-self-start sm:w-[84%] lg:w-full";
+    return "w-[min(88%,22rem)] justify-self-center sm:w-[84%] sm:justify-self-start lg:w-full";
   };
 
   return (
@@ -358,7 +367,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                     singleLine={isBeliefSection && !isMobile}
                     className={
                       isBeliefSection
-                        ? "!w-full [&_h2]:whitespace-pre-line [&_h2]:leading-[.76] [&_h2]:tracking-[-.01em]"
+                        ? "!w-full [&_h2]:whitespace-pre-line [&_h2]:leading-[.84] [&_h2]:tracking-[-.01em] sm:[&_h2]:leading-[.76]"
                         : undefined
                     }
                   >
