@@ -18,8 +18,16 @@ const AVATAR_WORLD_POSITIONS = [
   [14, 0, 20],
   [20, 0, 25],
 ] as const;
+const AVATAR_MODEL_SOURCES = [
+  "/models/pathetic-talent-avatar.glb",
+  "/models/pathetic-talent-designers.glb",
+  "/models/pathetic-talent-editors.glb",
+  "/models/pathetic-talent-videographers.glb",
+] as const;
 const MATRIX_TEXTURE_FRAME_COUNT = 4;
 const MATRIX_TEXTURE_UPDATE_INTERVAL = 240;
+const MATRIX_HOVER_TEXTURE_UPDATE_INTERVAL = 72;
+const MATRIX_HOVER_PULSE_DURATION = 1080;
 const BUILDING_BLOOM_LAYER = 1;
 const BLOOM_PIXEL_RATIO = 0.24;
 const BLOOM_MIN_FPS = 50;
@@ -32,6 +40,44 @@ function seededRandom(seed: number) {
     value = (value * 1664525 + 1013904223) >>> 0;
     return value / 4294967296;
   };
+}
+
+function resolveAvatarModelSources(labels: string[], count: number) {
+  const keywordSource = (
+    label: string,
+  ): (typeof AVATAR_MODEL_SOURCES)[number] | null => {
+    const normalizedLabel = label.toLowerCase();
+    if (normalizedLabel.includes("design")) return AVATAR_MODEL_SOURCES[1];
+    if (normalizedLabel.includes("edit")) return AVATAR_MODEL_SOURCES[2];
+    if (
+      normalizedLabel.includes("video") ||
+      normalizedLabel.includes("camera") ||
+      normalizedLabel.includes("film")
+    ) {
+      return AVATAR_MODEL_SOURCES[3];
+    }
+    return null;
+  };
+
+  const matchedSources = Array.from({ length: count }, (_, index) =>
+    keywordSource(labels[index] || ""),
+  );
+  const reservedSources = new Set(matchedSources.filter(Boolean));
+  const usedSources = new Set<string>();
+
+  return matchedSources.map((matchedSource) => {
+    if (matchedSource && !usedSources.has(matchedSource)) {
+      usedSources.add(matchedSource);
+      return matchedSource;
+    }
+
+    const fallbackSource = AVATAR_MODEL_SOURCES.find(
+      (source) => !reservedSources.has(source) && !usedSources.has(source),
+    );
+    const source = fallbackSource || AVATAR_MODEL_SOURCES[0];
+    usedSources.add(source);
+    return source;
+  });
 }
 
 function createMatrixTextureFrames({
@@ -172,6 +218,7 @@ function createMatrixTextureFrames({
 export default function TalentMatrixScene({
   color = "#00ff46",
   cameraScrollProgress,
+  highlightAllBuildings,
   avatarCount = 0,
   avatarLabels = [],
   quality = "desktop",
@@ -179,6 +226,7 @@ export default function TalentMatrixScene({
   color?: string;
   density?: number;
   cameraScrollProgress?: MutableRefObject<{ value: number }>;
+  highlightAllBuildings?: MutableRefObject<{ value: boolean }>;
   avatarCount?: number;
   avatarLabels?: string[];
   quality?: "desktop" | "tablet" | "mobile";
@@ -360,11 +408,28 @@ export default function TalentMatrixScene({
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     });
+    type BuildingHoverTarget = {
+      id: string;
+      meshes: THREE.Mesh[];
+    };
+    type BuildingHoverVisual = {
+      fill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+      shell: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+      edges: THREE.LineSegments<
+        THREE.BufferGeometry,
+        THREE.LineBasicMaterial
+      >;
+      worldCenter: THREE.Vector3;
+    };
     const interactiveBuildings: THREE.Mesh[] = [];
-    let hoveredBuilding: THREE.Mesh | null = null;
-    let buildingHoverFill: THREE.Mesh | null = null;
-    let buildingHoverShell: THREE.Mesh | null = null;
-    let buildingHoverEdges: THREE.LineSegments | null = null;
+    const buildingHoverTargets = new Map<THREE.Mesh, BuildingHoverTarget>();
+    const buildingHoverVisuals = new Map<THREE.Mesh, BuildingHoverVisual>();
+    let allBuildingsHoverTarget: BuildingHoverTarget | null = null;
+    let activeBuildingHoverTarget: BuildingHoverTarget | null = null;
+    let activeBuildingHoverStartedAt = 0;
+    let hoverMatrixFrame = 0;
+    let lastHoverTextureUpdate = 0;
+    let submitHoverWasActive = false;
     const bloomSelectionLayer = new THREE.Layers();
     bloomSelectionLayer.set(BUILDING_BLOOM_LAYER);
     const bloomDepthMaterial = new THREE.MeshBasicMaterial({
@@ -387,7 +452,7 @@ export default function TalentMatrixScene({
         const isBloomSource = bloomSelectionLayer.test(object.layers);
         if (isBloomSource) return;
 
-        if (object === buildingHoverShell) {
+        if (object.userData.matrixHoverShell === true) {
           bloomVisibilityCache.set(object, object.visible);
           object.visible = false;
         } else if (object instanceof THREE.Mesh) {
@@ -415,75 +480,167 @@ export default function TalentMatrixScene({
       bloomVisibilityCache.clear();
     };
 
-    const clearBuildingHover = () => {
-      buildingHoverFill?.removeFromParent();
-      buildingHoverShell?.removeFromParent();
-      buildingHoverEdges?.removeFromParent();
-      hoveredBuilding = null;
-      host.style.cursor = "";
-      delete host.dataset.hoveredBuilding;
-    };
-
-    const setBuildingHover = (building: THREE.Mesh | null) => {
-      if (building === hoveredBuilding) return;
-      clearBuildingHover();
-      if (!building) return;
+    const getBuildingHoverVisual = (building: THREE.Mesh) => {
+      const cachedVisual = buildingHoverVisuals.get(building);
+      if (cachedVisual) return cachedVisual;
 
       const outline = building.children.find(
         (child): child is THREE.LineSegments =>
           child instanceof THREE.LineSegments &&
           child.name.endsWith("_Matrix_Outline"),
       );
-      if (!outline) return;
+      if (!outline) return null;
 
-      if (!buildingHoverFill) {
-        buildingHoverFill = new THREE.Mesh(
-          building.geometry,
-          buildingHoverFillMaterial,
-        );
-        buildingHoverFill.name = "Matrix_Building_Hover_Fill";
-        buildingHoverFill.renderOrder = 2;
-        buildingHoverFill.raycast = () => undefined;
-        buildingHoverFill.layers.enable(BUILDING_BLOOM_LAYER);
-      } else {
-        buildingHoverFill.geometry = building.geometry;
-      }
+      const fillMaterial = buildingHoverFillMaterial.clone();
+      const shellMaterial = buildingHoverShellMaterial.clone();
+      const edgeMaterial = buildingHoverEdgeMaterial.clone();
+      const fill = new THREE.Mesh(building.geometry, fillMaterial);
+      fill.name = `${building.name}_Matrix_Hover_Fill`;
+      fill.renderOrder = 2;
+      fill.raycast = () => undefined;
+      fill.layers.enable(BUILDING_BLOOM_LAYER);
+      fill.visible = false;
 
-      if (!buildingHoverShell) {
-        buildingHoverShell = new THREE.Mesh(
-          building.geometry,
-          buildingHoverShellMaterial,
-        );
-        buildingHoverShell.name = "Matrix_Building_Hover_Shell";
-        buildingHoverShell.renderOrder = 2;
-        buildingHoverShell.raycast = () => undefined;
-      } else {
-        buildingHoverShell.geometry = building.geometry;
-      }
-      buildingHoverShell.scale.setScalar(1.016);
+      const shell = new THREE.Mesh(building.geometry, shellMaterial);
+      shell.name = `${building.name}_Matrix_Hover_Shell`;
+      shell.renderOrder = 2;
+      shell.raycast = () => undefined;
+      shell.scale.setScalar(1.016);
+      shell.visible = false;
+      shell.userData.matrixHoverShell = true;
 
-      if (!buildingHoverEdges) {
-        buildingHoverEdges = new THREE.LineSegments(
-          outline.geometry,
-          buildingHoverEdgeMaterial,
-        );
-        buildingHoverEdges.name = "Matrix_Building_Hover_Edges";
-        buildingHoverEdges.renderOrder = 3;
-        buildingHoverEdges.raycast = () => undefined;
-        buildingHoverEdges.layers.enable(BUILDING_BLOOM_LAYER);
-      } else {
-        buildingHoverEdges.geometry = outline.geometry;
-      }
-      buildingHoverEdges.scale.setScalar(1.006);
-
-      building.add(
-        buildingHoverFill,
-        buildingHoverShell,
-        buildingHoverEdges,
+      const edges = new THREE.LineSegments(
+        outline.geometry,
+        edgeMaterial,
       );
-      hoveredBuilding = building;
-      host.style.cursor = "pointer";
-      host.dataset.hoveredBuilding = building.name || "building";
+      edges.name = `${building.name}_Matrix_Hover_Edges`;
+      edges.renderOrder = 3;
+      edges.raycast = () => undefined;
+      edges.layers.enable(BUILDING_BLOOM_LAYER);
+      edges.scale.setScalar(1.006);
+      edges.visible = false;
+
+      building.add(fill, shell, edges);
+      building.updateWorldMatrix(true, false);
+      const worldCenter = new THREE.Box3()
+        .setFromObject(building)
+        .getCenter(new THREE.Vector3());
+      const visual = { fill, shell, edges, worldCenter };
+      buildingHoverVisuals.set(building, visual);
+      return visual;
+    };
+
+    const setBuildingHoverVisual = (
+      building: THREE.Mesh,
+      visible: boolean,
+    ) => {
+      const visual = visible
+        ? getBuildingHoverVisual(building)
+        : buildingHoverVisuals.get(building);
+      if (!visual) return;
+      visual.fill.visible = visible;
+      visual.shell.visible = visible;
+      visual.edges.visible = visible;
+      if (visible) {
+        visual.fill.material.opacity = 0;
+        visual.shell.material.opacity = 0;
+        visual.edges.material.opacity = 0;
+      }
+    };
+
+    const clearBuildingHover = () => {
+      activeBuildingHoverTarget?.meshes.forEach((building) => {
+        setBuildingHoverVisual(building, false);
+      });
+      activeBuildingHoverTarget = null;
+      activeBuildingHoverStartedAt = 0;
+      lastHoverTextureUpdate = 0;
+      bloomOverlayMaterial.opacity = 0.55;
+      bloomPass.strength = 0.8;
+      host.style.cursor = "";
+      delete host.dataset.hoveredBuilding;
+      delete host.dataset.hoveredBuildingMeshes;
+      delete host.dataset.hoverPulse;
+      delete host.dataset.hoverMatrixFrame;
+    };
+
+    const setBuildingHover = (target: BuildingHoverTarget | null) => {
+      if (target === activeBuildingHoverTarget) return;
+      clearBuildingHover();
+      if (!target?.meshes.length) return;
+
+      target.meshes.forEach((building) => {
+        setBuildingHoverVisual(building, true);
+      });
+      activeBuildingHoverTarget = target;
+      activeBuildingHoverStartedAt = performance.now();
+      hoverMatrixFrame = 0;
+      lastHoverTextureUpdate = 0;
+      host.style.cursor = target.id === "all-buildings" ? "" : "pointer";
+      host.dataset.hoveredBuilding = target.id;
+      host.dataset.hoveredBuildingMeshes = String(target.meshes.length);
+    };
+
+    const updateBuildingHoverPulse = (now: number) => {
+      const target = activeBuildingHoverTarget;
+      if (!target?.meshes.length) return;
+
+      const attackProgress = THREE.MathUtils.clamp(
+        (now - activeBuildingHoverStartedAt) / 180,
+        0,
+        1,
+      );
+      const attack = attackProgress * attackProgress * (3 - 2 * attackProgress);
+      const timePhase =
+        (now / MATRIX_HOVER_PULSE_DURATION) * Math.PI * 2;
+      let pulseTotal = 0;
+
+      target.meshes.forEach((building) => {
+        const visual = buildingHoverVisuals.get(building);
+        if (!visual) return;
+
+        const spatialPhase =
+          target.id === "all-buildings"
+            ? visual.worldCenter.x * 0.11 + visual.worldCenter.z * 0.035
+            : target.id === "Central_Tiered_Tower"
+              ? visual.worldCenter.y * 0.22
+              : 0;
+        const sinePulse =
+          0.5 + 0.5 * Math.sin(timePhase - spatialPhase - Math.PI / 2);
+        const crest = Math.pow(sinePulse, 1.65);
+        const pulse = 0.12 + crest * 0.88;
+        pulseTotal += pulse;
+
+        visual.fill.material.opacity = attack * (0.06 + pulse * 0.7);
+        visual.shell.material.opacity = attack * (0.03 + pulse * 0.3);
+        visual.edges.material.opacity = attack * (0.18 + pulse * 0.82);
+        visual.shell.scale.setScalar(1.012 + pulse * 0.012);
+        visual.edges.scale.setScalar(1.004 + pulse * 0.004);
+      });
+
+      const averagePulse = pulseTotal / target.meshes.length;
+      bloomOverlayMaterial.opacity = 0.24 + averagePulse * 0.42;
+      bloomPass.strength = 0.58 + averagePulse * 0.58;
+      host.dataset.hoverPulse = averagePulse.toFixed(3);
+
+      const hoverTextureInterval =
+        quality === "desktop"
+          ? MATRIX_HOVER_TEXTURE_UPDATE_INTERVAL
+          : quality === "tablet"
+            ? 92
+            : 112;
+      if (now - lastHoverTextureUpdate >= hoverTextureInterval) {
+        hoverMatrixFrame =
+          (hoverMatrixFrame + 1) % MATRIX_TEXTURE_FRAME_COUNT;
+        const hoverTexture = buildingSurface.textures[hoverMatrixFrame];
+        target.meshes.forEach((building) => {
+          const visual = buildingHoverVisuals.get(building);
+          if (visual) visual.fill.material.map = hoverTexture;
+        });
+        host.dataset.hoverMatrixFrame = String(hoverMatrixFrame);
+        lastHoverTextureUpdate =
+          now - ((now - lastHoverTextureUpdate) % hoverTextureInterval);
+      }
     };
 
     const fallbackCamera = new THREE.PerspectiveCamera(48, 1, 0.1, 190);
@@ -539,6 +696,7 @@ export default function TalentMatrixScene({
       projectedPosition: THREE.Vector3;
       screenOffsetY: number;
     }> = [];
+    const avatarTextures = new Set<THREE.Texture>();
     const resolvedAvatarLabels = avatarLabelsKey.split("\u0000");
     host.dataset.avatarLayout = "world";
 
@@ -655,6 +813,29 @@ export default function TalentMatrixScene({
           originalMaterials.forEach((material) => material.dispose());
         });
 
+        const centralTowerMeshes = interactiveBuildings.filter((building) =>
+          building.name.startsWith("Tower_"),
+        );
+        const centralTowerTarget: BuildingHoverTarget = {
+          id: "Central_Tiered_Tower",
+          meshes: centralTowerMeshes,
+        };
+        interactiveBuildings.forEach((building) => {
+          buildingHoverTargets.set(
+            building,
+            building.name.startsWith("Tower_")
+              ? centralTowerTarget
+              : { id: building.name || "building", meshes: [building] },
+          );
+        });
+        allBuildingsHoverTarget = {
+          id: "all-buildings",
+          meshes: interactiveBuildings,
+        };
+        host.dataset.buildingHoverTargets = String(
+          interactiveBuildings.length - centralTowerMeshes.length + 1,
+        );
+
         scene.add(cityModel);
         const modelCamera = cityModel.getObjectByName("Website_Camera_1440x900");
         if (modelCamera instanceof THREE.PerspectiveCamera) {
@@ -678,56 +859,77 @@ export default function TalentMatrixScene({
 
     if (avatarCount > 0) {
       const avatarLoader = new GLTFLoader();
-      avatarLoader.load(
-        "/models/pathetic-talent-avatar.glb",
-        ({ scene: avatarModel }) => {
-          if (disposed) {
+      const requestedAvatarCount = Math.min(avatarCount, 4);
+      const avatarModelSources = resolveAvatarModelSources(
+        resolvedAvatarLabels,
+        requestedAvatarCount,
+      );
+      let loadedAvatarCount = 0;
+      let failedAvatarCount = 0;
+
+      host.dataset.avatarSources = avatarModelSources
+        .map((source) => source.split("/").at(-1)?.replace(".glb", "") || "")
+        .join(",");
+
+      const disposeDetachedAvatarModel = (model: THREE.Object3D) => {
+        model.traverse((object) => {
+          if (!(object instanceof THREE.Mesh)) return;
+          object.geometry.dispose();
+          const materials = Array.isArray(object.material)
+            ? object.material
+            : [object.material];
+          materials.forEach((material) => {
+            Object.values(material).forEach((value) => {
+              if (value instanceof THREE.Texture) value.dispose();
+            });
+            material.dispose();
+          });
+        });
+      };
+
+      avatarModelSources.forEach((source, index) => {
+        avatarLoader.load(
+          source,
+          ({ scene: avatarModel }) => {
+            if (disposed) {
+              disposeDetachedAvatarModel(avatarModel);
+              return;
+            }
+
+            avatarModel.name = `Pathetic_Talent_Avatar_Source_${index + 1}`;
             avatarModel.traverse((object) => {
               if (!(object instanceof THREE.Mesh)) return;
-              object.geometry.dispose();
+              object.frustumCulled = false;
               const materials = Array.isArray(object.material)
                 ? object.material
                 : [object.material];
-              materials.forEach((material) => material.dispose());
+              materials.forEach((material) => {
+                Object.values(material).forEach((value) => {
+                  if (value instanceof THREE.Texture) {
+                    avatarTextures.add(value);
+                  }
+                });
+                if (material instanceof THREE.MeshStandardMaterial) {
+                  material.roughness = 0.78;
+                  material.metalness = 0;
+                  material.emissive.set("#003d16");
+                  material.emissiveIntensity = 0.22;
+                }
+              });
+              object.renderOrder = 5;
             });
-            return;
-          }
 
-          avatarModel.name = "Pathetic_Talent_Avatar_Source";
-          avatarModel.traverse((object) => {
-            if (!(object instanceof THREE.Mesh)) return;
-            object.frustumCulled = false;
-            const materials = Array.isArray(object.material)
-              ? object.material
-              : [object.material];
-            const adjustedMaterials = materials.map((material) => {
-              const adjusted = material.clone();
-              if (adjusted instanceof THREE.MeshStandardMaterial) {
-                adjusted.roughness = 0.78;
-                adjusted.metalness = 0;
-                adjusted.emissive.set("#003d16");
-                adjusted.emissiveIntensity = 0.22;
-              }
-              return adjusted;
-            });
-            object.material = Array.isArray(object.material)
-              ? adjustedMaterials
-              : adjustedMaterials[0];
-            object.renderOrder = 5;
-          });
+            const bounds = new THREE.Box3().setFromObject(avatarModel);
+            const center = bounds.getCenter(new THREE.Vector3());
+            const size = bounds.getSize(new THREE.Vector3());
+            const normalizedAvatar = new THREE.Group();
+            avatarModel.position.set(-center.x, -bounds.min.y, -center.z);
+            normalizedAvatar.add(avatarModel);
+            normalizedAvatar.scale.setScalar(1 / Math.max(size.y, 0.001));
 
-          const bounds = new THREE.Box3().setFromObject(avatarModel);
-          const center = bounds.getCenter(new THREE.Vector3());
-          const size = bounds.getSize(new THREE.Vector3());
-          const normalizedAvatar = new THREE.Group();
-          avatarModel.position.set(-center.x, -bounds.min.y, -center.z);
-          normalizedAvatar.add(avatarModel);
-          normalizedAvatar.scale.setScalar(1 / Math.max(size.y, 0.001));
-
-          for (let index = 0; index < Math.min(avatarCount, 4); index += 1) {
             const avatar = new THREE.Group();
             avatar.name = `Talent_Avatar_${index + 1}`;
-            avatar.add(normalizedAvatar.clone(true));
+            avatar.add(normalizedAvatar);
             const worldPosition = AVATAR_WORLD_POSITIONS[index];
             avatar.position.set(
               worldPosition[0],
@@ -802,16 +1004,20 @@ export default function TalentMatrixScene({
                     : 0,
               });
             }
-          }
 
-          host.dataset.avatarSource = "gltf";
-          scheduleShaderWarmup();
-        },
-        undefined,
-        () => {
-          if (!disposed) host.dataset.avatarError = "true";
-        },
-      );
+            loadedAvatarCount += 1;
+            host.dataset.avatarLoaded = `${loadedAvatarCount}/${requestedAvatarCount}`;
+            host.dataset.avatarSource = "gltf-multi";
+            scheduleShaderWarmup();
+          },
+          undefined,
+          () => {
+            if (disposed) return;
+            failedAvatarCount += 1;
+            host.dataset.avatarError = `${failedAvatarCount}/${requestedAvatarCount}`;
+          },
+        );
+      });
     }
 
     const pointer = new THREE.Vector2();
@@ -820,6 +1026,7 @@ export default function TalentMatrixScene({
     let buildingPickPending = false;
 
     const updateBuildingHover = () => {
+      if (highlightAllBuildings?.current.value) return;
       if (!pointerInside || !interactiveBuildings.length) {
         setBuildingHover(null);
         return;
@@ -833,7 +1040,9 @@ export default function TalentMatrixScene({
         false,
       )[0];
       setBuildingHover(
-        hit?.object instanceof THREE.Mesh ? hit.object : null,
+        hit?.object instanceof THREE.Mesh
+          ? buildingHoverTargets.get(hit.object) || null
+          : null,
       );
     };
 
@@ -1014,12 +1223,26 @@ export default function TalentMatrixScene({
           element.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
         },
       );
+      const submitHoverIsActive = !!highlightAllBuildings?.current.value;
+      if (submitHoverIsActive) {
+        if (
+          allBuildingsHoverTarget &&
+          activeBuildingHoverTarget !== allBuildingsHoverTarget
+        ) {
+          setBuildingHover(allBuildingsHoverTarget);
+        }
+      } else if (submitHoverWasActive) {
+        setBuildingHover(null);
+        buildingPickPending = pointerInside;
+      }
+      submitHoverWasActive = submitHoverIsActive;
       if (pointerInside && buildingPickPending) {
         updateBuildingHover();
         buildingPickPending = false;
       }
 
-      const hasHoveredBuilding = hoveredBuilding !== null;
+      const hasHoveredBuilding = activeBuildingHoverTarget !== null;
+      if (hasHoveredBuilding) updateBuildingHoverPulse(now);
       let renderBloom =
         quality === "desktop" &&
         hasHoveredBuilding &&
@@ -1091,6 +1314,15 @@ export default function TalentMatrixScene({
         host.removeEventListener("pointerleave", onPointerLeave);
       }
       clearBuildingHover();
+      buildingHoverVisuals.forEach(({ fill, shell, edges }) => {
+        fill.removeFromParent();
+        shell.removeFromParent();
+        edges.removeFromParent();
+        fill.material.dispose();
+        shell.material.dispose();
+        edges.material.dispose();
+      });
+      buildingHoverVisuals.clear();
       scene.traverse((object) => {
         if (
           object instanceof THREE.Mesh ||
@@ -1106,6 +1338,7 @@ export default function TalentMatrixScene({
         }
       });
       matrixTextures.forEach((texture) => texture.dispose());
+      avatarTextures.forEach((texture) => texture.dispose());
       avatarLabelLayer.remove();
       buildingHoverFillMaterial.dispose();
       buildingHoverShellMaterial.dispose();
@@ -1118,7 +1351,14 @@ export default function TalentMatrixScene({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [avatarCount, avatarLabelsKey, cameraScrollProgress, color, quality]);
+  }, [
+    avatarCount,
+    avatarLabelsKey,
+    cameraScrollProgress,
+    color,
+    highlightAllBuildings,
+    quality,
+  ]);
 
   return (
     <div

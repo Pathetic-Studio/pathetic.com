@@ -124,6 +124,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
 
     const context = gsap.context(() => {
       const finePointer = window.matchMedia("(pointer: fine)").matches;
+      const detailHoverQuery = window.matchMedia("(min-width: 1024px)");
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
       ).matches;
@@ -210,12 +211,14 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
           gsap.set(images, {
             autoAlpha: 0,
             scale: 0.16,
+            rotation: 0,
             xPercent: -50,
             yPercent: -50,
             transformOrigin: "50% 50%",
           });
           let imageTimeline: gsap.core.Timeline | null = null;
           const onEnter = () => {
+            if (!detailHoverQuery.matches) return;
             imageTimeline?.kill();
             gsap.killTweensOf(images);
             gsap.to([detailStar, detailCopy].filter(Boolean), {
@@ -235,16 +238,17 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 gsap.set(image, {
                   x: Math.cos(angle) * item.clientWidth * radius,
                   y: Math.sin(angle) * item.clientHeight * radius,
-                  rotation: gsap.utils.random(-18, 18),
+                  rotation: 0,
                 });
               };
               imageTimeline!
                 .call(moveToRandomSpot)
                 .fromTo(
                   image,
-                  { autoAlpha: 0, scale: 0.16 },
+                  { opacity: 0, visibility: "visible", scale: 0.16 },
                   {
-                    autoAlpha: 1,
+                    opacity: 1,
+                    visibility: "visible",
                     scale: 1,
                     duration: 0.34,
                     ease: "back.out(1.65)",
@@ -278,12 +282,17 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
               overwrite: "auto",
             });
           };
+          const onDetailBreakpointChange = () => {
+            if (!detailHoverQuery.matches) onLeave();
+          };
           item.addEventListener("pointerenter", onEnter);
           item.addEventListener("pointerleave", onLeave);
+          detailHoverQuery.addEventListener("change", onDetailBreakpointChange);
           listenerCleanups.push(() => {
             imageTimeline?.kill();
             item.removeEventListener("pointerenter", onEnter);
             item.removeEventListener("pointerleave", onLeave);
+            detailHoverQuery.removeEventListener("change", onDetailBreakpointChange);
           });
         });
       }
@@ -607,7 +616,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 >
                   <span
                     data-network-detail-image
-                    className="relative block h-full w-full will-change-transform"
+                    className="relative block h-full w-full opacity-0 will-change-transform"
                   >
                     <Image
                       src={DETAIL_STAT_PLACEHOLDER_IMAGES[index % DETAIL_STAT_PLACEHOLDER_IMAGES.length]}

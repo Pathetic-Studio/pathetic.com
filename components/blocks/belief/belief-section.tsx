@@ -278,8 +278,8 @@ export default function BeliefSection(props: BeliefBlock) {
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 z-[5] h-full w-full"
           >
-            <div data-belief-glow-pulse="wide" className="belief-sky-glow-pulse absolute left-[18%] top-[2%] h-[35%] w-[70%] rounded-[50%] bg-[#627AFF] opacity-85 blur-[clamp(4rem,8vw,8rem)]" />
-            <div data-belief-glow-pulse="core" className="belief-sky-glow-pulse absolute left-[33%] top-[8%] h-[22%] w-[42%] rounded-[50%] bg-[#7388ff] opacity-75 blur-[clamp(2.5rem,6vw,6rem)] [animation-delay:-1.7s]" />
+            <div data-belief-glow-pulse="wide" className="belief-sky-glow-pulse absolute left-[20%] top-[clamp(15rem,20vw,19rem)] h-[clamp(10rem,15vw,14rem)] w-[60%] rounded-[50%] bg-[#627AFF] opacity-85 blur-[clamp(3rem,5vw,5rem)]" />
+            <div data-belief-glow-pulse="core" className="belief-sky-glow-pulse absolute left-[31%] top-[clamp(17rem,23vw,21rem)] h-[clamp(7rem,10vw,9rem)] w-[38%] rounded-[50%] bg-[#7388ff] opacity-75 blur-[clamp(2rem,3.5vw,3.5rem)] [animation-delay:-1.7s]" />
           </div>
 
           {/* The export uses several interleaved cloud/figure layers. Keep that
@@ -473,17 +473,17 @@ export default function BeliefSection(props: BeliefBlock) {
           }
 
           [data-belief-glow-pulse="wide"] {
-            left: -5% !important;
-            top: 5.5rem !important;
-            width: 110% !important;
-            height: 18rem !important;
+            left: 0 !important;
+            top: 11.5rem !important;
+            width: 100% !important;
+            height: 11rem !important;
           }
 
           [data-belief-glow-pulse="core"] {
-            left: 10% !important;
-            top: 8rem !important;
-            width: 80% !important;
-            height: 13rem !important;
+            left: 14% !important;
+            top: 13rem !important;
+            width: 72% !important;
+            height: 8rem !important;
           }
 
           [data-belief-cloud-group] {
@@ -543,17 +543,17 @@ export default function BeliefSection(props: BeliefBlock) {
         @media (max-width: 639px) {
 
           [data-belief-glow-pulse="wide"] {
-            left: -20% !important;
-            top: 7rem !important;
-            width: 140% !important;
-            height: 18rem !important;
+            left: -6% !important;
+            top: 11rem !important;
+            width: 112% !important;
+            height: 11rem !important;
           }
 
           [data-belief-glow-pulse="core"] {
-            left: 2% !important;
-            top: 9rem !important;
-            width: 96% !important;
-            height: 14rem !important;
+            left: 8% !important;
+            top: 13rem !important;
+            width: 84% !important;
+            height: 8rem !important;
           }
 
           [data-belief-cloud-group="cloud-back-left-wide"] { left: -55% !important; top: -2rem !important; width: 130% !important; }

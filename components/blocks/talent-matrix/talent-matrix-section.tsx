@@ -1,6 +1,6 @@
 "use client";
 
-import type { MutableRefObject } from "react";
+import { useRef, type MutableRefObject } from "react";
 import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export function TalentMatrixView({
   cameraScrollProgress?: MutableRefObject<{ value: number }>;
   quality?: "desktop" | "tablet" | "mobile";
 }) {
+  const highlightAllBuildings = useRef({ value: false });
   const sceneColor = colorValue(block.sceneColor, "#00ff46");
   const backgroundColor = colorValue(block.backgroundColor, "#000600");
   const density = Math.max(12, Math.min(54, stegaClean(block.cityDensity) || 30));
@@ -63,6 +64,7 @@ export function TalentMatrixView({
         color={sceneColor}
         density={density}
         cameraScrollProgress={cameraScrollProgress}
+        highlightAllBuildings={highlightAllBuildings}
         avatarCount={Math.min(talents.length, 4)}
         avatarLabels={talents
           .slice(0, 4)
@@ -146,13 +148,24 @@ export function TalentMatrixView({
           </p>
         )}
         {block.cta?.title && (
-          <Button
-            link={block.cta as any}
-            size="lg"
-            className="pointer-events-auto mt-5 border border-white bg-white text-sm font-semibold uppercase text-black hover:bg-black hover:text-white"
+          <div
+            data-matrix-submit-hover="true"
+            className="pointer-events-auto mt-5"
+            onMouseEnter={() => {
+              highlightAllBuildings.current.value = true;
+            }}
+            onMouseLeave={() => {
+              highlightAllBuildings.current.value = false;
+            }}
           >
-            {stegaClean(block.cta.title)}
-          </Button>
+            <Button
+              link={block.cta as any}
+              size="lg"
+              className="border border-white bg-white text-sm font-semibold uppercase text-black hover:bg-black hover:text-white"
+            >
+              {stegaClean(block.cta.title)}
+            </Button>
+          </div>
         )}
       </div>
 
