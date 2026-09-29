@@ -9,6 +9,7 @@ import {
   Camera,
   Loader2,
   GalleryVerticalEnd,
+  BriefcaseBusiness,
 } from "lucide-react";
 
 export const structure = (S: any, context: any) =>
@@ -61,6 +62,16 @@ export const structure = (S: any, context: any) =>
             .id("caseStudy")
             .schemaType("caseStudy")
             .documentId("caseStudy")
+        ),
+
+      S.listItem()
+        .title("Jobs")
+        .icon(BriefcaseBusiness)
+        .child(
+          S.editor()
+            .id("jobsPage")
+            .schemaType("jobsPage")
+            .documentId("jobsPage")
         ),
 
       // Contact Submissions

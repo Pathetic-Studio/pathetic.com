@@ -6,6 +6,19 @@ import {
 
 export const resolve: PresentationPluginOptions["resolve"] = {
   locations: {
+    jobsPage: defineLocations({
+      select: {
+        title: "title",
+      },
+      resolve: (doc) => ({
+        locations: [
+          {
+            title: doc?.title || "Jobs",
+            href: "/jobs",
+          },
+        ],
+      }),
+    }),
     // Add more locations for other post types
     post: defineLocations({
       select: {
@@ -24,6 +37,10 @@ export const resolve: PresentationPluginOptions["resolve"] = {
     }),
   },
   mainDocuments: defineDocuments([
+    {
+      route: "/jobs",
+      filter: `_type == 'jobsPage' && _id == 'jobsPage'`,
+    },
     {
       route: "/",
       filter: `_type == 'page' && slug.current == 'index'`,

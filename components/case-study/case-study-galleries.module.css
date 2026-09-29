@@ -1,0 +1,363 @@
+.jumble {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 5rem 4%;
+  width: min(90%, 1380px);
+  margin: 0 auto;
+  padding: 1rem 0 8rem;
+  list-style: none;
+}
+.jumble > li {
+  min-width: 0;
+  justify-self: center;
+  margin-top: var(--offset);
+}
+.portraitTile {
+  width: min(65%, 145px);
+}
+.wideTile {
+  width: min(100%, 235px);
+}
+.tile {
+  display: block;
+  width: 100%;
+  text-align: center;
+  cursor: pointer;
+  color: inherit;
+}
+.thumbnail {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #e8e8e8;
+  transform: none;
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 0.35s;
+}
+.thumbnail img {
+  object-fit: cover;
+}
+.object {
+  background: transparent;
+}
+.object img {
+  padding: 10%;
+}
+.tile:hover .thumbnail,
+.tile:focus-visible .thumbnail {
+  transform: scale(1.04);
+  box-shadow: 0 16px 32px #00000012;
+}
+.tile:focus-visible {
+  outline: 2px solid #080808;
+  outline-offset: 12px;
+}
+.tileCopy {
+  display: block;
+  margin-top: 1.5rem;
+}
+.tileCopy > span {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+.tileCopy > span > span {
+  margin-left: 0.2em;
+}
+.tileCopy strong {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: clamp(0.95rem, 1.25vw, 1.25rem);
+  line-height: 1.1;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.tileCopy small {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.7rem;
+  color: #555;
+  text-transform: uppercase;
+}
+.preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.preview[data-playing="true"] {
+  opacity: 1;
+}
+.previewMark {
+  position: absolute;
+  bottom: 0.55rem;
+  right: 0.55rem;
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #fff;
+  color: #000;
+  font-size: 10px;
+}
+.communityJumble {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(84%, 1040px);
+  gap: 3rem 8%;
+  padding-block: 2rem 6rem;
+}
+.communityJumble .portraitTile {
+  width: min(85%, 230px);
+}
+.communityJumble .tileCopy strong {
+  display: none;
+}
+.communityJumble:has(> li:nth-child(2):last-child) {
+  grid-template-columns: 1fr 1fr;
+}
+.communityJumble .wideTile {
+  width: 100%;
+  max-width: 440px;
+}
+.reel {
+  width: min(100%, 1200px);
+  margin-inline: auto;
+}
+.reelStage {
+  --orbit-card-width: 340px;
+  --orbit-card-height: 310px;
+  position: relative;
+  height: 460px;
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  cursor: grab;
+}
+.reelStage[data-dragging="true"],
+.reelStage[data-dragging="true"] .reelCard {
+  cursor: grabbing;
+}
+.reelCard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(
+    var(--orbit-card-width),
+    calc(var(--orbit-card-height) * var(--photo-ratio))
+  );
+  aspect-ratio: var(--photo-ratio);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  transform: translate(-50%, -50%) scale(0.4);
+}
+.reelCard:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 6px;
+}
+.reelCard img {
+  object-fit: contain;
+  pointer-events: none;
+}
+.reelControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 0 1rem;
+}
+.reelControls button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border: 1px solid #111;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.reelControls button:hover {
+  background: #d6ff00;
+}
+.reelControls button:focus-visible,
+.close:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 4px;
+}
+.reelControls p {
+  width: min(50vw, 340px);
+  text-align: center;
+}
+.reelControls strong {
+  display: block;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.reelControls p > span {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #fffefbf5;
+  backdrop-filter: blur(6px);
+}
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  padding: 5rem 4vw 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+}
+.lightboxImage {
+  position: relative;
+  width: 100%;
+  height: calc(100svh - 10rem);
+}
+.contain {
+  object-fit: contain;
+}
+.lightbox p {
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 1rem;
+  max-width: 40rem;
+}
+.close {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: #d6ff00;
+  border: 1px solid #111;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .jumble {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3.5rem 5%;
+  }
+}
+@media (max-width: 760px) {
+  .jumble {
+    width: 88%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2.8rem 10%;
+    padding-bottom: 4rem;
+  }
+  .jumble > li {
+    margin-top: calc(var(--offset) * 0.4);
+  }
+  .portraitTile {
+    width: 80%;
+    max-width: 165px;
+  }
+  .wideTile {
+    width: 100%;
+  }
+  .tileCopy {
+    margin-top: 1.15rem;
+  }
+  .tileCopy > span {
+    font-size: 0.65rem;
+  }
+  .tileCopy small {
+    font-size: 0.6rem;
+  }
+  .communityJumble {
+    gap: 2rem 9%;
+  }
+  .communityJumble .portraitTile {
+    width: 100%;
+  }
+  .communityJumble:has(> li:nth-child(2):last-child) {
+    grid-template-columns: 1fr;
+    width: 78%;
+  }
+  .reelStage {
+    --orbit-card-width: min(50vw, 280px);
+    --orbit-card-height: 240px;
+    height: 370px;
+  }
+  .reelControls {
+    gap: 1rem;
+  }
+  .reelControls strong {
+    font-size: 1rem;
+  }
+  .reelControls button {
+    width: 42px;
+    height: 42px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thumbnail,
+  .preview,
+  .reelCard,
+  .reelControls button {
+    transition: none;
+  }
+  .tile:hover .thumbnail,
+  .tile:focus-visible .thumbnail {
+    transform: scale(1.04);
+  }
+}
+.collection {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2.5rem 5%;
+  max-width: 1200px;
+}
+.collection > li {
+  grid-column: span 2;
+}
+.collection .object img {
+  padding: 0;
+}
+.collection .object {
+  overflow: visible;
+}
+.collection .tile:hover .object,
+.collection .tile:focus-visible .object {
+  box-shadow: none;
+}
+.collection > li:nth-child(4) {
+  grid-column: 2 / span 2;
+}
+.collection > li:nth-child(5) {
+  grid-column: 4 / span 2;
+}
+@media (max-width: 760px) {
+  .collection {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2.8rem 10%;
+  }
+  .collection > li,
+  .collection > li:nth-child(4) {
+    grid-column: auto;
+  }
+  .collection > li:nth-child(5) {
+    grid-column: 1 / -1;
+    width: 46%;
+  }
+}

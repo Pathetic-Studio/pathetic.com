@@ -16,8 +16,16 @@ import { stegaClean } from "next-sanity";
 import type { ColorVariant, PAGE_QUERYResult } from "@/sanity.types";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
+import TitleText from "@/components/ui/title-text";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import { cn } from "@/lib/utils";
+import {
+  AIR_OBJECT,
+  CASH_APP_OBJECT,
+  SQUARE_OBJECT,
+  WORK_TITLE_CARDS,
+} from "@/lib/work-assets";
+import WorkPreview from "./work-preview";
 import WorkContentViewer, {
   type WorkViewerContent,
 } from "./work-content-viewer";
@@ -41,11 +49,14 @@ type ResolvedFloatingProject = {
   expandedImageAlt?: string;
   expandedVideoUrl?: string;
   expandedVideoPosterUrl?: string;
+  caseStudyHref?: string;
   mediaType: "image" | "video";
   imageUrl?: string;
   imageAlt?: string;
   videoUrl?: string;
   videoPosterUrl?: string;
+  titleCardUrl?: string;
+  previewScale?: number;
   mediaFit: "contain" | "cover";
   positionX?: number | null;
   positionY?: number | null;
@@ -89,25 +100,27 @@ const DEFAULT_POSITIONS = [
 ] as const;
 
 const TABLET_POSITIONS = [
-  { x: 14, y: 35, width: 13 },
-  { x: 38, y: 44, width: 12 },
-  { x: 64, y: 34, width: 13 },
-  { x: 86, y: 49, width: 15 },
-  { x: 21, y: 69, width: 13 },
-  { x: 52, y: 73, width: 12 },
-  { x: 80, y: 76, width: 13 },
-  { x: 39, y: 85, width: 13 },
+  { x: 13, y: 57, width: 16 },
+  { x: 36, y: 43, width: 13 },
+  { x: 83, y: 33, width: 19 },
+  { x: 58, y: 43, width: 18 },
+  { x: 84, y: 61, width: 11 },
+  { x: 14, y: 34, width: 19 },
+  { x: 31, y: 68, width: 21 },
+  { x: 59, y: 70, width: 20 },
+  { x: 29, y: 86, width: 22 },
 ] as const;
 
 const MOBILE_POSITIONS = [
-  { x: 25, y: 35, width: 25 },
-  { x: 73, y: 37, width: 22 },
-  { x: 27, y: 51, width: 23 },
-  { x: 72, y: 53, width: 27 },
-  { x: 25, y: 68, width: 24 },
-  { x: 73, y: 69, width: 22 },
-  { x: 27, y: 83, width: 23 },
-  { x: 72, y: 84, width: 24 },
+  { x: 22, y: 47, width: 31 },
+  { x: 74, y: 32, width: 28 },
+  { x: 73, y: 46, width: 34 },
+  { x: 26, y: 60, width: 36 },
+  { x: 75, y: 62, width: 21 },
+  { x: 25, y: 32, width: 35 },
+  { x: 24, y: 74, width: 37 },
+  { x: 73, y: 76, width: 37 },
+  { x: 26, y: 88, width: 37 },
 ] as const;
 
 const DEFAULT_HAND_POINTS = {
@@ -122,11 +135,17 @@ const GENERATED_HAND_POINTS = {
   wristX: 79.5,
   wristY: 75.8,
 } as const;
-const GENERATED_BODY_SRC = "/images/what-we-do/bendy-man-body-v2.png";
-const GENERATED_HAND_SRC = "/images/what-we-do/bendy-man-hand-v2.png";
-const GENERATED_BODY_SOCKET = { x: 33.8, y: 32.4 } as const;
+const GENERATED_BODY_SRC =
+  "/images/what-we-do/pointing-figure-shoulder-v4.webp";
+const GENERATED_BODY_REST_SRC =
+  "/images/what-we-do/pointing-figure-rest-v4.webp";
+const GENERATED_HAND_SRC = "/images/what-we-do/pointing-hand-v3.webp";
+// The active sprite omits the entire arm. Attach inside the actual shoulder
+// opening, so no photographed upper arm or forearm precedes the elastic sleeve.
+const GENERATED_BODY_SOCKET = { x: 35.45, y: 25.45 } as const;
+const GENERATED_BODY_EXIT_ANGLE = -Math.PI + 0.15;
 const GENERATED_HAND_CUFF_OUTWARD_ANGLE = (34 * Math.PI) / 180;
-const ARM_FILL = "#000000";
+const ARM_FILL = "#171717";
 const SIZZLE_FIRE_SRC = "/images/what-we-do/sizzle-fire-9987911.gif";
 const DEFAULT_CASE_STUDY_HREF = "/case-study";
 
@@ -134,15 +153,15 @@ const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
   {
     _key: "local-sandbar",
     title: "SANDBAR",
-    href: "/case-study",
+    href: "/case-study/stream-by-sandbar",
     interactionMode: "link",
     mediaType: "image",
-    imageUrl: "/images/what-we-do/sandbar.png",
+    imageUrl: "/images/case-studies/objects/stream-ring-hires.webp",
     imageAlt: "Sandbar smart ring",
     mediaFit: "contain",
-    positionX: 70,
-    positionY: 32,
-    width: 10,
+    positionX: 57,
+    positionY: 46,
+    width: 14,
     mobilePositionX: 71,
     mobilePositionY: 31,
     mobileWidth: 25,
@@ -150,17 +169,20 @@ const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
     floatDuration: 5.8,
   },
   {
-    _key: "local-video-01",
-    title: "FILM 01",
+    _key: "local-yom",
+    title: "YOU’RE ON MUTE",
     href: null,
     interactionMode: "fullscreen",
     mediaType: "video",
-    videoUrl: "/images/what-we-do/placeholder-loop-01.m4v",
+    videoUrl: "/media/work/yom-preview.mp4",
+    titleCardUrl: WORK_TITLE_CARDS["youre-on-mute"],
+    videoPosterUrl: "/media/case-studies/deel/yom-poster.webp",
     expandedMediaType: "video",
-    expandedVideoUrl: "/images/what-we-do/placeholder-loop-01.m4v",
+    expandedVideoUrl: "/media/case-studies/deel/yom.mp4",
+    caseStudyHref: "/case-study/deel#youre-on-mute",
     mediaFit: "cover",
-    positionX: 18,
-    positionY: 67,
+    positionX: 85,
+    positionY: 64,
     width: 8.5,
     mobilePositionX: 28,
     mobilePositionY: 66,
@@ -170,18 +192,22 @@ const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
     aspectRatio: "portrait",
   },
   {
-    _key: "local-video-02",
-    title: "FILM 02",
+    _key: "local-bless-this-desk",
+    title: "BLESS THIS DESK",
     href: null,
     interactionMode: "fullscreen",
     mediaType: "video",
-    videoUrl: "/images/what-we-do/placeholder-loop-02.m4v",
+    videoUrl: "/media/work/bless-this-desk-preview.mp4",
+    titleCardUrl: WORK_TITLE_CARDS["bless-this-desk"],
+    previewScale: 0.72,
+    videoPosterUrl: "/media/case-studies/deel/bless-this-desk-poster.webp",
     expandedMediaType: "video",
-    expandedVideoUrl: "/images/what-we-do/placeholder-loop-02.m4v",
+    expandedVideoUrl: "/media/case-studies/deel/bless-this-desk.mp4",
+    caseStudyHref: "/case-study/deel#bless-this-desk",
     mediaFit: "cover",
-    positionX: 86,
-    positionY: 30,
-    width: 8,
+    positionX: 18,
+    positionY: 37,
+    width: 13,
     mobilePositionX: 73,
     mobilePositionY: 42,
     mobileWidth: 23,
@@ -189,15 +215,60 @@ const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
     floatDuration: 5.7,
     aspectRatio: "portrait",
   },
+  {
+    _key: "local-square",
+    title: "SQUARE",
+    href: "/case-study/square-cash-app",
+    interactionMode: "link",
+    mediaType: "image",
+    imageUrl: SQUARE_OBJECT.src,
+    imageAlt: SQUARE_OBJECT.alt,
+    mediaFit: "contain",
+    positionX: 29,
+    positionY: 72,
+    width: 16.5,
+    floatAmount: 8,
+    floatDuration: 5.9,
+  },
+  {
+    _key: "local-cash-app",
+    title: "CASH APP",
+    href: "/case-study/square-cash-app",
+    interactionMode: "link",
+    mediaType: "image",
+    imageUrl: CASH_APP_OBJECT.src,
+    imageAlt: CASH_APP_OBJECT.alt,
+    mediaFit: "contain",
+    positionX: 70,
+    positionY: 72,
+    width: 15,
+    floatAmount: 9,
+    floatDuration: 6.3,
+  },
+  {
+    _key: "local-air",
+    title: "AIR",
+    href: "/case-study/air",
+    interactionMode: "link",
+    mediaType: "image",
+    imageUrl: AIR_OBJECT.src,
+    imageAlt: AIR_OBJECT.alt,
+    mediaFit: "contain",
+    positionX: 52,
+    positionY: 85,
+    width: 15,
+    floatAmount: 11,
+    floatDuration: 6.6,
+  },
 ];
 
 const CURATED_ITEM_LAYOUT: Record<
   string,
   Pick<ResolvedFloatingProject, "positionX" | "positionY" | "width">
 > = {
-  whatWeDoRamp: { positionX: 10, positionY: 29, width: 9 },
-  whatWeDoDoorDash: { positionX: 33, positionY: 35, width: 10.5 },
-  whatWeDoAdidas: { positionX: 58, positionY: 68, width: 22 },
+  whatWeDoRamp: { positionX: 11.5, positionY: 62, width: 13 },
+  whatWeDoDoorDash: { positionX: 36, positionY: 48, width: 10.5 },
+  whatWeDoAdidas: { positionX: 82, positionY: 36, width: 13.5 },
 };
 
 type ArmPoint = {
@@ -258,10 +329,21 @@ function buildArmOutline(points: ArmPoint[]) {
     });
   });
 
+  // Interpolate both edges instead of joining samples with visible straight
+  // segments. Shared tangents keep the outline smooth through every sample.
+  const curveThrough = (edge: Array<{ x: number; y: number }>) =>
+    edge.slice(1).map((end, index) => {
+      const start = edge[index];
+      const before = edge[Math.max(0, index - 1)];
+      const after = edge[Math.min(edge.length - 1, index + 2)];
+      return `C ${start.x + (end.x - before.x) / 6} ${start.y + (end.y - before.y) / 6} ${end.x - (after.x - start.x) / 6} ${end.y - (after.y - start.y) / 6} ${end.x} ${end.y}`;
+    });
+  lower.reverse();
   return [
     `M ${upper[0].x} ${upper[0].y}`,
-    ...upper.slice(1).map((point) => `L ${point.x} ${point.y}`),
-    ...lower.reverse().map((point) => `L ${point.x} ${point.y}`),
+    ...curveThrough(upper),
+    `L ${lower[0].x} ${lower[0].y}`,
+    ...curveThrough(lower),
     "Z",
   ].join(" ");
 }
@@ -274,64 +356,25 @@ function getProjectHref(project: FloatingProject["project"]) {
   return slug === "index" ? "/" : `/${slug}`;
 }
 
-function ProjectMedia({ item }: { item: ResolvedFloatingProject }) {
+function ProjectMedia({
+  item,
+  suspended,
+}: {
+  item: ResolvedFloatingProject;
+  suspended: boolean;
+}) {
   const isCover = item.mediaFit === "cover";
-  const [loadVideo, setLoadVideo] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
-
-  useEffect(() => {
-    if (item.mediaType !== "video" || !item.videoUrl) return;
-
-    const touch =
-      window.matchMedia("(pointer: coarse)").matches ||
-      navigator.maxTouchPoints > 0;
-    if (!touch) {
-      setLoadVideo(true);
-      return undefined;
-    }
-
-    // Touch layouts keep the lightweight poster in the composition. The same
-    // source is loaded only after the user opens the fullscreen viewer, which
-    // avoids a pair of video decodes competing with the section entrance.
-    setLoadVideo(false);
-    return undefined;
-  }, [item.mediaType, item.videoUrl]);
-
   if (item.mediaType === "video" && item.videoUrl) {
     return (
-      <div className="relative h-full w-full overflow-hidden bg-[#dadada]">
-        {item.videoPosterUrl ? (
-          <Image
-            src={item.videoPosterUrl}
-            alt={item.imageAlt || item.title}
-            fill
-            loading="eager"
-            sizes="(min-width: 1024px) 20vw, 44vw"
-            className={isCover ? "object-cover" : "object-contain"}
-          />
-        ) : (
-          <div className="absolute inset-0 grid place-items-center bg-[linear-gradient(145deg,#efefef,#b9b9b9)] text-center text-xs font-bold uppercase tracking-[.12em] text-black/55">
-            {item.title}
-          </div>
-        )}
-        {loadVideo && (
-          <video
-            src={item.videoUrl}
-            poster={item.videoPosterUrl || undefined}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            onCanPlay={() => setVideoReady(true)}
-            className={cn(
-              "relative h-full w-full transition-opacity duration-200",
-              videoReady ? "opacity-100" : "opacity-0",
-              isCover ? "object-cover" : "object-contain",
-            )}
-          />
-        )}
-      </div>
+      <WorkPreview
+        src={item.videoUrl}
+        poster={item.videoPosterUrl}
+        titleCard={item.titleCardUrl}
+        videoScale={item.previewScale}
+        title={item.title}
+        suspended={suspended}
+        cover={isCover}
+      />
     );
   }
 
@@ -341,6 +384,11 @@ function ProjectMedia({ item }: { item: ResolvedFloatingProject }) {
         src={item.imageUrl}
         alt={item.imageAlt || ""}
         fill
+        style={
+          item._key === "whatWeDoRamp"
+            ? { transform: "rotate(-38deg) scale(.64)" }
+            : undefined
+        }
         loading="eager"
         sizes="(min-width: 1024px) 20vw, 40vw"
         className={isCover ? "object-cover" : "object-contain"}
@@ -352,31 +400,33 @@ function ProjectMedia({ item }: { item: ResolvedFloatingProject }) {
 }
 
 export default function WhatWeDoSection(props: WhatWeDoBlock) {
-  const {
-    _key,
-    anchor,
-    padding,
-    colorVariant,
-    background,
-    heading,
-    items,
-    figure,
-  } = props;
+  const { _key, anchor, padding, colorVariant, background, items, figure } =
+    props;
   const rootRef = useRef<HTMLElement | null>(null);
   const armPathRef = useRef<SVGPathElement | null>(null);
   const handRef = useRef<HTMLDivElement | null>(null);
   const bodySocketRef = useRef<HTMLSpanElement | null>(null);
+  const openBodyRef = useRef<HTMLDivElement | null>(null);
+  const closedBodyRef = useRef<HTMLDivElement | null>(null);
+  const armEnabledRef = useRef(true);
+  const [armEnabled, setArmEnabled] = useState(true);
+  const toggleArm = useCallback(() => {
+    armEnabledRef.current = !armEnabledRef.current;
+    setArmEnabled(armEnabledRef.current);
+  }, []);
   const [activeRevealKey, setActiveRevealKey] = useState<string | null>(null);
   const [touchLayout, setTouchLayout] = useState(false);
-  const [viewerContent, setViewerContent] =
-    useState<WorkViewerContent | null>(null);
+  const [headingVisible, setHeadingVisible] = useState(false);
+  const [viewerContent, setViewerContent] = useState<WorkViewerContent | null>(
+    null,
+  );
   const closeViewer = useCallback(() => setViewerContent(null), []);
 
   useEffect(() => {
     const update = () =>
       setTouchLayout(
         window.innerWidth < 1024 ||
-        window.matchMedia("(pointer: coarse)").matches ||
+          window.matchMedia("(pointer: coarse)").matches ||
           navigator.maxTouchPoints > 0,
       );
     update();
@@ -392,12 +442,9 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
   const sizzleReel = sectionSettings.sizzleReel;
   const showSizzleReel = stegaClean(sizzleReel?.enabled) !== false;
   const sizzleLabel = stegaClean(sizzleReel?.label) || "SIZZLE REEL";
-  const sizzleVideoUrl =
-    sizzleReel?.video?.asset?.url ||
-    "/images/what-we-do/placeholder-loop-01.m4v";
-  const sizzleVideoPosterUrl = sizzleReel?.videoPoster?.asset?.url || undefined;
-  const sizzleFireSrc =
-    sizzleReel?.fireGif?.asset?.url || SIZZLE_FIRE_SRC;
+  const sizzleVideoUrl = "/media/work/sizzle.mp4";
+  const sizzleVideoPosterUrl = "/media/work/sizzle-poster.webp";
+  const sizzleFireSrc = sizzleReel?.fireGif?.asset?.url || SIZZLE_FIRE_SRC;
   const validItems: ResolvedFloatingProject[] = (items ?? [])
     .filter((item) => {
       const itemName = stegaClean(
@@ -410,7 +457,9 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       return (
         Boolean(hasMedia) &&
         !itemName.includes("flower") &&
-        !itemName.includes("bless")
+        !/(bless|mute|sandbar|dictation|cash.?app|square|meme.?booth|^air$)/i.test(
+          itemName,
+        )
       );
     })
     .map((item) => {
@@ -423,6 +472,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       const destinationHref = stegaClean(item.destination?.href) || null;
       const referencedHref = getProjectHref(item.project);
       const href =
+        (item._key === "whatWeDoRamp" ? "/case-study/ramp" : null) ||
         destinationHref ||
         referencedHref ||
         (mediaType === "image" ? DEFAULT_CASE_STUDY_HREF : null);
@@ -466,11 +516,17 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           item.videoPoster?.asset?.url ||
           undefined,
         mediaType,
-        imageUrl: image?.asset?.url || undefined,
+        imageUrl:
+          item._key === "whatWeDoRamp"
+            ? "/media/case-studies/ramp/card.webp"
+            : item._key === "whatWeDoDoorDash"
+              ? "/images/case-studies/objects/doordash-bag.webp"
+              : image?.asset?.url || undefined,
         imageAlt: item.image?.alt || item.project?.image?.alt || "",
         videoUrl: item.video?.asset?.url || undefined,
         videoPosterUrl: item.videoPoster?.asset?.url || undefined,
         mediaFit: stegaClean(item.mediaFit) === "cover" ? "cover" : "contain",
+        aspectRatio: item._key === "whatWeDoDoorDash" ? "portrait" : undefined,
         positionX: curatedLayout?.positionX ?? item.positionX,
         positionY: curatedLayout?.positionY ?? item.positionY,
         width: curatedLayout?.width ?? item.width,
@@ -500,24 +556,24 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     ? figure?.handImage?.asset?.url
     : GENERATED_HAND_SRC;
   const resolvedHandWidth = useUploadedFigureArtwork
-    ? figure?.handWidth ?? 110
-    : Math.max(148, figure?.handWidth ?? 0);
+    ? (figure?.handWidth ?? 110)
+    : 76;
   const resolvedHandAspectRatio = useUploadedFigureArtwork ? 179 / 163 : 1;
   const resolvedHandTipX = useUploadedFigureArtwork
-    ? figure?.handTipX ?? DEFAULT_HAND_POINTS.tipX
+    ? (figure?.handTipX ?? DEFAULT_HAND_POINTS.tipX)
     : GENERATED_HAND_POINTS.tipX;
   const resolvedHandTipY = useUploadedFigureArtwork
-    ? figure?.handTipY ?? DEFAULT_HAND_POINTS.tipY
+    ? (figure?.handTipY ?? DEFAULT_HAND_POINTS.tipY)
     : GENERATED_HAND_POINTS.tipY;
   const resolvedHandWristX = useUploadedFigureArtwork
-    ? figure?.handWristX ?? DEFAULT_HAND_POINTS.wristX
+    ? (figure?.handWristX ?? DEFAULT_HAND_POINTS.wristX)
     : GENERATED_HAND_POINTS.wristX;
   const resolvedHandWristY = useUploadedFigureArtwork
-    ? figure?.handWristY ?? DEFAULT_HAND_POINTS.wristY
+    ? (figure?.handWristY ?? DEFAULT_HAND_POINTS.wristY)
     : GENERATED_HAND_POINTS.wristY;
   const resolvedPersonWidth = useUploadedFigureArtwork
-    ? figure?.personWidth ?? 9
-    : Math.max(8, figure?.personWidth ?? 0);
+    ? (figure?.personWidth ?? 9)
+    : 7;
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -544,6 +600,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     ).matches;
     const hasFinePointer = window.matchMedia("(pointer: fine)").matches;
     const enableDesktopFloat = hasFinePointer && window.innerWidth >= 1024;
+    const floatTweens: gsap.core.Tween[] = [];
+    let onscreen = false;
     const context = gsap.context(() => {
       gsap.set(floatingLayers, { rotation: 0, rotationX: 0, rotationY: 0 });
       gsap.set(revealLayers, {
@@ -554,38 +612,39 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       gsap.set(scrollLagLayers, { y: 0 });
 
       if (!reduceMotion) {
-        if (enableDesktopFloat) scrollLagLayers.forEach((layer) => {
-          const speed = Number(layer.dataset.scrollSpeed || 0.14);
-          const rate = Number(layer.dataset.scrollRate);
-          const lag = Number(layer.dataset.scrollLag || 0.9);
-          const usesScrollRate = Number.isFinite(rate);
-          const rateTravel = () =>
-            (root.offsetHeight + window.innerHeight) * (1 - rate);
+        if (enableDesktopFloat)
+          scrollLagLayers.forEach((layer) => {
+            const speed = Number(layer.dataset.scrollSpeed || 0.14);
+            const rate = Number(layer.dataset.scrollRate);
+            const lag = Number(layer.dataset.scrollLag || 0.9);
+            const usesScrollRate = Number.isFinite(rate);
+            const rateTravel = () =>
+              (root.offsetHeight + window.innerHeight) * (1 - rate);
 
-          gsap.fromTo(
-            layer,
-            {
-              y: () =>
-                usesScrollRate
-                  ? rateTravel() * -0.5
-                  : window.innerHeight * speed * 0.45,
-            },
-            {
-              y: () =>
-                usesScrollRate
-                  ? rateTravel() * 0.5
-                  : window.innerHeight * speed * -0.65,
-              ease: "none",
-              scrollTrigger: {
-                trigger: root,
-                start: "top bottom",
-                end: "bottom top",
-                scrub: lag,
-                invalidateOnRefresh: true,
+            gsap.fromTo(
+              layer,
+              {
+                y: () =>
+                  usesScrollRate
+                    ? rateTravel() * -0.5
+                    : window.innerHeight * speed * 0.45,
               },
-            },
-          );
-        });
+              {
+                y: () =>
+                  usesScrollRate
+                    ? rateTravel() * 0.5
+                    : window.innerHeight * speed * -0.65,
+                ease: "none",
+                scrollTrigger: {
+                  trigger: root,
+                  start: "top bottom",
+                  end: "bottom top",
+                  scrub: lag,
+                  invalidateOnRefresh: true,
+                },
+              },
+            );
+          });
 
         ScrollTrigger.create({
           trigger: root,
@@ -603,27 +662,46 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           },
         });
 
-        if (enableDesktopFloat) floatingLayers.forEach((layer, index) => {
-          const amount = Number(layer.dataset.floatAmount || 12);
-          const duration = Number(layer.dataset.floatDuration || 5);
-          const direction = index % 2 === 0 ? 1 : -1;
-          gsap.to(layer, {
-            x: direction * amount * 0.42,
-            y: direction * amount,
-            duration,
-            repeat: -1,
-            yoyo: true,
-            ease: "sine.inOut",
-            delay: index * -0.37,
+        if (enableDesktopFloat)
+          floatingLayers.forEach((layer, index) => {
+            const amount = Number(layer.dataset.floatAmount || 12);
+            const duration = Number(layer.dataset.floatDuration || 5);
+            const direction = index % 2 === 0 ? 1 : -1;
+            floatTweens.push(
+              gsap.to(layer, {
+                paused: true,
+                x: direction * amount * 0.42,
+                y: direction * amount,
+                duration,
+                repeat: -1,
+                yoyo: true,
+                ease: "sine.inOut",
+                delay: index * -0.37,
+              }),
+            );
           });
-        });
       }
     }, root);
+
+    const viewportObserver = new IntersectionObserver((entries) => {
+      // Restoring a route can queue both sides of the scroll jump in one
+      // delivery. The latest entry describes where the section landed.
+      onscreen = entries[entries.length - 1]?.isIntersecting ?? false;
+      if (onscreen) setHeadingVisible(true);
+      floatTweens.forEach((tween) => tween.paused(!onscreen));
+    });
+    viewportObserver.observe(root);
 
     const armPath = armPathRef.current;
     const hand = handRef.current;
     if (!armPath || !hand || !hasFinePointer) {
-      return () => context.revert();
+      if (hand) hand.style.opacity = "0";
+      if (openBodyRef.current) openBodyRef.current.style.opacity = "0";
+      if (closedBodyRef.current) closedBodyRef.current.style.opacity = "1";
+      return () => {
+        viewportObserver.disconnect();
+        context.revert();
+      };
     }
 
     const pointer = { x: 0, y: 0 };
@@ -645,6 +723,10 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     let rotationInitialized = false;
     let smoothedRotationRadians = 0;
     let lastUpdate = performance.now();
+    let extension = armEnabledRef.current ? 1 : 0;
+    const bodyExitAngle = useUploadedFigureArtwork
+      ? Math.PI
+      : GENERATED_BODY_EXIT_ANGLE;
     const handWidth = resolvedHandWidth;
     const handHeight = handWidth * resolvedHandAspectRatio;
     const tipX = resolvedHandTipX / 100;
@@ -740,8 +822,14 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     const onPointerMove = (event: PointerEvent) => {
       const bounds = root.getBoundingClientRect();
       pointerInside = true;
-      pointer.x = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left));
-      pointer.y = Math.max(0, Math.min(bounds.height, event.clientY - bounds.top));
+      pointer.x = Math.max(
+        0,
+        Math.min(bounds.width, event.clientX - bounds.left),
+      );
+      pointer.y = Math.max(
+        0,
+        Math.min(bounds.height, event.clientY - bounds.top),
+      );
       target.x = pointer.x;
       target.y = pointer.y;
     };
@@ -832,23 +920,47 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
 
     const updateArm = () => {
       const updateTime = performance.now();
+      if (!onscreen || document.hidden) {
+        lastUpdate = updateTime;
+        return;
+      }
       const deltaSeconds = Math.min(0.05, (updateTime - lastUpdate) / 1000);
       lastUpdate = updateTime;
       const bounds = root.getBoundingClientRect();
       const origin = getArmOrigin(bounds);
       const originX = origin.x;
       const originY = origin.y;
-      const followAlpha = reduceMotion
-        ? 1
-        : 1 - Math.exp(-deltaSeconds * 11.5);
-      const stateAlpha = reduceMotion
-        ? 1
-        : 1 - Math.exp(-deltaSeconds * 8.5);
-      current.x += (target.x - current.x) * followAlpha;
-      current.y += (target.y - current.y) * followAlpha;
+      const followAlpha = reduceMotion ? 1 : 1 - Math.exp(-deltaSeconds * 11.5);
+      const stateAlpha = reduceMotion ? 1 : 1 - Math.exp(-deltaSeconds * 8.5);
+      const enabled = armEnabledRef.current;
+      extension += ((enabled ? 1 : 0) - extension) * followAlpha;
+      const openOpacity = Math.max(0, Math.min(1, (extension - 0.015) / 0.08));
+      hand.style.opacity = String(openOpacity);
+      armPath.style.opacity = String(openOpacity);
+      if (openBodyRef.current)
+        openBodyRef.current.style.opacity = String(openOpacity);
+      if (closedBodyRef.current)
+        closedBodyRef.current.style.opacity = String(1 - openOpacity);
+      if (!enabled && extension < 0.001) return;
+
+      // Retract the whole sleeve toward the shoulder, then restore the complete
+      // photographed resting arm. Mouse movement leaves a disabled arm off.
+      const foldedReach =
+        Math.hypot((wristX - tipX) * handWidth, (wristY - tipY) * handHeight) +
+        5;
+      const followX = enabled
+        ? target.x
+        : originX + Math.cos(bodyExitAngle) * foldedReach;
+      const followY = enabled
+        ? target.y
+        : originY + Math.sin(bodyExitAngle) * foldedReach;
+      current.x += (followX - current.x) * followAlpha;
+      current.y += (followY - current.y) * followAlpha;
       presence +=
-        ((pointerInside || focusInside ? 1 : 0) - presence) * stateAlpha;
-      hoverBlend += ((hoveredProject ? 1 : 0) - hoverBlend) * stateAlpha;
+        ((enabled && (pointerInside || focusInside) ? 1 : 0) - presence) *
+        stateAlpha;
+      hoverBlend +=
+        ((enabled && hoveredProject ? 1 : 0) - hoverBlend) * stateAlpha;
 
       const freeAimX = current.x - originX;
       const freeAimY = current.y - originY;
@@ -858,14 +970,16 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       aimX /= aimDistance;
       aimY /= aimDistance;
 
-      let hoveredBounds =
-        hoverBlend > 0.001 ? lastHoveredBounds : null;
-      if (hoveredProject) {
+      let hoveredBounds = hoverBlend > 0.001 ? lastHoveredBounds : null;
+      if (enabled && hoveredProject) {
         const projectBounds = getProjectVisualBounds(hoveredProject);
         hoveredBounds = projectBounds;
         lastHoveredBounds = projectBounds;
         const towardCenterX =
-          projectBounds.left - bounds.left + projectBounds.width / 2 - current.x;
+          projectBounds.left -
+          bounds.left +
+          projectBounds.width / 2 -
+          current.x;
         const towardCenterY =
           projectBounds.top - bounds.top + projectBounds.height / 2 - current.y;
         aimDistance = Math.hypot(towardCenterX, towardCenterY);
@@ -886,9 +1000,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       aimY /= blendedAimDistance;
 
       const desiredRotationRadians =
-        Math.atan2(aimY, aimX) -
-        naturalFingerAngle +
-        rotationOffsetRadians;
+        Math.atan2(aimY, aimX) - naturalFingerAngle + rotationOffsetRadians;
       if (!rotationInitialized || reduceMotion) {
         smoothedRotationRadians = desiredRotationRadians;
         rotationInitialized = true;
@@ -941,16 +1053,11 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           Math.min(28, distance * 0.04);
       const baseSlink = reduceMotion ? 0 : Math.min(135, distance * 0.17);
       const controlOneOffset = baseSlink + bend;
-      const controlTwoOffset =
-        baseSlink * 0.92 - bend * 0.65 + counterBend;
-      let controlOneX =
-        originX + deltaX * 0.28 + normalX * controlOneOffset;
-      let controlOneY =
-        originY + deltaY * 0.28 + normalY * controlOneOffset;
-      let controlTwoX =
-        originX + deltaX * 0.7 - normalX * controlTwoOffset;
-      let controlTwoY =
-        originY + deltaY * 0.7 - normalY * controlTwoOffset;
+      const controlTwoOffset = baseSlink * 0.92 - bend * 0.65 + counterBend;
+      let controlOneX = originX + deltaX * 0.28 + normalX * controlOneOffset;
+      let controlOneY = originY + deltaY * 0.28 + normalY * controlOneOffset;
+      let controlTwoX = originX + deltaX * 0.7 - normalX * controlTwoOffset;
+      let controlTwoY = originY + deltaY * 0.7 - normalY * controlTwoOffset;
 
       if (hoveredBounds) {
         const avoidanceStrength = Math.max(0, Math.min(1, hoverBlend));
@@ -977,9 +1084,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           originFromCenterX * pointerFromCenterX +
             originFromCenterY * pointerFromCenterY <
           0;
-        const routeAlpha = reduceMotion
-          ? 1
-          : 1 - Math.exp(-deltaSeconds * 5.5);
+        const routeAlpha = reduceMotion ? 1 : 1 - Math.exp(-deltaSeconds * 5.5);
         const desiredRouteX = normalX * routeSign;
         const desiredRouteY = normalY * routeSign;
         if (!routeVectorInitialized || reduceMotion) {
@@ -987,10 +1092,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           smoothedRouteY = desiredRouteY;
           routeVectorInitialized = true;
         } else {
-          smoothedRouteX +=
-            (desiredRouteX - smoothedRouteX) * routeAlpha;
-          smoothedRouteY +=
-            (desiredRouteY - smoothedRouteY) * routeAlpha;
+          smoothedRouteX += (desiredRouteX - smoothedRouteX) * routeAlpha;
+          smoothedRouteY += (desiredRouteY - smoothedRouteY) * routeAlpha;
         }
         crossingBlend +=
           ((crossesProject ? 1 : 0) - crossingBlend) * routeAlpha;
@@ -1002,7 +1105,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         const avoidance = Math.min(
           285,
           (Math.max(hoveredBounds.width, hoveredBounds.height) * 0.72 +
-            handWidth * 0.52) * crossingAvoidance,
+            handWidth * 0.52) *
+            crossingAvoidance,
         );
 
         controlOneX +=
@@ -1021,10 +1125,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           armEndY +
           outwardY * avoidance * 1.12 +
           routeY * avoidance * secondRouteWeight;
-        controlTwoX +=
-          (avoidedControlTwoX - controlTwoX) * avoidanceStrength;
-        controlTwoY +=
-          (avoidedControlTwoY - controlTwoY) * avoidanceStrength;
+        controlTwoX += (avoidedControlTwoX - controlTwoX) * avoidanceStrength;
+        controlTwoY += (avoidedControlTwoY - controlTwoY) * avoidanceStrength;
       } else {
         crossingBlend += (0 - crossingBlend) * stateAlpha;
       }
@@ -1047,22 +1149,21 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         controlTwoY + restingSag * 0.82,
       );
 
-      const armWidth = useUploadedFigureArtwork
-        ? figure?.armWidth ?? 34
-        : 34;
-      const shoulderHalfWidth = Math.max(8, armWidth * 0.3);
+      const armWidth = useUploadedFigureArtwork ? (figure?.armWidth ?? 34) : 18;
+      const shoulderHalfWidth = useUploadedFigureArtwork
+        ? Math.max(8, armWidth * 0.3)
+        : bounds.width * (resolvedPersonWidth / 100) * 0.026;
       const handHalfWidth = useUploadedFigureArtwork
         ? Math.max(10, armWidth * 0.52)
         : handWidth * 0.155;
 
-      // The body opening always faces left. Give the centerline a small,
-      // genuine-radius turn immediately outside that opening before handing
-      // it to the free slink controls. This keeps it from doubling back over
-      // the body mouth without creating a visible straight stem.
-      const bodyExitAngle = Math.PI;
+      // Leave the shoulder opening outward before curving toward the pointer.
+      // This short rounded root stays attached as the whole sleeve moves.
       const bodyExitX = Math.cos(bodyExitAngle);
       const bodyExitY = Math.sin(bodyExitAngle);
-      const minimumBodyClearance = Math.max(24, armWidth * 0.72);
+      const minimumBodyClearance = useUploadedFigureArtwork
+        ? Math.max(24, armWidth * 0.72)
+        : 12;
       const controlOneProjection =
         (controlOneX - originX) * bodyExitX +
         (controlOneY - originY) * bodyExitY;
@@ -1085,12 +1186,14 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         -maximumBodyTurn,
         Math.min(maximumBodyTurn, requestedBodyTurn),
       );
-      const bodyArcRadius = Math.max(18, Math.min(28, armWidth * 0.68));
+      const bodyArcRadius = useUploadedFigureArtwork
+        ? Math.max(18, Math.min(28, armWidth * 0.68))
+        : Math.max(7, Math.min(12, shoulderHalfWidth * 3));
       const bodyArcPoints: ArmPoint[] = [];
       let bodyArcEndX = originX;
       let bodyArcEndY = originY;
       let bodyArcEndAngle = bodyExitAngle;
-      const bodyArcSamples = 5;
+      const bodyArcSamples = 8;
 
       if (Math.abs(bodyTurn) < 0.08) {
         const straightLength = bodyArcRadius * 0.8;
@@ -1108,10 +1211,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         const turnSign = Math.sign(bodyTurn);
         const leftNormalX = -Math.sin(bodyExitAngle);
         const leftNormalY = Math.cos(bodyExitAngle);
-        const circleCenterX =
-          originX + leftNormalX * bodyArcRadius * turnSign;
-        const circleCenterY =
-          originY + leftNormalY * bodyArcRadius * turnSign;
+        const circleCenterX = originX + leftNormalX * bodyArcRadius * turnSign;
+        const circleCenterY = originY + leftNormalY * bodyArcRadius * turnSign;
         const startRadiusX = originX - circleCenterX;
         const startRadiusY = originY - circleCenterY;
 
@@ -1164,7 +1265,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         },
         ...bodyArcPoints,
       ];
-      const samplesPerHalf = 12;
+      const samplesPerHalf = 18;
 
       for (let index = 1; index <= samplesPerHalf; index += 1) {
         const sampleProgress = index / samplesPerHalf;
@@ -1223,6 +1324,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     gsap.ticker.add(updateArm);
 
     return () => {
+      viewportObserver.disconnect();
       gsap.ticker.remove(updateArm);
       root.removeEventListener("pointermove", onPointerMove);
       root.removeEventListener("pointerleave", onPointerLeave);
@@ -1242,6 +1344,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     resolvedHandWidth,
     resolvedHandWristX,
     resolvedHandWristY,
+    resolvedPersonWidth,
     useUploadedFigureArtwork,
     validItems.length,
   ]);
@@ -1261,31 +1364,47 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       <BackgroundPanel background={background} className="!border-0" />
 
       <div className="relative mx-auto min-h-[82rem] max-w-[1800px] sm:min-h-[72rem] lg:h-full lg:min-h-0">
-        {heading && (
+        <div className="pointer-events-none absolute inset-x-0 top-[12%] z-20 flex justify-center px-4 sm:top-[14%] lg:top-[16%]">
           <div
-            className="pointer-events-none absolute inset-x-0 top-[22%] z-20 flex justify-center md:top-[28%]"
+            data-what-we-do-scroll-lag
+            data-scroll-rate="0.96"
+            data-scroll-lag="0.4"
+            className="flex flex-col items-center text-center lg:will-change-transform"
           >
-            <div
-              data-what-we-do-scroll-lag
-              data-scroll-rate="0.8"
-              data-scroll-lag="2.4"
-              className="lg:will-change-transform"
+            <TitleText
+              as="p"
+              variant="stretched"
+              size="matrix-eyebrow"
+              fontWeight="bold"
+              singleLine
+              animation={headingVisible ? "typeOn" : "none"}
+              animationSpeed={TYPE_ON_SPEEDS.quick}
+              typeOnTrigger="immediate"
+              className="!w-auto [&_p]:leading-none"
             >
-              <h2 className="whitespace-nowrap text-center text-base font-bold uppercase md:text-xl">
-                <TypeOnText
-                  text={stegaClean(heading)}
-                  trigger="scroll"
-                  start="top 78%"
-                  speed={TYPE_ON_SPEEDS.quick}
-                />
-              </h2>
-            </div>
+              We make Ads people love.
+            </TitleText>
+            <TitleText
+              as="h2"
+              variant="stretched"
+              size="what-we-do"
+              fontWeight="bold"
+              singleLine
+              animation={headingVisible ? "typeOn" : "none"}
+              animationSpeed={TYPE_ON_SPEEDS.quick}
+              typeOnTrigger="immediate"
+              typeOnDelay={0.1}
+              className="!mt-4 !w-auto [&_h2]:leading-[.9] [&_h2]:tracking-[-.045em]"
+            >
+              OUR WORK
+            </TitleText>
           </div>
-        )}
+        </div>
 
         <div className="absolute inset-0 z-20">
           {validItems.map((item, index) => {
-            const fallback = DEFAULT_POSITIONS[index % DEFAULT_POSITIONS.length];
+            const fallback =
+              DEFAULT_POSITIONS[index % DEFAULT_POSITIONS.length];
             const tablet = TABLET_POSITIONS[index % TABLET_POSITIONS.length];
             const mobile = MOBILE_POSITIONS[index % MOBILE_POSITIONS.length];
             const style: ItemStyle = {
@@ -1312,7 +1431,10 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                 data-scroll-lag={scrollLag}
                 className="relative lg:will-change-transform"
               >
-                <div data-what-we-do-reveal className="relative will-change-transform">
+                <div
+                  data-what-we-do-reveal
+                  className="relative will-change-transform"
+                >
                   <div
                     data-what-we-do-float
                     data-float-amount={item.floatAmount ?? 12}
@@ -1330,7 +1452,10 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                           : "aspect-[4/3]",
                       )}
                     >
-                      <ProjectMedia item={item} />
+                      <ProjectMedia
+                        item={item}
+                        suspended={Boolean(viewerContent)}
+                      />
                     </div>
                     {item.interactionMode === "reveal" && isRevealActive ? (
                       <div className="pointer-events-none relative z-10 -mt-[2px] flex max-w-[19rem] flex-col items-start text-left text-white">
@@ -1370,19 +1495,19 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
 
             if (item.interactionMode === "link" && href) {
               return (
-              <Link
-                key={item._key}
-                href={href}
-                target={item.target ? "_blank" : undefined}
-                rel={item.target ? "noopener noreferrer" : undefined}
-                data-what-we-do-project
-                data-typeon-hover={touchLayout ? undefined : "true"}
-                className={projectClassName}
-                style={style}
-                aria-label={`View ${title}`}
-              >
-                {projectContent}
-              </Link>
+                <Link
+                  key={item._key}
+                  href={href}
+                  target={item.target ? "_blank" : undefined}
+                  rel={item.target ? "noopener noreferrer" : undefined}
+                  data-what-we-do-project
+                  data-typeon-hover={touchLayout ? undefined : "true"}
+                  className={projectClassName}
+                  style={style}
+                  aria-label={`View ${title}`}
+                >
+                  {projectContent}
+                </Link>
               );
             }
 
@@ -1427,6 +1552,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                       videoUrl: item.expandedVideoUrl || item.videoUrl,
                       videoPosterUrl:
                         item.expandedVideoPosterUrl || item.videoPosterUrl,
+                      caseStudyHref: item.caseStudyHref,
                     })
                   }
                 >
@@ -1451,7 +1577,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           {showSizzleReel && (
             <div
               data-what-we-do-project
-              className="group absolute left-[72%] top-[84%] z-40 w-[25%] -translate-x-1/2 -translate-y-1/2 md:left-[41%] md:top-[86%] md:w-[15%] lg:left-[35%] lg:top-[79%] lg:w-[13%]"
+              className="group absolute left-[72%] top-[87%] z-40 w-[25%] -translate-x-1/2 -translate-y-1/2 md:left-[76%] md:top-[85%] md:w-[15%] lg:left-[50%] lg:top-[72%] lg:w-[13%]"
             >
               <div
                 data-what-we-do-scroll-lag
@@ -1459,7 +1585,10 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                 data-scroll-lag="1.55"
                 className="relative lg:will-change-transform"
               >
-                <div data-what-we-do-reveal className="relative will-change-transform">
+                <div
+                  data-what-we-do-reveal
+                  className="relative will-change-transform"
+                >
                   <div
                     data-what-we-do-float
                     data-float-amount="6"
@@ -1481,7 +1610,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                     >
                       <span
                         aria-hidden="true"
-                        className="absolute inset-0 scale-110 bg-center transition-transform duration-300 group-hover:scale-125"
+                        className="absolute inset-0 z-10 scale-110 bg-center transition-transform duration-300 group-hover:scale-125"
                         style={{
                           backgroundImage: touchLayout
                             ? "url(/images/what-we-do/sizzle-fire-poster.png)"
@@ -1491,15 +1620,25 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                           backgroundSize: "contain",
                         }}
                       />
-                      <span className="relative z-10 whitespace-pre-line text-center text-[clamp(1.2rem,2.25vw,2.8rem)] font-bold italic uppercase leading-[0.7] tracking-[-0.07em] text-white [-webkit-text-stroke:2px_#e32119] [paint-order:stroke_fill]">
-                        {sizzleLabel.replace(/\s+/, "\n")}
-                      </span>
+                      <Image
+                        src="/images/what-we-do/pathetic-sizzle-logo.svg"
+                        alt="PATHETIC"
+                        width={115}
+                        height={51}
+                        className="absolute left-1/2 top-0 w-[60%] -translate-x-1/2"
+                      />
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           )}
+          <Link
+            href="/case-study"
+            className="absolute bottom-[4%] left-[6%] z-40 border-b border-current pb-1 text-sm font-bold uppercase focus-visible:outline focus-visible:outline-offset-4"
+          >
+            See more of our work <span aria-hidden="true">↗</span>
+          </Link>
         </div>
 
         <svg
@@ -1547,22 +1686,48 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           />
         </div>
 
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 z-40 hidden -translate-x-1/2 md:block"
+        <button
+          type="button"
+          data-what-we-do-figure
+          aria-label={
+            armEnabled ? "Retract pointing arm" : "Enable pointing arm"
+          }
+          aria-pressed={armEnabled}
+          onClick={toggleArm}
+          className="absolute bottom-0 z-40 hidden -translate-x-1/2 cursor-pointer border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-offset-4 md:block"
           style={{
             left: `${figure?.personX ?? 88}%`,
             width: `${resolvedPersonWidth}%`,
           }}
         >
           {resolvedPersonSrc ? (
-            <Image
-              src={resolvedPersonSrc}
-              alt=""
-              width={1023}
-              height={1537}
-              className="h-auto w-full object-contain"
-            />
+            <>
+              <div ref={openBodyRef}>
+                <Image
+                  src={resolvedPersonSrc}
+                  alt=""
+                  width={useUploadedFigureArtwork ? 768 : 512}
+                  height={useUploadedFigureArtwork ? 1152 : 512}
+                  sizes="7vw"
+                  className="pointer-events-none h-auto w-full object-contain"
+                />
+              </div>
+              {!useUploadedFigureArtwork && (
+                <div
+                  ref={closedBodyRef}
+                  className="pointer-events-none absolute inset-0 opacity-0"
+                >
+                  <Image
+                    src={GENERATED_BODY_REST_SRC}
+                    alt=""
+                    width={512}
+                    height={512}
+                    sizes="7vw"
+                    className="h-auto w-full object-contain"
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <span className="block origin-bottom-left -scale-x-100 text-[clamp(4rem,8vw,8rem)] leading-none grayscale">
               🧎
@@ -1579,7 +1744,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               }}
             />
           )}
-        </div>
+        </button>
       </div>
       <WorkContentViewer content={viewerContent} onClose={closeViewer} />
     </section>

@@ -1,16 +1,12 @@
-import CaseStudyPage from "@/components/case-study/case-study-page";
-import { fetchCaseStudy } from "@/sanity/lib/fetch-case-study";
+import type { Metadata } from "next";
+import CaseStudyIndex from "@/components/case-study/case-study-index";
 
-export async function generateMetadata() {
-  const data = await fetchCaseStudy();
-  return {
-    title: data?.meta_title || data?.title || "Case Study",
-    description: data?.meta_description || undefined,
-    robots: data?.noindex ? "noindex" : undefined,
-  };
-}
+export const metadata: Metadata = {
+  title: { absolute: "Case Studies — PATHETIC" },
+  description:
+    "Case studies for Deel, Stream by Sandbar, Air, Ramp, and Square & Cash App.",
+};
 
-export default async function CaseStudyRoute() {
-  const data = await fetchCaseStudy();
-  return <CaseStudyPage data={data} />;
+export default function CaseStudyRoute() {
+  return <CaseStudyIndex />;
 }

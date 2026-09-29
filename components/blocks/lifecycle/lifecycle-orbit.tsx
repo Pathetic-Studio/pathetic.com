@@ -33,11 +33,30 @@ export default function LifecycleOrbit({
       "(prefers-reduced-motion: reduce)",
     ).matches;
     const startedAt = performance.now();
+    const slide = root.closest<HTMLElement>("[data-lifecycle-slide]");
+    let onscreen = false;
+    let width = root.clientWidth,
+      height = root.clientHeight;
+    const setters = items.map((item) => ({
+      x: gsap.quickSetter(item, "x", "px"),
+      y: gsap.quickSetter(item, "y", "px"),
+      z: gsap.quickSetter(item, "z", "px"),
+      scale: gsap.quickSetter(item, "scale"),
+      opacity: gsap.quickSetter(item, "opacity"),
+    }));
 
-    const update = () => {
-      const bounds = root.getBoundingClientRect();
-      const radiusX = Math.min(bounds.width * 0.35, 430);
-      const radiusY = Math.min(bounds.height * 0.3, 235);
+    const update = (force = false) => {
+      if (
+        !force &&
+        (!onscreen ||
+          document.hidden ||
+          reducedMotion ||
+          slide?.style.opacity === "0" ||
+          slide?.style.visibility === "hidden")
+      )
+        return;
+      const radiusX = Math.min(width * 0.35, 430);
+      const radiusY = Math.min(height * 0.3, 235);
       const elapsed = (performance.now() - startedAt) / 1000;
       const cycle = reducedMotion
         ? 0
@@ -48,25 +67,34 @@ export default function LifecycleOrbit({
         const depth = Math.sin(angle);
         const depthProgress = (depth + 1) / 2;
 
-        gsap.set(item, {
-          x: Math.cos(angle) * radiusX,
-          y: depth * radiusY,
-          z: depth * 180,
-          scale: 0.68 + depthProgress * 0.55,
-          opacity: 0.52 + depthProgress * 0.48,
-          rotation: 0,
-          rotationX: 0,
-          rotationY: 0,
-          zIndex: Math.round(8 + depthProgress * 32),
-        });
+        const set = setters[index];
+        set.x(Math.cos(angle) * radiusX);
+        set.y(depth * radiusY);
+        set.z(depth * 180);
+        set.scale(0.68 + depthProgress * 0.55);
+        set.opacity(0.52 + depthProgress * 0.48);
+        item.style.zIndex = String(Math.round(8 + depthProgress * 32));
       });
     };
 
-    gsap.ticker.add(update);
-    update();
+    const tick = () => update();
+    const observer = new IntersectionObserver(([entry]) => {
+      onscreen = entry.isIntersecting;
+    });
+    observer.observe(root);
+    const resize = new ResizeObserver(() => {
+      width = root.clientWidth;
+      height = root.clientHeight;
+      update(true);
+    });
+    resize.observe(root);
+    gsap.ticker.add(tick);
+    update(true);
 
     return () => {
-      gsap.ticker.remove(update);
+      gsap.ticker.remove(tick);
+      observer.disconnect();
+      resize.disconnect();
       gsap.set(items, { clearProps: "all" });
     };
   }, [duration, orbitImages.length]);
@@ -99,7 +127,7 @@ export default function LifecycleOrbit({
         <div
           key={image.key}
           data-lifecycle-orbit-image
-          className="absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 transform-gpu will-change-transform sm:h-20 sm:w-20 lg:h-24 lg:w-24"
+          className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 transform-gpu will-change-transform sm:h-16 sm:w-16 lg:h-[72px] lg:w-[72px]"
         >
           <div
             data-lifecycle-orbit-reveal
@@ -109,7 +137,7 @@ export default function LifecycleOrbit({
               src={image.src}
               alt={image.alt}
               fill
-              sizes="(min-width: 1024px) 110px, 80px"
+              sizes="(min-width: 1024px) 90px, 64px"
               className="object-contain"
               priority={index < 3}
             />

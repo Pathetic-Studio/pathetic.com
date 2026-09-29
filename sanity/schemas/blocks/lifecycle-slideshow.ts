@@ -126,7 +126,7 @@ export default defineType({
           name: "topText",
           title: "Top text",
           type: "string",
-          initialValue: "Our startup apparel arc",
+          initialValue: "In 2024, we",
         }),
         defineField({
           name: "centerText",
@@ -134,7 +134,7 @@ export default defineType({
           type: "text",
           rows: 3,
           initialValue:
-            "In 2024, we evolved into a brand with apparel, parties and apps.",
+            "Evolved into a brand with apparel, parties and apps.",
           validation: (rule) => rule.required().max(220),
         }),
         defineField({

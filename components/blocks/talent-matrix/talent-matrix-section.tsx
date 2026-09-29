@@ -38,21 +38,12 @@ export function TalentMatrixView({
   const backgroundColor = colorValue(block.backgroundColor, "#000600");
   const density = Math.max(12, Math.min(54, stegaClean(block.cityDensity) || 30));
   const talents = (block.talents || []).slice(0, 6);
-  const cleanTitle = (stegaClean(block.title) || "TALENT\nMATRIX").trim();
-  const explicitTitleLines = cleanTitle
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const titleWords = cleanTitle.split(/\s+/).filter(Boolean);
-  const talentLine =
-    explicitTitleLines.length > 1
-      ? explicitTitleLines[0]
-      : titleWords.slice(0, -1).join(" ") || titleWords[0] || "TALENT";
-  const matrixLine =
-    explicitTitleLines.length > 1
-      ? explicitTitleLines.slice(1).join(" ")
-      : titleWords.at(-1) || "MATRIX";
-  const cleanDescription = stegaClean(block.description) || "";
+  // Feature-branch copy stays in code until the content is ready for Sanity.
+  const cleanTitle = "TALENT\nMATRIX";
+  const talentLine = "TALENT";
+  const matrixLine = "MATRIX";
+  const cleanDescription =
+    "A network of the world’s best creatives who bring our ideas to life.";
   const descriptionLines = splitTextAtWordRatio(cleanDescription, 0.57);
 
   return (
@@ -74,37 +65,13 @@ export function TalentMatrixView({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,transparent_0%,rgba(0,12,3,.06)_38%,rgba(0,4,1,.42)_100%),linear-gradient(180deg,rgba(0,0,0,.06),transparent_50%,rgba(0,0,0,.2))]" />
 
       <div data-talent-copy className="pointer-events-none absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center text-center sm:inset-x-4">
-        {block.eyebrow && (
-          <TitleText
-            variant="stretched"
-            as="p"
-            size="matrix-eyebrow"
-            maxChars={24}
-            animation="none"
-            fontWeight="bold"
-            textColor="#ffffff"
-            stretchScaleX={0.66}
-            className="pointer-events-auto !w-auto select-text [&_p]:leading-none [&_p]:tracking-[-.035em]"
-          >
-            {stegaClean(block.eyebrow)}
-          </TitleText>
-        )}
-        {block.accentWord && (
-          <TitleText
-            variant="stretched"
-            as="p"
-            size="matrix-accent"
-            maxChars={12}
-            animation="none"
-            fontWeight="bold"
-            textColor="#ffffff"
-            stretchScaleX={0.66}
-            overallScale={1.2}
-            className="pointer-events-auto !mt-[2.4rem] !w-auto select-text sm:!mt-[3.25rem] lg:!mt-[4.25rem] [&_p]:leading-[.8] [&_p]:tracking-[-.045em]"
-          >
-            {stegaClean(block.accentWord)}
-          </TitleText>
-        )}
+        <TitleText
+          variant="stretched" as="p" size="matrix-eyebrow" animation="none"
+          fontWeight="bold" textColor="#ffffff" stretchScaleX={0.66}
+          className="pointer-events-auto mb-5 !w-auto select-text [&_p]:leading-none"
+        >
+          We do this with our
+        </TitleText>
         <div className="pointer-events-auto mt-2 flex select-text flex-col items-center" aria-label={cleanTitle.replace(/\n+/g, " ")}>
           <TitleText
             variant="stretched"

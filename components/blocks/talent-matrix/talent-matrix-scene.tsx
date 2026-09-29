@@ -1,5 +1,7 @@
 "use client";
 
+import { cropBuildingAtFloor } from "./crop-building-at-floor";
+
 import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -408,6 +410,33 @@ export default function TalentMatrixScene({
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     });
+    const floorY = -0.08;
+    renderer.localClippingEnabled = true;
+    const floorClip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -floorY);
+    [
+      buildingHoverFillMaterial,
+      buildingHoverShellMaterial,
+      buildingHoverEdgeMaterial,
+    ].forEach((material) => {
+      material.clippingPlanes = [floorClip];
+    });
+    const groundCanvas = document.createElement("canvas");
+    groundCanvas.width = groundCanvas.height = 64;
+    const groundContext = groundCanvas.getContext("2d")!;
+    const groundGradient = groundContext.createRadialGradient(
+      32,
+      32,
+      5,
+      32,
+      32,
+      32,
+    );
+    groundGradient.addColorStop(0, "rgba(80,255,130,.8)");
+    groundGradient.addColorStop(0.55, "rgba(0,255,70,.3)");
+    groundGradient.addColorStop(1, "rgba(0,255,70,0)");
+    groundContext.fillStyle = groundGradient;
+    groundContext.fillRect(0, 0, 64, 64);
+    const buildingGroundTexture = new THREE.CanvasTexture(groundCanvas);
     type BuildingHoverTarget = {
       id: string;
       meshes: THREE.Mesh[];
@@ -415,10 +444,8 @@ export default function TalentMatrixScene({
     type BuildingHoverVisual = {
       fill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
       shell: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
-      edges: THREE.LineSegments<
-        THREE.BufferGeometry,
-        THREE.LineBasicMaterial
-      >;
+      edges: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+      ground: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
       worldCenter: THREE.Vector3;
     };
     const interactiveBuildings: THREE.Mesh[] = [];
@@ -509,10 +536,7 @@ export default function TalentMatrixScene({
       shell.visible = false;
       shell.userData.matrixHoverShell = true;
 
-      const edges = new THREE.LineSegments(
-        outline.geometry,
-        edgeMaterial,
-      );
+      const edges = new THREE.LineSegments(outline.geometry, edgeMaterial);
       edges.name = `${building.name}_Matrix_Hover_Edges`;
       edges.renderOrder = 3;
       edges.raycast = () => undefined;
@@ -525,15 +549,34 @@ export default function TalentMatrixScene({
       const worldCenter = new THREE.Box3()
         .setFromObject(building)
         .getCenter(new THREE.Vector3());
-      const visual = { fill, shell, edges, worldCenter };
+      const bounds = new THREE.Box3().setFromObject(building);
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(
+          Math.max(1, bounds.max.x - bounds.min.x) * 1.6,
+          Math.max(1, bounds.max.z - bounds.min.z) * 1.6,
+        ),
+        new THREE.MeshBasicMaterial({
+          map: buildingGroundTexture,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          toneMapped: false,
+        }),
+      );
+      ground.name = `${building.name}_Floor_Activation`;
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.set(worldCenter.x, floorY + 0.012, worldCenter.z);
+      ground.renderOrder = 2;
+      ground.visible = false;
+      ground.raycast = () => undefined;
+      scene.add(ground);
+      const visual = { fill, shell, edges, ground, worldCenter };
       buildingHoverVisuals.set(building, visual);
       return visual;
     };
 
-    const setBuildingHoverVisual = (
-      building: THREE.Mesh,
-      visible: boolean,
-    ) => {
+    const setBuildingHoverVisual = (building: THREE.Mesh, visible: boolean) => {
       const visual = visible
         ? getBuildingHoverVisual(building)
         : buildingHoverVisuals.get(building);
@@ -541,6 +584,7 @@ export default function TalentMatrixScene({
       visual.fill.visible = visible;
       visual.shell.visible = visible;
       visual.edges.visible = visible;
+      visual.ground.visible = visible;
       if (visible) {
         visual.fill.material.opacity = 0;
         visual.shell.material.opacity = 0;
@@ -591,8 +635,7 @@ export default function TalentMatrixScene({
         1,
       );
       const attack = attackProgress * attackProgress * (3 - 2 * attackProgress);
-      const timePhase =
-        (now / MATRIX_HOVER_PULSE_DURATION) * Math.PI * 2;
+      const timePhase = (now / MATRIX_HOVER_PULSE_DURATION) * Math.PI * 2;
       let pulseTotal = 0;
 
       target.meshes.forEach((building) => {
@@ -614,6 +657,7 @@ export default function TalentMatrixScene({
         visual.fill.material.opacity = attack * (0.06 + pulse * 0.7);
         visual.shell.material.opacity = attack * (0.03 + pulse * 0.3);
         visual.edges.material.opacity = attack * (0.18 + pulse * 0.82);
+        visual.ground.material.opacity = attack * (0.12 + pulse * 0.55);
         visual.shell.scale.setScalar(1.012 + pulse * 0.012);
         visual.edges.scale.setScalar(1.004 + pulse * 0.004);
       });
@@ -630,8 +674,7 @@ export default function TalentMatrixScene({
             ? 92
             : 112;
       if (now - lastHoverTextureUpdate >= hoverTextureInterval) {
-        hoverMatrixFrame =
-          (hoverMatrixFrame + 1) % MATRIX_TEXTURE_FRAME_COUNT;
+        hoverMatrixFrame = (hoverMatrixFrame + 1) % MATRIX_TEXTURE_FRAME_COUNT;
         const hoverTexture = buildingSurface.textures[hoverMatrixFrame];
         target.meshes.forEach((building) => {
           const visual = buildingHoverVisuals.get(building);
@@ -662,14 +705,7 @@ export default function TalentMatrixScene({
     bloomComposer.addPass(bloomPass);
 
     const bloomOverlayScene = new THREE.Scene();
-    const bloomOverlayCamera = new THREE.OrthographicCamera(
-      -1,
-      1,
-      1,
-      -1,
-      0,
-      1,
-    );
+    const bloomOverlayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const bloomOverlayGeometry = new THREE.PlaneGeometry(2, 2);
     const bloomOverlayMaterial = new THREE.MeshBasicMaterial({
       map: bloomComposer.renderTarget2.texture,
@@ -738,6 +774,11 @@ export default function TalentMatrixScene({
           .compileAsync(scene, activeCamera)
           .then(() => {
             if (!disposed && version === warmupVersion) {
+              // Upload model buffers and finish the first draw during the idle
+              // warmup, before scrolling into Work brings this canvas nearby.
+              renderer.setRenderTarget(null);
+              renderer.render(scene, activeCamera);
+              prewarmed = true;
               host.dataset.shaderWarmup = "ready";
             }
           })
@@ -772,6 +813,8 @@ export default function TalentMatrixScene({
         }
 
         cityModel.name = "Pathetic_City_Model";
+        cityModel.updateWorldMatrix(true, true);
+        const originalBuildingGeometries = new Set<THREE.BufferGeometry>();
         cityModel.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return;
 
@@ -794,6 +837,8 @@ export default function TalentMatrixScene({
             object.material = floorMaterial;
             object.renderOrder = -1;
           } else {
+            originalBuildingGeometries.add(object.geometry);
+            cropBuildingAtFloor(object, floorY + 0.003);
             object.material = isTower ? towerMaterial : buildingMaterial;
             object.userData.matrixInteractive = true;
             interactiveBuildings.push(object);
@@ -812,6 +857,8 @@ export default function TalentMatrixScene({
 
           originalMaterials.forEach((material) => material.dispose());
         });
+
+        originalBuildingGeometries.forEach((geometry) => geometry.dispose());
 
         const centralTowerMeshes = interactiveBuildings.filter((building) =>
           building.name.startsWith("Tower_"),
@@ -837,7 +884,9 @@ export default function TalentMatrixScene({
         );
 
         scene.add(cityModel);
-        const modelCamera = cityModel.getObjectByName("Website_Camera_1440x900");
+        const modelCamera = cityModel.getObjectByName(
+          "Website_Camera_1440x900",
+        );
         if (modelCamera instanceof THREE.PerspectiveCamera) {
           activeCamera = modelCamera;
           bloomRenderPass.camera = activeCamera;
@@ -857,7 +906,7 @@ export default function TalentMatrixScene({
       },
     );
 
-    if (avatarCount > 0) {
+    if (avatarCount > 0 && quality !== "mobile") {
       const avatarLoader = new GLTFLoader();
       const requestedAvatarCount = Math.min(avatarCount, 4);
       const avatarModelSources = resolveAvatarModelSources(
@@ -967,22 +1016,16 @@ export default function TalentMatrixScene({
                 color: "#f4fff6",
                 fontFamily: "var(--font-sans), Arial, sans-serif",
                 fontSize:
-                  quality === "mobile"
-                    ? "clamp(19px, 5vw, 25px)"
-                    : quality === "tablet"
-                      ? "clamp(22px, 3vw, 30px)"
-                      : "clamp(16px, 1.25vw, 22px)",
+                  quality === "tablet"
+                    ? "clamp(22px, 3vw, 30px)"
+                    : "clamp(16px, 1.25vw, 22px)",
                 fontWeight: "900",
                 fontStyle: "normal",
                 lineHeight: "1",
                 letterSpacing: "-0.045em",
                 whiteSpace: "nowrap",
                 WebkitTextStroke:
-                  quality === "mobile"
-                    ? "2.5px #000"
-                    : quality === "tablet"
-                      ? "3px #000"
-                      : "2px #000",
+                  quality === "tablet" ? "3px #000" : "2px #000",
                 paintOrder: "stroke fill",
                 textShadow: "0 2px 0 #000, 0 0 8px rgba(0,0,0,.95)",
                 transform: "translate3d(-9999px,-9999px,0)",
@@ -1048,11 +1091,10 @@ export default function TalentMatrixScene({
 
     const onPointerMove = (event: PointerEvent) => {
       const rect = host.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5) * 2;
+      pointer.x =
+        ((event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5) * 2;
       pointer.y =
-        (0.5 -
-          (event.clientY - rect.top) / Math.max(rect.height, 1)) *
-        2;
+        (0.5 - (event.clientY - rect.top) / Math.max(rect.height, 1)) * 2;
       pointerInside = true;
       buildingPickPending = true;
     };
@@ -1088,8 +1130,7 @@ export default function TalentMatrixScene({
       activeCamera.fov = THREE.MathUtils.radToDeg(
         2 *
           Math.atan(
-            Math.tan(THREE.MathUtils.degToRad(cameraBaseFov) / 2) *
-              portraitFit,
+            Math.tan(THREE.MathUtils.degToRad(cameraBaseFov) / 2) * portraitFit,
           ),
       );
       activeCamera.updateProjectionMatrix();
@@ -1125,7 +1166,7 @@ export default function TalentMatrixScene({
     let bloomCooldownUntil = 0;
     let bloomWasRendered = false;
     let bloomState = "";
-    let lastWarmRender = 0;
+    let prewarmed = false;
 
     const setBloomState = (state: string) => {
       if (state === bloomState) return;
@@ -1135,18 +1176,19 @@ export default function TalentMatrixScene({
 
     const render = (now: number) => {
       frame = requestAnimationFrame(render);
-      if (!nearby) {
+      // One nearby frame uploads textures and warms shaders. Further offscreen
+      // renders compete with the next section without keeping anything warmer.
+      if (document.hidden || !nearby || (!onscreen && prewarmed)) {
         previousFrameTime = 0;
         return;
       }
-
-      // Keep the context and compiled programs warm before the canvas re-enters
-      // view, without paying for a full-rate offscreen scene.
-      if (!onscreen && now - lastWarmRender < 120) return;
-      lastWarmRender = now;
+      prewarmed = true;
 
       if (previousFrameTime > 0) {
-        const frameDuration = Math.max(1, Math.min(100, now - previousFrameTime));
+        const frameDuration = Math.max(
+          1,
+          Math.min(100, now - previousFrameTime),
+        );
         const instantFps = 1000 / frameDuration;
         smoothedFps = THREE.MathUtils.lerp(smoothedFps, instantFps, 0.045);
       }
@@ -1172,7 +1214,8 @@ export default function TalentMatrixScene({
       }
 
       activeCamera.position.x +=
-        (cameraBasePosition.x + pointer.x * 0.42 - activeCamera.position.x) * 0.035;
+        (cameraBasePosition.x + pointer.x * 0.42 - activeCamera.position.x) *
+        0.035;
       const cameraProgress = Math.max(
         0,
         Math.min(1, cameraScrollProgress?.current.value ?? 0),
@@ -1337,6 +1380,7 @@ export default function TalentMatrixScene({
           materials.forEach((material) => material?.dispose());
         }
       });
+      buildingGroundTexture.dispose();
       matrixTextures.forEach((texture) => texture.dispose());
       avatarTextures.forEach((texture) => texture.dispose());
       avatarLabelLayer.remove();

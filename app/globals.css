@@ -200,7 +200,8 @@ html[data-home-loader-pending="true"] #page-content-root {
   }
 }
 
-[data-header-feature-image-rotator] {
+[data-header-feature-image-rotator],
+[data-case-result-star] {
   animation: header-feature-idle-y 18s linear infinite;
   transform-origin: 50% 50%;
   transform-style: preserve-3d;
@@ -294,51 +295,30 @@ html[data-home-loader-pending="true"] #page-content-root {
   color: #ffffff !important;
 }
 
-html,
-body,
-#smooth-wrapper {
-  transition: background-color 300ms ease-out;
+/* One frame drives the scene and the adjoining surfaces. The light spill is
+   behind the neighbouring content, never a dark mask over the glasses. */
+html[data-lifecycle-environment] [data-lifecycle-environment-surface="base"] {
+  background-color: color-mix(in srgb, var(--lifecycle-original-color, #fff), #000 var(--lifecycle-environment-darkness)) !important;
+  background-image: none !important;
+  transition: none !important;
 }
-
-html[data-lifecycle-fun-active],
-html[data-lifecycle-fun-active] body,
-html[data-lifecycle-fun-active] #smooth-wrapper {
-  background-color: #000000;
+html[data-lifecycle-environment] [data-lifecycle-environment-surface="panel"] {
+  filter: brightness(var(--lifecycle-environment-brightness));
+  border-color: transparent !important;
+  transition: none !important;
 }
-
-[data-lifecycle-fun-neighbor] {
-  position: relative;
+html[data-lifecycle-environment] [data-lifecycle-environment-surface="content-panel"] {
+  background: transparent !important;
+  transition: none !important;
 }
-
-[data-lifecycle-fun-neighbor]::after {
-  position: absolute;
-  inset: 0;
-  z-index: 80;
-  content: "";
-  pointer-events: none;
-  background: #000000;
-  opacity: 0;
-  transition: opacity 300ms ease-out;
+/* Two pixels of overlap cover fractional CSS-pixel raster seams on mobile. */
+html[data-lifecycle-environment] [data-lifecycle-environment-spill-host] {
+  z-index: 30 !important;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
 }
-
-html[data-lifecycle-fun-active] [data-lifecycle-fun-neighbor]::after {
-  opacity: 1;
-}
-
-[data-lifecycle-fun-previous]::after {
-  position: absolute;
-  inset: 0;
-  z-index: 100;
-  content: "";
-  pointer-events: none;
-  background: #000000;
-  opacity: 0;
-  transition: opacity 300ms ease-out;
-}
-
-[data-lifecycle-root][data-lifecycle-fun-active="true"]
-  [data-lifecycle-fun-previous]::after {
-  opacity: 1;
+html[data-lifecycle-environment] [data-lifecycle-environment-section] {
+  color: var(--lifecycle-environment-ink);
 }
 
 [data-header-logo-matrix] {
@@ -504,6 +484,7 @@ html[data-lifecycle-fun-active] [data-lifecycle-fun-neighbor]::after {
 
 @media (prefers-reduced-motion: reduce) {
   [data-header-feature-image-rotator],
+  [data-case-result-star],
   [data-header-logo-matrix-scan]::before,
   [data-header-matrix-row],
   [data-header-feature-matrix-streams] > span {

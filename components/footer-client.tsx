@@ -3,6 +3,7 @@
 
 import { useLayoutEffect, useRef } from "react";
 import Link from "next/link";
+import { stegaClean } from "next-sanity";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import ScrollSmoother from "gsap/ScrollSmoother";
@@ -36,7 +37,7 @@ function getActiveScroller(): Window | HTMLElement {
     const smoother = ScrollSmoother.get();
     const wrapper = smoother?.wrapper?.();
     if (wrapper) return wrapper as HTMLElement;
-  } catch { }
+  } catch {}
 
   const wrapper = document.getElementById("smooth-wrapper");
   if (wrapper?.getAttribute("data-smooth-active") === "true") {
@@ -138,7 +139,11 @@ export default function FooterClient({
               {(footerLeftLinks ?? []).map((link) => (
                 <Link
                   key={link._key}
-                  href={link.href ?? "#"}
+                  href={
+                    /^careers$/i.test(stegaClean(link.title ?? "").trim())
+                      ? "/jobs"
+                      : (link.href ?? "#")
+                  }
                   target={link.target ? "_blank" : undefined}
                   rel={link.target ? "noopener noreferrer" : undefined}
                   data-footer-anim
@@ -147,10 +152,12 @@ export default function FooterClient({
                       variant: (link.buttonVariant as any) || "menu",
                       size: "sm",
                     }),
-                    "transition-colors h-auto px-0 py-0 will-change-transform"
+                    "transition-colors h-auto px-0 py-0 will-change-transform",
                   )}
                 >
-                  {link.title}
+                  {/^careers$/i.test(stegaClean(link.title ?? "").trim())
+                    ? "Jobs"
+                    : link.title}
                 </Link>
               ))}
             </div>
@@ -160,7 +167,11 @@ export default function FooterClient({
               {(footerRightLinks ?? []).map((link) => (
                 <Link
                   key={link._key}
-                  href={link.href ?? "#"}
+                  href={
+                    /^careers$/i.test(stegaClean(link.title ?? "").trim())
+                      ? "/jobs"
+                      : (link.href ?? "#")
+                  }
                   target={link.target ? "_blank" : undefined}
                   rel={link.target ? "noopener noreferrer" : undefined}
                   data-footer-anim
@@ -170,15 +181,16 @@ export default function FooterClient({
                       size: "sm",
                     }),
                     link.buttonVariant === "menu" &&
-                    "transition-colors hover:text-foreground/80 text-foreground/60 h-auto px-0 py-0 text-xs hover:bg-transparent",
-                    "will-change-transform"
+                      "transition-colors hover:text-foreground/80 text-foreground/60 h-auto px-0 py-0 text-xs hover:bg-transparent",
+                    "will-change-transform",
                   )}
                 >
-                  {link.title}
+                  {/^careers$/i.test(stegaClean(link.title ?? "").trim())
+                    ? "Jobs"
+                    : link.title}
                 </Link>
               ))}
             </div>
-
 
             {/* Copyright row */}
             <div className="flex flex-row justify-center gap-6">
@@ -193,10 +205,7 @@ export default function FooterClient({
                 )}
               </div>
             </div>
-
           </div>
-
-
         </div>
       </div>
     </footer>

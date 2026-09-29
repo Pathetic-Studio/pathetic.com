@@ -9,6 +9,7 @@ import testimonial from "./schemas/documents/testimonial";
 import navigation from "./schemas/documents/navigation";
 import settings from "./schemas/documents/settings";
 import caseStudy from "./schemas/documents/case-study";
+import jobsPage from "./schemas/documents/jobs-page";
 // Schema UI shared objects
 import blockContent from "./schemas/blocks/shared/block-content";
 import link from "./schemas/blocks/shared/link";
@@ -84,6 +85,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     navigation,
     settings,
     caseStudy,
+    jobsPage,
     memeBooth,
     // shared objects
     blockContent,

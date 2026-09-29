@@ -1,0 +1,222 @@
+.section {
+  position: relative;
+  isolation: isolate;
+  padding: clamp(16px, 3.1vw, 60px) clamp(12px, 2.6vw, 50px);
+  background: #fff;
+}
+.panel {
+  --earth-size: clamp(310px, 35cqw, 600px);
+  --logo-scale: 0.75;
+  position: relative;
+  isolation: isolate;
+  container-type: size;
+  width: 100%;
+  height: clamp(520px, 40.7vw, 780px);
+  max-width: 2000px;
+  margin-inline: auto;
+  overflow: hidden;
+  background: #111;
+  color: #fff;
+}
+.starfield {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.star {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: #d9dfff;
+}
+.shootingStar {
+  position: absolute;
+  top: calc(9% + var(--shoot-index) * 15%);
+  left: calc(8% + var(--shoot-index) * 23%);
+  width: clamp(65px, 9vw, 160px);
+  height: 1px;
+  border-radius: 100%;
+  background: linear-gradient(90deg, transparent, #9baeff 72%, #fff);
+  opacity: 0;
+  transform: rotate(31deg);
+  animation: shooting-star 13s linear infinite;
+  animation-delay: calc(var(--shoot-index) * 3.2s - 1.2s);
+  animation-play-state: paused;
+}
+.shootingStar::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -1px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px 1px #97a8ff;
+}
+.panel[data-running="true"] .shootingStar {
+  animation-play-state: running;
+}
+@keyframes shooting-star {
+  0% {
+    opacity: 0;
+    transform: translate3d(-120px, -72px, 0) rotate(31deg) scaleX(0.5);
+  }
+  2% {
+    opacity: 0.8;
+  }
+  9% {
+    opacity: 0;
+    transform: translate3d(350px, 210px, 0) rotate(31deg) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(350px, 210px, 0) rotate(31deg) scaleX(1);
+  }
+}
+.glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--earth-size) * 1.65);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    #4659ff 0%,
+    #4659ff 31%,
+    #4e61ffcc 40%,
+    #4659ff58 49%,
+    #3b4ee815 59%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.earth {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: var(--earth-size);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.45s;
+}
+.fallback {
+  position: absolute;
+  inset: 3.7%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #173465;
+  transition: opacity 0.45s;
+}
+.fallbackImage {
+  object-fit: cover;
+}
+.fallback::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset -35px -18px 60px 8px #020715b3,
+    inset 4px 2px 10px #adc6ff8c;
+}
+.earth[data-ready="true"] .canvas {
+  opacity: 1;
+}
+.earth[data-ready="true"] .fallback {
+  opacity: 0;
+}
+.orbit {
+  display: contents;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--logo-width) * var(--logo-scale));
+  height: calc(clamp(34px, 4.6cqw, 78px) * var(--logo-scale));
+  transform: translate(var(--initial-x), var(--initial-y)) translate(-50%, -50%);
+  will-change: transform;
+  pointer-events: none;
+}
+.logoImage {
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+.headline {
+  position: absolute;
+  z-index: 5;
+  inset-inline: 3%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.24em;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(38px, 5cqw, 100px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #fff000;
+  text-shadow:
+    0 0 12px #ffed0060,
+    0 0 28px #ffed0048;
+  pointer-events: none;
+}
+.headline span {
+  display: block;
+}
+@media (max-width: 700px) {
+  .panel {
+    --earth-size: min(82cqw, 390px);
+    height: clamp(540px, 150vw, 680px);
+  }
+  .headline {
+    inset-inline: 5%;
+    font-size: clamp(28px, 8.4cqw, 48px);
+    line-height: 1.03;
+    gap: 0.18em;
+  }
+  .headline span {
+    text-wrap: balance;
+  }
+  .logo {
+    width: calc(var(--logo-mobile-width) * var(--logo-scale));
+    height: calc(42px * var(--logo-scale));
+  }
+  .glow {
+    width: calc(var(--earth-size) * 1.5);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shootingStar {
+    display: none;
+    animation: none;
+  }
+  .canvas,
+  .fallback {
+    transition: none;
+  }
+  .logo {
+    will-change: auto;
+  }
+}

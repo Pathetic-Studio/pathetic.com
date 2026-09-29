@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import Link from "next/link";
 import gsap from "gsap";
 
 export type WorkViewerContent = {
@@ -12,6 +13,7 @@ export type WorkViewerContent = {
   imageAlt?: string;
   videoUrl?: string;
   videoPosterUrl?: string;
+  caseStudyHref?: string;
 };
 
 export default function WorkContentViewer({
@@ -94,7 +96,7 @@ export default function WorkContentViewer({
         ref={panelRef}
         className={
           isVideo
-            ? "relative flex max-h-[86svh] w-fit max-w-[calc(100vw-1.5rem)] items-center justify-center border border-black bg-white p-2 sm:max-w-[calc(100vw-3rem)] sm:p-4 lg:p-6"
+            ? "relative flex max-h-[86svh] w-fit max-w-[calc(100vw-1.5rem)] flex-col items-center justify-center border border-black bg-white p-2 sm:max-w-[calc(100vw-3rem)] sm:p-4 lg:p-6"
             : "relative flex h-[86svh] max-h-[86svh] w-full max-w-[92rem] items-center justify-center border border-black bg-white p-2 sm:p-4 lg:p-6"
         }
       >
@@ -106,7 +108,7 @@ export default function WorkContentViewer({
             autoPlay
             controls
             playsInline
-            className="block h-auto w-auto max-h-[calc(86svh-1rem)] max-w-full border border-black object-contain sm:max-h-[calc(86svh-2rem)] lg:max-h-[calc(86svh-3rem)]"
+            className="block h-auto w-auto max-h-[calc(86svh-5rem)] max-w-full border border-black object-contain sm:max-h-[calc(86svh-6rem)] lg:max-h-[calc(86svh-7rem)]"
           />
         ) : content.imageUrl ? (
           <div className="relative h-full w-full border border-black">
@@ -122,6 +124,15 @@ export default function WorkContentViewer({
           <div className="flex aspect-video w-full max-w-5xl items-center justify-center border border-black bg-white text-center text-lg font-bold uppercase">
             Add fullscreen content in Sanity
           </div>
+        )}
+        {content.caseStudyHref && (
+          <Link
+            href={content.caseStudyHref}
+            onClick={onClose}
+            className="mt-3 border-b border-current pb-1 text-sm font-bold uppercase focus-visible:outline focus-visible:outline-offset-4"
+          >
+            View the case study ↗
+          </Link>
         )}
       </div>
     </div>,

@@ -1,0 +1,386 @@
+.page {
+  background: #fff;
+  color: #080808;
+  padding-top: 7rem;
+  overflow: clip;
+}
+.hero,
+.indexHero {
+  width: min(90%, 1440px);
+  margin-inline: auto;
+  text-align: center;
+}
+.hero {
+  padding-block: 2rem 0;
+  padding-bottom: 3rem;
+}
+.topline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.topline a {
+  justify-self: start;
+}
+.topline > span:last-child {
+  justify-self: end;
+}
+.topline a,
+.textLink,
+.backLink {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+.eyebrow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+.client {
+  margin: 1.4rem auto 1.6rem;
+  max-width: 12ch;
+  font-size: clamp(4rem, 10vw, 10rem);
+  font-weight: 700;
+  line-height: 0.86;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.heroVisual {
+  position: relative;
+  width: min(78%, 740px);
+  margin: 3.5rem auto 3rem;
+}
+.coverFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.9;
+  background: #f0eeeb;
+}
+.portraitCover {
+  width: min(68%, 260px);
+  aspect-ratio: 9 / 16;
+  margin: 0 auto;
+}
+.objectHero {
+  width: min(65%, 480px);
+}
+.objectHero .coverFrame {
+  aspect-ratio: 1.7;
+  background: var(--study-accent);
+}
+.objectHero .coverFrame img {
+  padding: 12%;
+}
+.introCopy,
+.body {
+  font-size: clamp(1.15rem, 1.65vw, 1.5rem);
+  line-height: 1.34;
+  text-wrap: pretty;
+}
+.introCopy {
+  width: min(100%, 670px);
+  margin: 0 auto;
+}
+.campaignNav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.3rem 3rem;
+  padding: 1.4rem 0;
+  border-block: 1px solid #111;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-top: 3rem;
+}
+.campaignNav a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.campaignNav a:hover,
+.textLink:hover,
+.topline a:hover,
+.backLink:hover {
+  opacity: 0.55;
+}
+.campaign {
+  position: relative;
+  padding: clamp(4rem, 7vw, 7rem) 5%;
+  scroll-margin-top: 7rem;
+  text-align: center;
+}
+.tintedCampaign {
+  background: color-mix(in srgb, var(--study-accent), white 60%);
+}
+.campaignCopy {
+  width: min(100%, 800px);
+  margin-inline: auto;
+}
+.campaign h2,
+.gallerySection h2 {
+  margin: 1rem auto 1.4rem;
+  max-width: 15ch;
+  font-size: clamp(3rem, 6.2vw, 6rem);
+  font-weight: 700;
+  line-height: 0.92;
+  text-transform: uppercase;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+.result {
+  display: inline-block;
+  margin-block: 0.3rem 1.8rem;
+  padding: 0.4rem 0.85rem 0.5rem;
+  background: #d6ff00;
+  font-size: clamp(1.3rem, 2vw, 2rem);
+  font-weight: 700;
+  line-height: 1;
+}
+.body {
+  max-width: 680px;
+  margin: 0 auto;
+}
+.body a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.8rem 1rem 0;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.campaignMedia {
+  position: relative;
+  width: min(100%, 1000px);
+  margin: 3.5rem auto 0;
+}
+.portraitMedia {
+  width: min(76%, 410px);
+}
+.film {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #151515;
+  color: white;
+}
+.film video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+.play {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  text-align: center;
+}
+.play img {
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+.play:hover img {
+  transform: scale(1.025);
+}
+.playLabel {
+  position: absolute;
+  bottom: 1.3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.8rem 1.1rem;
+  white-space: nowrap;
+  background: #fff;
+  color: #080808;
+  border: 1px solid #080808;
+  box-shadow: 3px 3px 0 #080808;
+  font-size: 1rem;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.play:focus-visible {
+  outline: 4px solid #d6ff00;
+  outline-offset: -4px;
+}
+.videoError {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-content: center;
+  gap: 1rem;
+  background: #151515;
+}
+.videoError button {
+  text-decoration: underline;
+}
+.gallerySection {
+  padding: clamp(3rem, 6vw, 6rem) 0;
+  background: #f5f4ee;
+  text-align: center;
+  scroll-margin-top: 7rem;
+}
+.gallerySection > .eyebrow,
+.gallerySection h2 {
+  padding-inline: 5%;
+}
+.gallerySection h2 {
+  margin-bottom: 3rem;
+  max-width: 18ch;
+}
+.next {
+  padding: 5rem 5% 4rem;
+  background: #d6ff00;
+  text-align: center;
+}
+.next > a:not(.backHome) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-block: 2rem;
+  gap: 1rem;
+  font-size: clamp(3rem, 7vw, 7rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+}
+.nextTitle {
+  max-width: 15ch;
+  text-wrap: balance;
+}
+.next > a:hover > span:last-child {
+  transform: translate(5px, -5px);
+}
+.next > a span {
+  transition: transform 0.2s;
+}
+.backHome {
+  display: inline-block;
+  margin-top: 1rem;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+.indexHero {
+  position: relative;
+  padding-block: 1.5rem 3rem;
+}
+.backLink {
+  display: block;
+  width: fit-content;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+.indexHero .client {
+  margin-block: 1.3rem 1.5rem;
+  max-width: none;
+  font-size: clamp(3.4rem, 6.5vw, 7rem);
+}
+.indexHero .client > span {
+  display: block;
+}
+@media (max-width: 760px) {
+  .page {
+    padding-top: 5rem;
+  }
+  .topline {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    gap: 0.8rem;
+  }
+  .topline > span:last-child {
+    display: none;
+  }
+  .hero {
+    padding-top: 1.7rem;
+    padding-bottom: 3rem;
+  }
+  .client {
+    margin-block: 1.2rem;
+    font-size: clamp(3.4rem, 16vw, 6rem);
+  }
+  .heroVisual {
+    width: 84%;
+    margin-block: 2.8rem;
+  }
+  .coverFrame {
+    aspect-ratio: 1.65;
+  }
+  .portraitCover {
+    width: 72%;
+    aspect-ratio: 9 / 16;
+  }
+  .objectHero {
+    width: 74%;
+  }
+  .campaignNav {
+    gap: 1rem;
+    font-size: 0.7rem;
+    margin-top: 3rem;
+  }
+  .campaign {
+    padding: 3.5rem 6%;
+  }
+  .campaign h2,
+  .gallerySection h2 {
+    font-size: clamp(2.8rem, 11vw, 4.5rem);
+  }
+  .campaignMedia {
+    margin-top: 2rem;
+  }
+  .portraitMedia {
+    width: min(100%, 360px);
+  }
+  .playLabel {
+    padding: 0.7rem 0.8rem;
+    gap: 0.55rem;
+    font-size: 0.85rem;
+  }
+  .gallerySection {
+    padding-block: 3.5rem;
+  }
+  .gallerySection h2 {
+    margin-bottom: 1.5rem;
+  }
+  .next {
+    padding-block: 3.5rem 3rem;
+  }
+  .indexHero {
+    padding-bottom: 2rem;
+  }
+  .indexHero .client {
+    font-size: clamp(2.7rem, 10.5vw, 5rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .play img,
+  .next > a span {
+    transition: none;
+  }
+}
+.hero .client {
+  margin-top: 4rem;
+}
+.indexHero .client {
+  margin-top: 3rem;
+}

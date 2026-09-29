@@ -29,11 +29,17 @@ function setInitialHashReady(ready: boolean) {
   }
 
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent(INITIAL_HASH_READY_EVENT, { detail: { ready } }));
+    window.dispatchEvent(
+      new CustomEvent(INITIAL_HASH_READY_EVENT, { detail: { ready } }),
+    );
   }
 }
 
-export default function SmoothScroller({ children }: { children: React.ReactNode }) {
+export default function SmoothScroller({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
 
   useViewportVars();
@@ -47,6 +53,49 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     y: number;
   } | null>(null);
   const isFirstPathMountRef = useRef(true);
+  const historyPositionsRef = useRef(new Map<string, number>());
+  const navigatingRef = useRef(false);
+  const renderedPathRef = useRef(pathname);
+  renderedPathRef.current = pathname;
+  const pendingHistoryScrollRef = useRef<{
+    pathname: string;
+    y: number;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    const remember = () => {
+      // Ignore Next's interim scroll reset while the old route is unmounting.
+      if (
+        navigatingRef.current ||
+        window.location.pathname !== renderedPathRef.current
+      )
+        return;
+      const key = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const y = ScrollSmoother.get()?.scrollTop() ?? window.scrollY;
+      historyPositionsRef.current.set(key, y);
+    };
+    const onPageLeave = () => {
+      remember();
+      // Unpinning the old page can clamp its scroll before Next changes the
+      // URL. Preserve the actual departure position through that teardown.
+      navigatingRef.current = true;
+    };
+    const onPopState = () => {
+      navigatingRef.current = true;
+      const key = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const y = historyPositionsRef.current.get(key);
+      pendingHistoryScrollRef.current =
+        y === undefined ? null : { pathname: window.location.pathname, y };
+    };
+    window.addEventListener("app:page-leave", onPageLeave);
+    window.addEventListener("scroll", remember, { passive: true });
+    window.addEventListener("popstate", onPopState, true);
+    return () => {
+      window.removeEventListener("app:page-leave", onPageLeave);
+      window.removeEventListener("scroll", remember);
+      window.removeEventListener("popstate", onPopState, true);
+    };
+  }, []);
 
   // ScrollSmoother is reserved for fine-pointer desktop devices. Touch devices
   // retain native, finger-locked scrolling while ScrollTrigger continues to
@@ -119,29 +168,31 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
         if (smoother) {
           const current = smoother.scrollTop();
           const rectTop = target.getBoundingClientRect().top;
-          const y = current + rectTop;
+          const marginTop = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+          const y = current + rectTop - marginTop;
           smoother.scrollTo(y, false);
         } else {
           try {
             target.scrollIntoView({ behavior: "auto", block: "start" });
           } catch {
             const rect = target.getBoundingClientRect();
-            window.scrollTo({ top: rect.top + window.scrollY });
+            const marginTop = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+            window.scrollTo({ top: rect.top + window.scrollY - marginTop });
           }
         }
 
         try {
           ScrollTrigger.refresh();
-        } catch { }
+        } catch {}
       });
     });
   }, []);
 
   const stabilizeHashIfPresent = useCallback((durationMs = 900) => {
-    if (typeof window === "undefined") return () => { };
+    if (typeof window === "undefined") return () => {};
 
     const hash = window.location.hash;
-    if (!hash || hash === "#") return () => { };
+    if (!hash || hash === "#") return () => {};
 
     setInitialHashReady(false);
 
@@ -157,7 +208,8 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       const target = document.getElementById(id);
       if (!target) return false;
 
-      const rectTop = target.getBoundingClientRect().top;
+      const marginTop = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+      const rectTop = target.getBoundingClientRect().top - marginTop;
       if (Math.abs(rectTop) <= 1) return true;
 
       const smoother = ScrollSmoother.get();
@@ -186,7 +238,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
       try {
         ScrollTrigger.refresh();
-      } catch { }
+      } catch {}
 
       setInitialHashReady(true);
     };
@@ -227,7 +279,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     const restoreNativeScroller = () => {
       try {
         ScrollSmoother.get()?.kill();
-      } catch { }
+      } catch {}
 
       // ScrollSmoother may have been created during the first client layout
       // pass, before touch capability state settles. Explicitly restore the
@@ -248,7 +300,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
 
       try {
         ScrollTrigger.refresh();
-      } catch { }
+      } catch {}
 
       return;
     }
@@ -259,18 +311,22 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     if (prefersReduced || touchDevice) {
       try {
         ScrollTrigger.normalizeScroll(false);
-      } catch { }
+      } catch {}
 
       restoreNativeScroller();
       const savedForPath =
-        savedScrollerRebuildRef.current?.pathname === pathname
-          ? savedScrollerRebuildRef.current.y
-          : null;
+        pendingHistoryScrollRef.current?.pathname === pathname
+          ? pendingHistoryScrollRef.current.y
+          : savedScrollerRebuildRef.current?.pathname === pathname
+            ? savedScrollerRebuildRef.current.y
+            : null;
       const firstMount = isFirstPathMountRef.current;
       requestAnimationFrame(() => {
         if (!firstMount && savedForPath !== null) {
           window.scrollTo(0, savedForPath);
+          pendingHistoryScrollRef.current = null;
         }
+        navigatingRef.current = false;
         ScrollTrigger.refresh();
         ScrollTrigger.update();
       });
@@ -293,7 +349,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       if ("scrollRestoration" in window.history) {
         window.history.scrollRestoration = "manual";
       }
-    } catch { }
+    } catch {}
 
     ScrollTrigger.config({
       autoRefreshEvents: "DOMContentLoaded,load,resize",
@@ -308,7 +364,7 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     // Kill any prior smoother
     try {
       ScrollSmoother.get()?.kill();
-    } catch { }
+    } catch {}
 
     let smoother: ScrollSmoother | null = null;
     let cleanupHashStabilizer: (() => void) | null = null;
@@ -381,8 +437,9 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
       const desktop = window.matchMedia("(min-width: 1024px)").matches;
       if (!desktop) return;
 
-      const pinnedSections =
-        gsap.utils.toArray<HTMLElement>('[data-pin-to-viewport="true"]');
+      const pinnedSections = gsap.utils.toArray<HTMLElement>(
+        '[data-pin-to-viewport="true"]',
+      );
       pinnedSections.forEach((el) => (el.style.overflowAnchor = "none"));
 
       ro = new ResizeObserver(() => {
@@ -505,19 +562,26 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
         const skipInitialHashSync =
           isFirstPathMountRef.current && hasHash && nativeHashScrollY > 0;
 
-        if (hasHash) {
-          if (!skipInitialHashSync) scrollToHashIfPresent();
-          if (isFirstPathMountRef.current) {
+        const historyScroll = pendingHistoryScrollRef.current;
+        if (historyScroll?.pathname === pathname) {
+          setScrollY(historyScroll.y);
+          pendingHistoryScrollRef.current = null;
+          setInitialHashReady(true);
+        } else if (hasHash) {
+          // Client-route anchors are placed by TransitionShell after the new
+          // content and its pins mount, before revealing the page. Scheduling
+          // another jump here races that placement with the incoming fade.
+          if (firstMount) {
+            if (!skipInitialHashSync) scrollToHashIfPresent();
             cleanupHashStabilizer = stabilizeHashIfPresent();
           }
         } else {
           setInitialHashReady(true);
-          setScrollY(
-            !firstMount && savedForPath !== null ? savedForPath : 0,
-          );
+          setScrollY(!firstMount && savedForPath !== null ? savedForPath : 0);
         }
 
         isFirstPathMountRef.current = false;
+        navigatingRef.current = false;
 
         requestAnimationFrame(() => {
           ScrollTrigger.refresh();
@@ -567,18 +631,21 @@ export default function SmoothScroller({ children }: { children: React.ReactNode
     ? { height: "auto", overflow: "visible", overflowX: "clip" }
     : { height: "var(--app-height, 100vh)" };
 
-  const wrapperClass =
-    nativeScroll
-      ? "relative [overflow-x:clip] [overflow-y:visible] [overflow-anchor:none]"
-      : "relative overflow-hidden overflow-x-hidden [overflow-anchor:none]";
+  const wrapperClass = nativeScroll
+    ? "relative [overflow-x:clip] [overflow-y:visible] [overflow-anchor:none]"
+    : "relative overflow-hidden overflow-x-hidden [overflow-anchor:none]";
 
-  const contentClass =
-    nativeScroll
-      ? "min-h-[100vh] [overflow-anchor:none]"
-      : "min-h-[var(--app-height,100vh)] will-change-transform [transform:translate3d(0,0,0)] [overflow-anchor:none]";
+  const contentClass = nativeScroll
+    ? "min-h-[100vh] [overflow-anchor:none]"
+    : "min-h-[var(--app-height,100vh)] will-change-transform [transform:translate3d(0,0,0)] [overflow-anchor:none]";
 
   return (
-    <div id="smooth-wrapper" ref={wrapperRef} className={wrapperClass} style={wrapperStyle}>
+    <div
+      id="smooth-wrapper"
+      ref={wrapperRef}
+      className={wrapperClass}
+      style={wrapperStyle}
+    >
       <div id="smooth-content" ref={contentRef} className={contentClass}>
         {children}
       </div>

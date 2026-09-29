@@ -7,61 +7,52 @@ export type LifecycleSlideTwoAsset = {
 const ASSET_ROOT = "/images/lifecycle/slide-2";
 
 export const BUNDLED_SLIDE_TWO_CENTER: LifecycleSlideTwoAsset = {
-  key: "center-outfit",
-  src: `${ASSET_ROOT}/center-outfit.webp`,
-  alt: "Person wearing an oversized black leather outfit",
+  key: "center-pathetic-model",
+  src: `${ASSET_ROOT}/center-pathetic-model.webp`,
+  alt: "Model wearing a black Pathetic T-shirt and tall black boots",
 };
 
-// Clockwise from the right-hand side to mirror the supplied layout reference.
+// Apparel from Downloads/pathetic assets/to use, plus the supplied
+// PATHETIC STUDIO WIREFRAMES photos. All assets are local WebPs.
 export const BUNDLED_SLIDE_TWO_ORBIT: LifecycleSlideTwoAsset[] = [
   {
-    key: "leather-jacket",
-    src: `${ASSET_ROOT}/leather-jacket.webp`,
-    alt: "Black leather jacket with an orange stripe",
+    key: "pathetic-rhinestone-tee",
+    src: `${ASSET_ROOT}/pathetic/rhinestone-tee.webp`,
+    alt: "Black PATHETIC rhinestone T-shirt",
   },
   {
-    key: "charm-necklace",
-    src: `${ASSET_ROOT}/charm-necklace.webp`,
-    alt: "Gold and pink charm necklace",
+    key: "pathetic-rhinestone-street-style",
+    src: `${ASSET_ROOT}/pathetic/rhinestone-street-style.webp`,
+    alt: "PATHETIC rhinestone T-shirt styled with sunglasses and a pink belt",
   },
   {
-    key: "graphic-tshirt",
-    src: `${ASSET_ROOT}/graphic-tshirt.webp`,
-    alt: "White graphic T-shirt",
+    key: "pathetic-party-friends",
+    src: `${ASSET_ROOT}/pathetic/party-friends.webp`,
+    alt: "Friends at a PATHETIC party in a red-lit bar",
   },
   {
-    key: "awoke-vintage-bag",
-    src: `${ASSET_ROOT}/awoke-vintage-bag.webp`,
-    alt: "Pink Awoke Vintage tote bag",
+    key: "pathetic-glasses-tee",
+    src: `${ASSET_ROOT}/pathetic/glasses-tee.webp`,
+    alt: "White PATHETIC chrome glasses T-shirt",
   },
   {
-    key: "orange-boots",
-    src: `${ASSET_ROOT}/orange-boots.webp`,
-    alt: "Pair of tall orange boots",
+    key: "pathetic-basketball-editorial",
+    src: `${ASSET_ROOT}/pathetic/basketball-editorial.webp`,
+    alt: "PATHETIC graphic T-shirt and wide-leg jeans on a basketball court",
   },
   {
-    key: "coffee-cup",
-    src: `${ASSET_ROOT}/coffee-cup.webp`,
-    alt: "Decorated coffee cup and saucer",
+    key: "pathetic-party-merch-rail",
+    src: `${ASSET_ROOT}/pathetic/party-merch-rail.webp`,
+    alt: "Guests and a rail of PATHETIC T-shirts at a party",
   },
   {
-    key: "lamb-shirt",
-    src: `${ASSET_ROOT}/lamb-shirt.webp`,
-    alt: "Green T-shirt printed with a lamb",
+    key: "pathetic-camo-hoodie",
+    src: `${ASSET_ROOT}/pathetic/camo-hoodie.webp`,
+    alt: "PATHETIC camouflage hoodie",
   },
   {
-    key: "food-bowl",
-    src: `${ASSET_ROOT}/food-bowl.webp`,
-    alt: "Bowl of food",
-  },
-  {
-    key: "ceramic-mug",
-    src: `${ASSET_ROOT}/ceramic-mug.webp`,
-    alt: "Blue patterned ceramic mug",
-  },
-  {
-    key: "black-dog",
-    src: `${ASSET_ROOT}/black-dog.webp`,
-    alt: "Small black dog wearing bows",
+    key: "pathetic-party-crowd",
+    src: `${ASSET_ROOT}/pathetic/party-crowd.webp`,
+    alt: "PATHETIC party crowd beneath hanging stars and bunting",
   },
 ];

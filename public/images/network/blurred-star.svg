@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 220" fill="none"><defs><filter id="blur" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="8"/></filter></defs><path d="M140 18 166 76 259 82 188 125 215 199 140 155 65 199 92 125 21 82 114 76Z" fill="white" filter="url(#blur)"/></svg>

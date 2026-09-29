@@ -646,7 +646,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
 
         {items.map((item, index) => {
           const size = clamp((stegaClean(item.size) || 20) * 1.16, 10, 44);
-          const mobileSize = clamp(size * 1.34, 18, 49);
+          const mobileSize = clamp(size * 1.55, 20, 56);
           const commonClass = "group absolute left-0 top-0 z-10 aspect-square w-[var(--basket-mobile-size)] cursor-grab touch-none select-none border-0 bg-transparent p-0 will-change-transform active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-[var(--basket-size)]";
           const commonProps = {
             ref: (node: HTMLElement | null) => { itemRefs.current[index] = node; },

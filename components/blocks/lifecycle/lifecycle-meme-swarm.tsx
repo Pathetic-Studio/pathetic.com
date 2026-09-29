@@ -72,11 +72,11 @@ function getScatterPosition(index: number, total: number) {
   const column = index % columns;
   const row = Math.floor(index / columns);
   const xStep = columns > 1 ? 86 / (columns - 1) : 0;
-  const yStep = rows > 1 ? 70 / (rows - 1) : 0;
+  const yStep = rows > 1 ? 60 / (rows - 1) : 0;
 
   return {
     x: clamp(7 + column * xStep + Math.sin(index * 2.17) * 2.8, 5, 95),
-    y: clamp(16 + row * yStep + Math.cos(index * 1.73) * 4, 11, 91),
+    y: clamp(20 + row * yStep + Math.cos(index * 1.73) * 3, 18, 83),
   };
 }
 
@@ -86,7 +86,7 @@ function getRestSize(layer: MemeLayerSpec, index: number) {
     return { width: side, height: side };
   }
 
-  const maxSide = 48 + ((index * 13) % 34);
+  const maxSide = 56 + ((index * 13) % 38);
   const aspect = Math.max(0.35, Math.min(2.8, layer.width / layer.height));
 
   return aspect >= 1
@@ -142,8 +142,9 @@ export default function LifecycleMemeSwarm({
   const hasInteractedRef = useRef(false);
   const activeMemeRef = useRef<MemeCompositionTarget | null>(null);
   const resetTimerRef = useRef<number | null>(null);
-  const [activeMeme, setActiveMeme] =
-    useState<MemeCompositionTarget | null>(null);
+  const [activeMeme, setActiveMeme] = useState<MemeCompositionTarget | null>(
+    null,
+  );
   const [displayedMeme, setDisplayedMeme] =
     useState<MemeCompositionTarget | null>(null);
   const [compositionBox, setCompositionBox] =
@@ -161,23 +162,15 @@ export default function LifecycleMemeSwarm({
         const currentIndex = globalIndex++;
         const rest = getScatterPosition(currentIndex, total);
         const size = getRestSize(layer, currentIndex);
-        const depth = DEPTH_PRESETS[
-          DEPTH_SEQUENCE[currentIndex % DEPTH_SEQUENCE.length]
-        ];
-        const overlapsSubtitle =
-          rest.y < 27 && rest.x > 34 && rest.x < 66;
-        const safeRestX = overlapsSubtitle
-          ? currentIndex % 2 === 0
-            ? 30
-            : 70
-          : rest.x;
+        const depth =
+          DEPTH_PRESETS[DEPTH_SEQUENCE[currentIndex % DEPTH_SEQUENCE.length]];
 
         return {
           groupIndex,
           layerIndex,
           globalIndex: currentIndex,
           layer,
-          restX: roundLayoutValue(safeRestX),
+          restX: roundLayoutValue(rest.x),
           restY: roundLayoutValue(rest.y),
           restWidth: roundLayoutValue(size.width),
           restHeight: roundLayoutValue(size.height),
@@ -188,6 +181,162 @@ export default function LifecycleMemeSwarm({
       }),
     );
   }, []);
+
+  const [layoutVersion, setLayoutVersion] = useState(0);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const slide = root?.closest<HTMLElement>("[data-lifecycle-slide]");
+    if (!root || !slide) return;
+    let cancelled = false;
+    let frame = 0;
+    const measure = () => {
+      if (cancelled) return;
+      const bounds = root.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      // The actual characters define each line's protected area. The headline
+      // wrapper is almost viewport-wide and must not become a giant safe zone.
+      const characters = slide.querySelectorAll<HTMLElement>(
+        "[data-lifecycle-title-char]",
+      );
+      const zones: Array<{
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+      }> = [];
+      characters.forEach((character) => {
+        const box = character.getBoundingClientRect();
+        const top = box.top - bounds.top;
+        const line = zones.find((zone) => Math.abs(zone.top - top) < 5);
+        if (line) {
+          line.left = Math.min(line.left, box.left - bounds.left);
+          line.right = Math.max(line.right, box.right - bounds.left);
+          line.bottom = Math.max(line.bottom, box.bottom - bounds.top);
+        } else {
+          zones.push({
+            left: box.left - bounds.left,
+            right: box.right - bounds.left,
+            top,
+            bottom: box.bottom - bounds.top,
+          });
+        }
+      });
+      const title = slide.querySelector<HTMLElement>(
+        "[data-lifecycle-center-text]",
+      );
+      const titleScale = title
+        ? Number(gsap.getProperty(title, "scaleX")) || 1
+        : 1;
+      const growth = bounds.width >= 1024 ? 1.14 / titleScale : 1;
+      zones.forEach((zone) => {
+        zone.left = bounds.width / 2 + (zone.left - bounds.width / 2) * growth;
+        zone.right =
+          bounds.width / 2 + (zone.right - bounds.width / 2) * growth;
+        zone.top = bounds.height / 2 + (zone.top - bounds.height / 2) * growth;
+        zone.bottom =
+          bounds.height / 2 + (zone.bottom - bounds.height / 2) * growth;
+      });
+      const subtitle = slide.querySelector<HTMLElement>(
+        "[data-lifecycle-top-text]",
+      );
+      if (subtitle) {
+        const range = document.createRange();
+        range.selectNodeContents(subtitle);
+        const box = range.getBoundingClientRect();
+        zones.push({
+          left: box.left - bounds.left,
+          right: box.right - bounds.left,
+          top: box.top - bounds.top,
+          bottom: box.bottom - bounds.top,
+        });
+      }
+      const placed: Array<{ x: number; y: number; radius: number }> = [];
+      root
+        .querySelectorAll<HTMLElement>("[data-lifecycle-meme-image]")
+        .forEach((item, index) => {
+          const layer = layers[index] ?? { restX: 68, restY: 21 };
+          const scale =
+            Number(item.dataset.restScale) * (bounds.width < 640 ? 0.7 : 1);
+          // Include the hover growth and floating travel in the clearance.
+          const halfWidth = Number(item.dataset.restWidth) * scale * 0.61 + 7;
+          const halfHeight =
+            Number(item.dataset.restHeight) * scale * 0.61 + 14;
+          const clear = (x: number, y: number) =>
+            zones.every(
+              (zone) =>
+                x + halfWidth < zone.left ||
+                x - halfWidth > zone.right ||
+                y + halfHeight < zone.top ||
+                y - halfHeight > zone.bottom,
+            );
+          const origin = {
+            x: (bounds.width * layer.restX) / 100,
+            y: (bounds.height * layer.restY) / 100,
+          };
+          let best = origin;
+          let bestScore = Infinity;
+          for (let candidate = 0; candidate < 240; candidate++) {
+            const x =
+              candidate === 0
+                ? origin.x
+                : bounds.width *
+                  (0.035 +
+                    ((candidate * 0.61803398875 + index * 0.13) % 1) * 0.93);
+            const y =
+              candidate === 0
+                ? origin.y
+                : bounds.height *
+                  (0.18 +
+                    ((candidate * 0.41421356237 + index * 0.17) % 1) * 0.64);
+            if (!clear(x, y)) continue;
+            const crowding = placed.reduce(
+              (total, point) =>
+                total +
+                Math.max(
+                  0,
+                  halfWidth +
+                    point.radius +
+                    12 -
+                    Math.hypot(x - point.x, y - point.y),
+                ) *
+                  12,
+              0,
+            );
+            const score = Math.hypot(x - origin.x, y - origin.y) + crowding;
+            if (score < bestScore) {
+              best = { x, y };
+              bestScore = score;
+            }
+          }
+          placed.push({ ...best, radius: halfWidth });
+          item.dataset.restX = String(
+            roundLayoutValue((best.x / bounds.width) * 100),
+          );
+          item.dataset.restY = String(
+            roundLayoutValue((best.y / bounds.height) * 100),
+          );
+        });
+      setLayoutVersion((value) => value + 1);
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(root);
+    const title = slide.querySelector<HTMLElement>(
+      "[data-lifecycle-center-text]",
+    );
+    if (title) observer.observe(title);
+    void document.fonts.ready.then(schedule);
+    schedule();
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [layers, bridgeImage?.src]);
 
   const bridgeLayer = useMemo(() => {
     const depth = DEPTH_PRESETS[2];
@@ -331,8 +480,7 @@ export default function LifecycleMemeSwarm({
       );
 
       floatLayers.forEach((layer, index) => {
-        const { distance, direction, duration, delay } =
-          getFloatMotion(index);
+        const { distance, direction, duration, delay } = getFloatMotion(index);
         const tween = gsap.fromTo(
           layer,
           { y: -distance * direction },
@@ -409,9 +557,7 @@ export default function LifecycleMemeSwarm({
         left = `${compositionBox.left + (layerCenterX / 100) * compositionBox.width}%`;
         top = `${compositionBox.top + (layerCenterY / 100) * compositionBox.height}%`;
         width =
-          rootBounds.width *
-          (compositionBox.width / 100) *
-          (finalWidth / 100);
+          rootBounds.width * (compositionBox.width / 100) * (finalWidth / 100);
         height =
           rootBounds.height *
           (compositionBox.height / 100) *
@@ -423,7 +569,7 @@ export default function LifecycleMemeSwarm({
         top,
         width,
         height,
-        rotation: 0,
+        rotation: belongsToActiveGroup && layer ? (layer.rotation ?? 0) : 0,
         rotationX: 0,
         rotationY: 0,
         z: 0,
@@ -479,8 +625,7 @@ export default function LifecycleMemeSwarm({
         activeMeme === null &&
         !floatTweensRef.current.has(floatLayer)
       ) {
-        const { distance, direction, duration } =
-          getFloatMotion(globalIndex);
+        const { distance, direction, duration } = getFloatMotion(globalIndex);
         const tween = gsap.to(floatLayer, {
           y: distance * direction,
           duration,
@@ -510,7 +655,7 @@ export default function LifecycleMemeSwarm({
         overwrite: true,
       });
     }
-  }, [activeMeme, compositionBox, displayedMeme]);
+  }, [activeMeme, compositionBox, displayedMeme, layoutVersion]);
 
   const activeGroup = activeMeme?.groupIndex ?? null;
   const activeLabel =
@@ -519,10 +664,7 @@ export default function LifecycleMemeSwarm({
       : memes?.[activeGroup]?.title || MEME_TEMPLATES[activeGroup].label;
 
   return (
-    <div
-      ref={rootRef}
-      className="absolute inset-0"
-    >
+    <div ref={rootRef} className="absolute inset-0">
       {layers.map((item) => (
         <button
           key={`${item.groupIndex}-${item.layerIndex}`}
@@ -573,7 +715,26 @@ export default function LifecycleMemeSwarm({
               data-global-index={item.globalIndex}
               className="absolute inset-0 will-change-transform"
             >
-              {item.layer.src ? (
+              {item.layer.src && item.layer.sourceCrop ? (
+                <svg
+                  viewBox={item.layer.sourceCrop.viewBox}
+                  role="img"
+                  aria-label={item.layer.alt}
+                  className="h-full w-full"
+                >
+                  <defs>
+                    <clipPath id={`meme-character-${item.globalIndex}`}>
+                      <path d={item.layer.sourceCrop.outline} />
+                    </clipPath>
+                  </defs>
+                  <image
+                    href={item.layer.src}
+                    width="1018"
+                    height="1146"
+                    clipPath={`url(#meme-character-${item.globalIndex})`}
+                  />
+                </svg>
+              ) : item.layer.src ? (
                 <Image
                   src={item.layer.src}
                   alt={item.layer.alt}

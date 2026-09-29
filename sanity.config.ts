@@ -27,7 +27,7 @@ const singletonActions = new Set([
 ]);
 
 // Define the singleton document types
-const singletonTypes = new Set(["settings"]);
+const singletonTypes = new Set(["settings", "jobsPage"]);
 
 export default defineConfig({
   basePath: "/studio",

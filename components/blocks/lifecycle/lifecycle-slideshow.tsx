@@ -124,6 +124,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
     objectSlide,
   } = props;
   const rootRef = useRef<HTMLElement | null>(null);
+  const objectArticleRef = useRef<HTMLElement | null>(null);
   const [boosted, setBoosted] = useState(false);
   const [objectEntryKey, setObjectEntryKey] = useState(0);
   const [memeResetKey, setMemeResetKey] = useState(0);
@@ -182,17 +183,22 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
     setHeaderVisualTheme,
   ]);
 
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    const next = root.nextElementSibling as HTMLElement | null;
-    next?.setAttribute("data-lifecycle-fun-neighbor", "below");
-
+  useEffect(() => {
+    if (!boosted) return;
+    const stop = () => setBoosted(false);
+    const onVisibility = () => { if (document.hidden) stop(); };
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) stop();
+    });
+    if (objectArticleRef.current) observer.observe(objectArticleRef.current);
+    window.addEventListener("blur", stop);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      next?.removeAttribute("data-lifecycle-fun-neighbor");
+      observer.disconnect();
+      window.removeEventListener("blur", stop);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [boosted]);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -415,10 +421,10 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           const orbitImagesInAt = 0.75;
           const secondTextInAt = 0.78;
           const secondRestAt = 1.3;
-          const secondOutAt = 1.72;
-          const thirdInAt = 1.96;
-          const thirdRestAt = 2.66;
-          const timelineEnd = 3.1;
+          const secondOutAt = secondRestAt;
+          const thirdInAt = secondOutAt + 0.1;
+          const thirdRestAt = thirdInAt + 0.4;
+          const timelineEnd = thirdRestAt + 0.3;
 
           timeline.call(
             () => setMemeResetKey((current) => current + 1),
@@ -652,7 +658,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
                 yPercent: 0,
                 rotation: 0,
                 scale: 1,
-                duration: 0.55,
+                duration: 0.4,
                 ease: "power4.out",
                 force3D: true,
                 onStart: () =>
@@ -694,7 +700,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
 
           timeline.to({}, { duration: timelineEnd - thirdInAt }, thirdInAt);
 
-          const stageThresholds = [0, 0.34, 0.68] as const;
+          const stageThresholds = [0, 0.34, 0.62] as const;
           const stageTimes = [0, secondRestAt, thirdRestAt] as const;
           let currentStage = 0;
           let stageTween: gsap.core.Tween | null = null;
@@ -705,11 +711,17 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             return 0;
           };
 
-          const animateToStage = (nextStage: number) => {
+          const animateToStage = (nextStage: number, velocity = 0) => {
             if (nextStage === currentStage) return;
+            const transitioningThirdSlide = currentStage === 2 || nextStage === 2;
             currentStage = nextStage;
             stageTween?.kill();
             stageTween = timeline.tweenTo(stageTimes[nextStage], {
+              // Preserve the original first/second-slide timeline pacing.
+              // Only transitions involving the glasses use the shorter duration.
+              ...(transitioningThirdSlide
+                ? { duration: Math.abs(velocity) > 2000 ? 0.2 : 0.38 }
+                : {}),
               ease: "none",
               overwrite: true,
             });
@@ -739,7 +751,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             triggerActive: boolean,
           ) => {
             const nextObjectSlideActive =
-              triggerActive && progressValue >= stageThresholds[2];
+              (triggerActive || boostedRef.current) && progressValue >= stageThresholds[2];
             objectSlideActiveRef.current = nextObjectSlideActive;
             if (
               nextObjectSlideActive &&
@@ -777,24 +789,27 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             end: () => `+=${window.innerHeight * duration}`,
             invalidateOnRefresh: true,
             onEnter: (self) => {
-              animateToStage(stageForProgress(self.progress));
+              animateToStage(stageForProgress(self.progress), self.getVelocity());
               syncObjectSlideState(self.progress, self.isActive);
             },
             onEnterBack: (self) => {
-              animateToStage(stageForProgress(self.progress));
+              animateToStage(stageForProgress(self.progress), self.getVelocity());
               syncObjectSlideState(self.progress, self.isActive);
             },
             onUpdate: (self) => {
               if (progress) gsap.set(progress, { scaleX: self.progress });
               updateTitleScale(self.progress);
-              animateToStage(stageForProgress(self.progress));
+              animateToStage(stageForProgress(self.progress), self.getVelocity());
               syncObjectSlideState(self.progress, self.isActive);
             },
+            // Holding the button continues across the pin's end, while the
+            // glasses and the next section share the viewport.
             onLeave: () => {
-              objectSlideActiveRef.current = false;
-              boostedRef.current = false;
-              setBoosted(false);
-              clearHeaderVisualTheme(headerThemeSource);
+              stageTween?.kill();
+              stageTween = null;
+              currentStage = 2;
+              timeline.pause(thirdRestAt, false);
+              syncObjectSlideState(1, false);
             },
             onLeaveBack: resetScrubState,
           });
@@ -960,7 +975,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
                 {
                   yPercent: 0,
                   scale: 1,
-                  duration: 0.72,
+                  duration: 0.35,
                   ease: "power4.out",
                   force3D: true,
                 },
@@ -1069,18 +1084,6 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
       >
         <BackgroundPanel background={background} />
 
-        <div
-          data-lifecycle-fun-site-wash
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute inset-0 z-[5] transition-opacity duration-300 ease-out",
-            boosted ? "opacity-100" : "opacity-0",
-          )}
-          style={{
-            background: "#000000",
-          }}
-        />
-
         <article
           data-lifecycle-slide="meme"
           className="relative z-10 min-h-[92svh] overflow-hidden lg:absolute lg:inset-0 lg:min-h-0"
@@ -1115,6 +1118,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
         </article>
 
         <article
+          ref={objectArticleRef}
           data-lifecycle-slide="object"
           className="relative z-10 -mt-px min-h-[calc(92svh+1px)] overflow-hidden lg:invisible lg:absolute lg:inset-0 lg:mt-0 lg:min-h-0 lg:opacity-0"
         >
@@ -1146,21 +1150,9 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
               rotationSpeed={objectSlide?.rotationSpeed}
               boosted={boosted}
               entryKey={objectEntryKey}
+              environmentRoot={rootRef}
             />
           </div>
-
-          <div
-            data-lifecycle-fun-edge-gradient
-            aria-hidden="true"
-            className={cn(
-              "pointer-events-none absolute inset-0 z-30 transition-opacity duration-300 ease-out",
-              boosted ? "opacity-100" : "opacity-0",
-            )}
-            style={{
-              background:
-                "linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.92) 1.5%, rgba(0,0,0,0.48) 4%, transparent 9%, transparent 91%, rgba(0,0,0,0.48) 96%, rgba(0,0,0,0.92) 98.5%, #000 100%)",
-            }}
-          />
 
           <SlideCopy
             topText={objectSlide?.topText}
@@ -1175,6 +1167,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
               event.currentTarget.setPointerCapture(event.pointerId);
               setBoosted(true);
             }}
+            onBlur={() => setBoosted(false)}
             onPointerUp={() => setBoosted(false)}
             onPointerCancel={() => setBoosted(false)}
             onLostPointerCapture={() => setBoosted(false)}
@@ -1191,7 +1184,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             }}
             className="absolute bottom-6 right-5 z-50 flex h-20 w-20 touch-none select-none items-center justify-center rounded-full bg-[#ff241a] px-3 text-center text-[10px] font-bold uppercase leading-[0.95] text-white transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4 lg:bottom-8 lg:right-8 lg:h-28 lg:w-28 lg:text-xs"
           >
-            {stegaClean(objectSlide?.buttonLabel) || "Hold to spin"}
+            Fun Button
           </button>
         </article>
 

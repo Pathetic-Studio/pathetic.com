@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import gsap from "gsap";
+import { createLifecycleEnvironment } from "./lifecycle-environment";
 
 type LifecycleThreeSceneProps = {
   modelUrl?: string | null;
@@ -9,6 +10,7 @@ type LifecycleThreeSceneProps = {
   rotationSpeed?: number | null;
   boosted: boolean;
   entryKey: number;
+  environmentRoot: RefObject<HTMLElement | null>;
 };
 
 export default function LifecycleThreeScene({
@@ -17,8 +19,10 @@ export default function LifecycleThreeScene({
   rotationSpeed = 0.35,
   boosted,
   entryKey,
+  environmentRoot,
 }: LifecycleThreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const visibleRef = useRef(false);
   const boostedRef = useRef(boosted);
   const sceneReadyRef = useRef(false);
   const pendingEntryRef = useRef(false);
@@ -29,6 +33,43 @@ export default function LifecycleThreeScene({
     pendingEntryRef.current = true;
   });
   const [webglUnavailable, setWebglUnavailable] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const slide = canvas.closest('[data-lifecycle-slide="object"]') || canvas;
+    let inViewport = false;
+    const syncVisibility = () => {
+      const style = getComputedStyle(slide);
+      visibleRef.current =
+        inViewport &&
+        style.visibility !== "hidden" &&
+        style.display !== "none" &&
+        Number(style.opacity) > 0;
+    };
+    // The pin can end while the glasses still occupy the viewport. Follow the
+    // rendered canvas, including its entrance transform, instead of the pin.
+    const viewportObserver = new IntersectionObserver(([entry]) => {
+      inViewport =
+        entry.isIntersecting &&
+        entry.intersectionRect.width > 0 &&
+        entry.intersectionRect.height > 0;
+      syncVisibility();
+    });
+    viewportObserver.observe(canvas);
+    // Desktop slides overlap: intersection alone also sees the hidden slides.
+    // GSAP changes their visibility as the slideshow advances or reverses.
+    const slideObserver = new MutationObserver(syncVisibility);
+    slideObserver.observe(slide, {
+      attributes: true,
+      attributeFilter: ["style", "class"],
+    });
+    return () => {
+      visibleRef.current = false;
+      viewportObserver.disconnect();
+      slideObserver.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     boostedRef.current = boosted;
@@ -75,14 +116,12 @@ export default function LifecycleThreeScene({
         { EffectComposer },
         { RenderPass },
         { UnrealBloomPass },
-        { RoomEnvironment },
       ] = await Promise.all([
         import("three/examples/jsm/loaders/GLTFLoader.js"),
         import("@/lib/three/geometries/LightningStrike.js"),
         import("three/examples/jsm/postprocessing/EffectComposer.js"),
         import("three/examples/jsm/postprocessing/RenderPass.js"),
         import("three/examples/jsm/postprocessing/UnrealBloomPass.js"),
-        import("three/examples/jsm/environments/RoomEnvironment.js"),
       ]);
 
       if (cancelled) return;
@@ -102,15 +141,45 @@ export default function LifecycleThreeScene({
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-      // Give the chrome a small, prefiltered studio environment. This is
-      // generated once at setup and adds no per-frame reflection rendering.
+      // Chrome needs bright, neutral bands against dark reflections to read
+      // as polished metal. Use only light strips: no reflected room or props.
+      // Bake them once so the finish adds no per-frame reflection rendering.
       const pmremGenerator = new THREE.PMREMGenerator(renderer);
-      const roomEnvironment = new RoomEnvironment();
-      const studioEnvironment = pmremGenerator.fromScene(
-        roomEnvironment,
-        0.035,
-      ).texture;
-      roomEnvironment.dispose();
+      const reflectionLighting = new THREE.Scene();
+      reflectionLighting.background = new THREE.Color(0x292929);
+      const addReflectionStrip = (
+        width: number,
+        height: number,
+        position: [number, number, number],
+        intensity: number,
+      ) => {
+        const strip = new THREE.Mesh(
+          new THREE.PlaneGeometry(width, height),
+          new THREE.MeshBasicMaterial({
+            color: new THREE.Color().setRGB(intensity, intensity, intensity),
+            side: THREE.DoubleSide,
+            toneMapped: false,
+          }),
+        );
+        strip.position.set(...position);
+        strip.lookAt(0, 0, 0);
+        reflectionLighting.add(strip);
+      };
+      addReflectionStrip(8, 4, [0, 3, 4], 1.4);
+      addReflectionStrip(5, 8, [-4, 1, 2.5], 0.9);
+      addReflectionStrip(4, 9, [4, 0, 2], 1.8);
+      addReflectionStrip(8, 5, [0, 3, -4], 1.2);
+      addReflectionStrip(7, 3, [0, -3, 4], 0.7);
+      const disposeReflectionLighting = () => {
+        reflectionLighting.traverse((object) => {
+          if (object instanceof THREE.Mesh) {
+            object.geometry.dispose();
+            object.material.dispose();
+          }
+        });
+      };
+      const studioRenderTarget = pmremGenerator.fromScene(reflectionLighting);
+      const studioEnvironment = studioRenderTarget.texture;
       scene.environment = studioEnvironment;
       scene.environmentIntensity = 0.72;
 
@@ -118,6 +187,9 @@ export default function LifecycleThreeScene({
         null;
       let brandedLensRenderTarget: InstanceType<
         typeof THREE.WebGLCubeRenderTarget
+      > | null = null;
+      let brandedChromeRenderTarget: ReturnType<
+        typeof pmremGenerator.fromCubemap
       > | null = null;
       try {
         const reflectionLogo = await new THREE.TextureLoader().loadAsync(
@@ -131,7 +203,8 @@ export default function LifecycleThreeScene({
 
         if (cancelled) {
           reflectionLogo.dispose();
-          studioEnvironment.dispose();
+          disposeReflectionLighting();
+          studioRenderTarget.dispose();
           pmremGenerator.dispose();
           renderer.dispose();
           return;
@@ -141,7 +214,7 @@ export default function LifecycleThreeScene({
         reflectionScene.background = new THREE.Color(0x020204);
         // Keep the blackletter word large in the reflection so the lens
         // curvature can bend it without reducing it to a faint highlight.
-        const reflectionCardGeometry = new THREE.PlaneGeometry(6.35, 2.12);
+        const reflectionCardGeometry = new THREE.PlaneGeometry(8.7, 2.9);
         const reflectionCardMaterial = new THREE.MeshBasicMaterial({
           map: reflectionLogo,
           transparent: true,
@@ -152,7 +225,7 @@ export default function LifecycleThreeScene({
           reflectionCardGeometry,
           reflectionCardMaterial,
         );
-        reflectionCard.position.set(0, -0.04, 2.65);
+        reflectionCard.position.set(0, -0.38, 2.65);
         reflectionScene.add(reflectionCard);
 
         const reflectionTarget = new THREE.WebGLCubeRenderTarget(512, {
@@ -171,17 +244,31 @@ export default function LifecycleThreeScene({
         brandedLensEnvironment.mapping = THREE.CubeReflectionMapping;
         brandedLensRenderTarget = reflectionTarget;
 
+        // Keep the lens word-only. Chrome gets the same word plus neutral
+        // highlight strips that reveal the curved silver frame and charms.
+        // Neither environment contains a floor, room or reflected objects.
+        reflectionCardMaterial.color.setRGB(1.8, 1.8, 1.8);
+        reflectionLighting.add(reflectionCard);
+        brandedChromeRenderTarget = pmremGenerator.fromScene(
+          reflectionLighting,
+          0.12,
+          0.1,
+          10,
+        );
+        reflectionLighting.remove(reflectionCard);
         reflectionCardGeometry.dispose();
         reflectionCardMaterial.dispose();
         reflectionLogo.dispose();
       } catch {
         // The neutral studio environment remains a clean fallback.
       }
+      disposeReflectionLighting();
       pmremGenerator.dispose();
 
       const idleSceneBackground = new THREE.Color(0xffffff);
       const poweredSceneBackground = new THREE.Color(0x000000);
       const currentSceneBackground = new THREE.Color(0xffffff);
+      const displaySceneBackground = new THREE.Color(0xffffff);
 
       const root = new THREE.Group();
       // Keep a restrained elevated view without overpowering the composition.
@@ -311,10 +398,7 @@ export default function LifecycleThreeScene({
         depthWrite: false,
         toneMapped: false,
       });
-      const plasmaCore = new THREE.Mesh(
-        plasmaCoreGeometry,
-        plasmaCoreMaterial,
-      );
+      const plasmaCore = new THREE.Mesh(plasmaCoreGeometry, plasmaCoreMaterial);
       plasmaCore.scale.setScalar(0);
 
       const plasmaHaloCanvas = document.createElement("canvas");
@@ -373,7 +457,6 @@ export default function LifecycleThreeScene({
       );
       bloomComposer.addPass(bloomRenderPass);
       bloomComposer.addPass(lightningBloom);
-
       const startEntrySpin = () => {
         if (!sceneReadyRef.current) {
           pendingEntryRef.current = true;
@@ -406,8 +489,20 @@ export default function LifecycleThreeScene({
       scene.add(accentLight);
       const baseAccentColor = new THREE.Color(0xff2d20);
       const surgeAccentColor = new THREE.Color(0x3fa7ff);
-      const getResponsiveModelScale = () =>
-        window.innerWidth < 640 ? 0.44 : window.innerWidth < 1024 ? 0.84 : 1;
+      const getResponsiveModelScale = () => {
+        const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+
+        if (viewportWidth < 640) {
+          const mobileProgress = THREE.MathUtils.clamp(
+            (viewportWidth - 320) / 320,
+            0,
+            1,
+          );
+          return THREE.MathUtils.lerp(0.54, 0.68, mobileProgress);
+        }
+
+        return viewportWidth < 1024 ? 0.84 : 1;
+      };
       let visibleObjectScaleBase = Math.max(0.1, modelScale || 1);
       let visibleObjectResponsiveScale = getResponsiveModelScale();
 
@@ -443,10 +538,22 @@ export default function LifecycleThreeScene({
 
       let visibleObject: InstanceType<typeof THREE.Object3D> = addFallback();
 
+      cleanUpScene = () => {
+        disposeObject(root);
+        disposeObject(lightningGroup);
+        brandedLensRenderTarget?.dispose();
+        brandedChromeRenderTarget?.dispose();
+        studioRenderTarget.dispose();
+        plasmaHaloTexture.dispose();
+        lightningBloom.dispose();
+        bloomComposer.dispose();
+        renderer.dispose();
+        renderer.forceContextLoss();
+      };
+
       if (modelUrl) {
         const loader = new GLTFLoader();
-        loader.load(
-          modelUrl,
+        await loader.loadAsync(modelUrl).then(
           (gltf) => {
             if (cancelled) {
               disposeObject(gltf.scene);
@@ -467,8 +574,7 @@ export default function LifecycleThreeScene({
                   ? mesh.material
                   : [mesh.material]
                 ).some(
-                  (material) =>
-                    material.name.toLowerCase() === "chrome black",
+                  (material) => material.name.toLowerCase() === "chrome black",
                 );
               const materials = Array.isArray(mesh.material)
                 ? mesh.material
@@ -510,9 +616,12 @@ export default function LifecycleThreeScene({
                   material.envMap = studioEnvironment;
                   material.envMapIntensity = 1;
                 } else {
-                  material.metalness = Math.max(0.88, material.metalness);
-                  material.roughness = Math.max(0.09, material.roughness);
-                  material.envMapIntensity = 0.9;
+                  material.color.set(0xe8e8e8);
+                  material.metalness = 1;
+                  material.roughness = 0.065;
+                  material.envMap =
+                    brandedChromeRenderTarget?.texture || studioEnvironment;
+                  material.envMapIntensity = 1;
                 }
 
                 material.needsUpdate = true;
@@ -540,12 +649,13 @@ export default function LifecycleThreeScene({
               startEntrySpin();
             }
           },
-          undefined,
           () => {
             // The chrome fallback intentionally remains visible on load failure.
           },
         );
       }
+
+      if (cancelled) return;
 
       let headerArcTargetsAvailable = false;
       const resize = () => {
@@ -560,6 +670,8 @@ export default function LifecycleThreeScene({
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
         const nextResponsiveScale = getResponsiveModelScale();
+        targetCanvas.dataset.modelResponsiveScale =
+          nextResponsiveScale.toFixed(4);
         visibleObject.scale.setScalar(
           visibleObjectScaleBase * nextResponsiveScale,
         );
@@ -577,8 +689,7 @@ export default function LifecycleThreeScene({
           camera.position.z - lightningGroup.position.z,
         );
         const visibleHalfHeight =
-          Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) *
-          cameraDistance;
+          Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * cameraDistance;
         const lightningEdgeMargin = 0.24;
         headerArcTargetsAvailable = window.matchMedia(
           "(min-width: 1280px)",
@@ -626,7 +737,32 @@ export default function LifecycleThreeScene({
 
       resizeObserver = new ResizeObserver(resize);
       resizeObserver.observe(targetCanvas);
+      window.addEventListener("resize", resize, { passive: true });
+      window.visualViewport?.addEventListener("resize", resize, {
+        passive: true,
+      });
       resize();
+
+      lightningGroup.visible = true;
+      const warmedVisibility = new Map<
+        InstanceType<typeof THREE.Object3D>,
+        boolean
+      >();
+      lightningGroup.traverse((object) => {
+        warmedVisibility.set(object, object.visible);
+        object.visible = true;
+      });
+      renderer.compile(scene, camera);
+      bloomComposer.renderToScreen = false;
+      lightningBloom.strength = 0.7;
+      bloomComposer.render();
+      bloomComposer.renderToScreen = true;
+      lightningBloom.strength = 0;
+      warmedVisibility.forEach((visible, object) => {
+        object.visible = visible;
+      });
+      lightningGroup.visible = false;
+      targetCanvas.dataset.funReady = "true";
 
       const clock = new THREE.Clock();
       let idleRotationY = 0;
@@ -645,8 +781,23 @@ export default function LifecycleThreeScene({
         "[data-lifecycle-fun-background]",
       );
 
+      const environment = createLifecycleEnvironment(
+        environmentRoot.current,
+        targetCanvas,
+      );
+
       const render = () => {
-        const delta = Math.min(clock.getDelta(), 0.05);
+        const transitionDelta = Math.min(clock.getDelta(), 0.25);
+        const delta = Math.min(transitionDelta, 0.05);
+        // Keep the prewarmed scene resident, but spend no GPU time on hidden slides.
+        if (
+          (!visibleRef.current || document.hidden) &&
+          !boostedRef.current &&
+          backgroundCharge < 0.001
+        ) {
+          animationFrame = window.requestAnimationFrame(render);
+          return;
+        }
         const elapsed = clock.elapsedTime;
         const boostActive = boostedRef.current && !prefersReducedMotion;
 
@@ -654,19 +805,19 @@ export default function LifecycleThreeScene({
           surgeIntensity,
           boostActive ? 1 : 0,
           boostActive ? 1.15 : 2.35,
-          delta,
+          transitionDelta,
         );
         powerCharge = THREE.MathUtils.damp(
           powerCharge,
           boostActive ? 1 : 0,
           boostActive ? 9 : 5,
-          delta,
+          transitionDelta,
         );
         backgroundCharge = THREE.MathUtils.damp(
           backgroundCharge,
           boostActive ? 1 : 0,
           boostActive ? 5.2 : 3.8,
-          delta,
+          transitionDelta,
         );
         const backgroundProgress = THREE.MathUtils.smoothstep(
           backgroundCharge,
@@ -679,6 +830,7 @@ export default function LifecycleThreeScene({
           backgroundProgress,
         );
         renderer.setClearColor(currentSceneBackground, 1);
+
         const lightningActive = boostActive && powerCharge > 0.78;
         if (lightningActive && !wasLightningActive) {
           lastLightningUpdate = -1;
@@ -688,8 +840,7 @@ export default function LifecycleThreeScene({
         if (!prefersReducedMotion) {
           const surgeRamp = Math.pow(surgeIntensity, 2.15);
           const multiplier = 1 + surgeRamp * 115;
-          idleRotationY +=
-            delta * (rotationSpeed || 0.35) * multiplier;
+          idleRotationY += delta * (rotationSpeed || 0.35) * multiplier;
           root.rotation.y = idleRotationY + entrySpinRef.current.value;
 
           const flicker = THREE.MathUtils.clamp(
@@ -699,22 +850,16 @@ export default function LifecycleThreeScene({
             0.42,
             1,
           );
-          const coreProgress = THREE.MathUtils.clamp(
-            powerCharge / 0.78,
-            0,
-            1,
-          );
+          const coreProgress = THREE.MathUtils.clamp(powerCharge / 0.78, 0, 1);
           const corePulse = lightningActive
             ? 1 + Math.sin(elapsed * 24) * 0.055
             : 1;
-          const coreScale =
-            (1 - Math.pow(1 - coreProgress, 2.4)) * corePulse;
+          const coreScale = (1 - Math.pow(1 - coreProgress, 2.4)) * corePulse;
 
           lightningGroup.visible = powerCharge > 0.012;
           plasmaCore.scale.setScalar(coreScale);
           plasmaHalo.scale.setScalar(coreScale * (0.9 + flicker * 0.2));
-          plasmaHaloMaterial.opacity =
-            coreProgress * (0.46 + flicker * 0.24);
+          plasmaHaloMaterial.opacity = coreProgress * (0.46 + flicker * 0.24);
           plasmaLight.intensity = coreProgress * (15 + flicker * 12);
 
           upperLightningMesh.visible = lightningActive;
@@ -723,18 +868,11 @@ export default function LifecycleThreeScene({
             lightningActive && headerArcTargetsAvailable;
           featureArcCluster.group.visible =
             lightningActive && headerArcTargetsAvailable;
-          lightningMaterial.opacity = lightningActive
-            ? 0.9 + flicker * 0.1
-            : 0;
-          lightningBloom.strength = lightningActive
-            ? 0.58 + flicker * 0.18
-            : 0;
+          lightningMaterial.opacity = lightningActive ? 0.9 + flicker * 0.1 : 0;
+          lightningBloom.strength = lightningActive ? 0.58 + flicker * 0.18 : 0;
           lightningBloom.radius = 0.34 + flicker * 0.08;
 
-          if (
-            lightningActive &&
-            elapsed - lastLightningUpdate > 0.066
-          ) {
+          if (lightningActive && elapsed - lastLightningUpdate > 0.066) {
             lastLightningUpdate = elapsed;
             upperLightningGeometry.update(elapsed);
             lowerLightningGeometry.update(elapsed + 1.73);
@@ -752,13 +890,8 @@ export default function LifecycleThreeScene({
             surgeAccentColor,
             visualIntensity,
           );
-          accentLight.intensity =
-            18 + visualIntensity * (45 + flicker * 22);
-          accentLight.position.x = THREE.MathUtils.lerp(
-            -3,
-            0,
-            visualIntensity,
-          );
+          accentLight.intensity = 18 + visualIntensity * (45 + flicker * 22);
+          accentLight.position.x = THREE.MathUtils.lerp(-3, 0, visualIntensity);
           accentLight.position.y = THREE.MathUtils.lerp(
             -1.5,
             0.2,
@@ -771,11 +904,22 @@ export default function LifecycleThreeScene({
             );
           }
         }
-        if (!prefersReducedMotion && powerCharge > 0.012) {
+        const usingBloom = !prefersReducedMotion && powerCharge > 0.012;
+        if (usingBloom) {
           bloomComposer.render();
         } else {
           renderer.render(scene, camera);
         }
+        // The bloom pass draws its base with a colour-managed MeshBasicMaterial.
+        // Use that same sRGB background for CSS; copy its extra light separately.
+        displaySceneBackground
+          .copy(currentSceneBackground)
+          .convertLinearToSRGB();
+        environment.update(
+          currentSceneBackground.getStyle(),
+          backgroundProgress,
+          displaySceneBackground.r,
+        );
         animationFrame = window.requestAnimationFrame(render);
       };
       render();
@@ -789,12 +933,16 @@ export default function LifecycleThreeScene({
         startEntryRef.current = () => {
           pendingEntryRef.current = true;
         };
+        environment.dispose();
         window.cancelAnimationFrame(animationFrame);
         resizeObserver?.disconnect();
+        window.removeEventListener("resize", resize);
+        window.visualViewport?.removeEventListener("resize", resize);
         disposeObject(root);
         disposeObject(lightningGroup);
         brandedLensRenderTarget?.dispose();
-        studioEnvironment.dispose();
+        brandedChromeRenderTarget?.dispose();
+        studioRenderTarget.dispose();
         plasmaHaloTexture.dispose();
         lightningBloom.dispose();
         bloomComposer.dispose();
@@ -802,10 +950,12 @@ export default function LifecycleThreeScene({
         renderer.forceContextLoss();
         if (surgeBackground) surgeBackground.style.opacity = "0";
       };
+      if (cancelled) cleanUpScene();
     }
 
     setWebglUnavailable(false);
     void setup().catch(() => {
+      cleanUpScene();
       if (!cancelled) setWebglUnavailable(true);
     });
 
@@ -813,7 +963,7 @@ export default function LifecycleThreeScene({
       cancelled = true;
       cleanUpScene();
     };
-  }, [modelScale, modelUrl, rotationSpeed]);
+  }, [environmentRoot, modelScale, modelUrl, rotationSpeed]);
 
   if (webglUnavailable) {
     return (

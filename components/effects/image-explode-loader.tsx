@@ -8,32 +8,32 @@ import gsap from "gsap";
 type ImageExplodeImage = { _key?: string; url?: string | null };
 
 type Props = {
-    images?: ImageExplodeImage[];
-    containerId: string;
-    desktopSize?: number;
-    tabletSize?: number;
-    mobileSize?: number;
+  images?: ImageExplodeImage[];
+  containerId: string;
+  desktopSize?: number;
+  tabletSize?: number;
+  mobileSize?: number;
 
-    /**
-     * Called once, when all items have finished their "pop-in" animation.
-     * Fires again if images list changes and a new run completes.
-     */
-    onAllItemsAnimatedIn?: () => void;
+  /**
+   * Called once, when all items have finished their "pop-in" animation.
+   * Fires again if images list changes and a new run completes.
+   */
+  onAllItemsAnimatedIn?: () => void;
 
-    /**
-     * Control stagger + feel from parent if needed.
-     */
-    appearStaggerEach?: number; // seconds
-    appearDuration?: number; // seconds
+  /**
+   * Control stagger + feel from parent if needed.
+   */
+  appearStaggerEach?: number; // seconds
+  appearDuration?: number; // seconds
 };
 
 type RenderItem = {
-    id: string;
-    url: string;
-    x: number;
-    y: number;
-    angle: number;
-    size: number;
+  id: string;
+  url: string;
+  x: number;
+  y: number;
+  angle: number;
+  size: number;
 };
 
 const DEFAULT_IMAGE_SIZE = 250;
@@ -42,541 +42,690 @@ const FORCE_SCALE = 0.005;
 type Point = { x: number; y: number };
 
 function convexHull(points: Point[]): Point[] {
-    if (points.length <= 3) return points.slice();
-    const pts = points.slice().sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
-    const cross = (o: Point, a: Point, b: Point) =>
-        (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  if (points.length <= 3) return points.slice();
+  const pts = points
+    .slice()
+    .sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
+  const cross = (o: Point, a: Point, b: Point) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
 
-    const lower: Point[] = [];
-    for (const p of pts) {
-        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
-            lower.pop();
-        }
-        lower.push(p);
+  const lower: Point[] = [];
+  for (const p of pts) {
+    while (
+      lower.length >= 2 &&
+      cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0
+    ) {
+      lower.pop();
     }
+    lower.push(p);
+  }
 
-    const upper: Point[] = [];
-    for (let i = pts.length - 1; i >= 0; i--) {
-        const p = pts[i];
-        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
-            upper.pop();
-        }
-        upper.push(p);
+  const upper: Point[] = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (
+      upper.length >= 2 &&
+      cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0
+    ) {
+      upper.pop();
     }
+    upper.push(p);
+  }
 
-    upper.pop();
-    lower.pop();
-    return lower.concat(upper);
+  upper.pop();
+  lower.pop();
+  return lower.concat(upper);
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = url;
-    });
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
-async function createBodyFromPng(url: string, cx: number, cy: number, size: number): Promise<Body> {
-    try {
-        const img = await loadImage(url);
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
+async function createBodyFromPng(
+  url: string,
+  cx: number,
+  cy: number,
+  size: number,
+): Promise<Body> {
+  try {
+    const img = await loadImage(url);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
 
-        if (!ctx || !img.width || !img.height) {
-            const b = Bodies.circle(cx, cy, size / 2, {
-                restitution: 0.1,
-                frictionAir: 0.15,
-                friction: 0.8,
-                density: 0.002,
-            });
-            (b as any).spriteUrl = url;
-            return b;
-        }
-
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-
-        let imageData: ImageData;
-        try {
-            imageData = ctx.getImageData(0, 0, img.width, img.height);
-        } catch {
-            const b = Bodies.circle(cx, cy, size / 2, {
-                restitution: 0.1,
-                frictionAir: 0.15,
-                friction: 0.8,
-                density: 0.002,
-            });
-            (b as any).spriteUrl = url;
-            return b;
-        }
-
-        const data = imageData.data;
-        const points: Point[] = [];
-        const STEP = Math.max(1, Math.floor(Math.max(img.width, img.height) / 60));
-
-        for (let y = 0; y < img.height; y += STEP) {
-            for (let x = 0; x < img.width; x += STEP) {
-                const idx = (y * img.width + x) * 4;
-                if (data[idx + 3] > 10) points.push({ x, y });
-            }
-        }
-
-        if (points.length < 3) {
-            const b = Bodies.circle(cx, cy, size / 2, {
-                restitution: 0.1,
-                frictionAir: 0.15,
-                friction: 0.8,
-                density: 0.002,
-            });
-            (b as any).spriteUrl = url;
-            return b;
-        }
-
-        const hull = convexHull(points);
-
-        let minX = Infinity,
-            maxX = -Infinity,
-            minY = Infinity,
-            maxY = -Infinity;
-
-        for (const p of hull) {
-            minX = Math.min(minX, p.x);
-            maxX = Math.max(maxX, p.x);
-            minY = Math.min(minY, p.y);
-            maxY = Math.max(maxY, p.y);
-        }
-
-        const w = maxX - minX || 1;
-        const h = maxY - minY || 1;
-        const scale = size / Math.max(w, h);
-
-        const centerX = (minX + maxX) / 2;
-        const centerY = (minY + maxY) / 2;
-
-        const verts = hull.map((p) => ({
-            x: (p.x - centerX) * scale,
-            y: (p.y - centerY) * scale,
-        }));
-
-        const body = Bodies.fromVertices(cx, cy, [verts], {
-            restitution: 0.1,
-            frictionAir: 0.15,
-            friction: 0.8,
-            density: 0.002,
-        }) as Body;
-
-        (body as any).spriteUrl = url;
-        return body;
-    } catch {
-        const b = Bodies.circle(cx, cy, size / 2, {
-            restitution: 0.1,
-            frictionAir: 0.15,
-            friction: 0.8,
-            density: 0.002,
-        });
-        (b as any).spriteUrl = url;
-        return b;
+    if (!ctx || !img.width || !img.height) {
+      const b = Bodies.circle(cx, cy, size / 2, {
+        restitution: 0.1,
+        frictionAir: 0.15,
+        friction: 0.8,
+        density: 0.002,
+      });
+      (b as any).spriteUrl = url;
+      return b;
     }
+
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    let imageData: ImageData;
+    try {
+      imageData = ctx.getImageData(0, 0, img.width, img.height);
+    } catch {
+      const b = Bodies.circle(cx, cy, size / 2, {
+        restitution: 0.1,
+        frictionAir: 0.15,
+        friction: 0.8,
+        density: 0.002,
+      });
+      (b as any).spriteUrl = url;
+      return b;
+    }
+
+    const data = imageData.data;
+    const points: Point[] = [];
+    const STEP = Math.max(1, Math.floor(Math.max(img.width, img.height) / 60));
+
+    for (let y = 0; y < img.height; y += STEP) {
+      for (let x = 0; x < img.width; x += STEP) {
+        const idx = (y * img.width + x) * 4;
+        if (data[idx + 3] > 10) points.push({ x, y });
+      }
+    }
+
+    if (points.length < 3) {
+      const b = Bodies.circle(cx, cy, size / 2, {
+        restitution: 0.1,
+        frictionAir: 0.15,
+        friction: 0.8,
+        density: 0.002,
+      });
+      (b as any).spriteUrl = url;
+      return b;
+    }
+
+    const hull = convexHull(points);
+
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
+
+    for (const p of hull) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+
+    const w = maxX - minX || 1;
+    const h = maxY - minY || 1;
+    const scale = size / Math.max(w, h);
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const verts = hull.map((p) => ({
+      x: (p.x - centerX) * scale,
+      y: (p.y - centerY) * scale,
+    }));
+
+    const body = Bodies.fromVertices(cx, cy, [verts], {
+      restitution: 0.1,
+      frictionAir: 0.15,
+      friction: 0.8,
+      density: 0.002,
+    }) as Body;
+
+    (body as any).spriteUrl = url;
+    return body;
+  } catch {
+    const b = Bodies.circle(cx, cy, size / 2, {
+      restitution: 0.1,
+      frictionAir: 0.15,
+      friction: 0.8,
+      density: 0.002,
+    });
+    (b as any).spriteUrl = url;
+    return b;
+  }
 }
 
 export default function ImageExplodeLoader({
-    images,
-    containerId,
-    desktopSize = DEFAULT_IMAGE_SIZE,
-    tabletSize = DEFAULT_IMAGE_SIZE * 0.75,
-    mobileSize = DEFAULT_IMAGE_SIZE * 0.5,
-    onAllItemsAnimatedIn,
-    appearStaggerEach = 0.14, // increased stagger
-    appearDuration = 1.1,
+  images,
+  containerId,
+  desktopSize = DEFAULT_IMAGE_SIZE,
+  tabletSize = DEFAULT_IMAGE_SIZE * 0.75,
+  mobileSize = DEFAULT_IMAGE_SIZE * 0.5,
+  onAllItemsAnimatedIn,
+  appearStaggerEach = 0.14, // increased stagger
+  appearDuration = 1.1,
 }: Props) {
-    const [renderItems, setRenderItems] = useState<RenderItem[]>([]);
+  const [renderItems, setRenderItems] = useState<RenderItem[]>([]);
 
-    const engineRef = useRef<Engine | null>(null);
-    const bodiesRef = useRef<Body[]>([]);
-    const mouseRef = useRef<Vector | null>(null);
+  const engineRef = useRef<Engine | null>(null);
+  const bodiesRef = useRef<Body[]>([]);
+  const spriteNodesRef = useRef(new Map<string, HTMLDivElement>());
+  const mouseRef = useRef<Vector | null>(null);
 
-    // animate-once tracking
-    const animatedIdsRef = useRef<Set<string>>(new Set());
-    // tracks “appearance order” for stagger consistency
-    const appearOrderRef = useRef<string[]>([]);
+  // animate-once tracking
+  const animatedIdsRef = useRef<Set<string>>(new Set());
+  // tracks “appearance order” for stagger consistency
+  const appearOrderRef = useRef<string[]>([]);
 
-    // "all animated" run state
-    const expectedCountRef = useRef(0);
-    const allFiredForRunRef = useRef(false);
-    const lastRunKeyRef = useRef<string>("");
+  // "all animated" run state
+  const expectedCountRef = useRef(0);
+  const allFiredForRunRef = useRef(false);
+  const lastRunKeyRef = useRef<string>("");
 
-    const hasUrls = (images || []).some((i) => !!i?.url);
+  const hasUrls = (images || []).some((i) => !!i?.url);
 
-    useEffect(() => {
-        const urls = (images || []).filter((i) => !!i?.url).map((i) => i!.url as string);
+  useEffect(() => {
+    const urls = (images || [])
+      .filter((i) => !!i?.url)
+      .map((i) => i!.url as string);
 
-        const runKey = urls.join("|");
-        lastRunKeyRef.current = runKey;
+    const runKey = urls.join("|");
+    lastRunKeyRef.current = runKey;
 
-        expectedCountRef.current = urls.length;
-        allFiredForRunRef.current = false;
+    expectedCountRef.current = urls.length;
+    allFiredForRunRef.current = false;
 
-        if (!urls.length) {
-            setRenderItems([]);
-            animatedIdsRef.current = new Set();
-            appearOrderRef.current = [];
-            return;
+    if (!urls.length) {
+      setRenderItems([]);
+      animatedIdsRef.current = new Set();
+      appearOrderRef.current = [];
+      return;
+    }
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+      console.warn("[ImageExplodeLoader] container not found:", containerId);
+      setRenderItems([]);
+      animatedIdsRef.current = new Set();
+      appearOrderRef.current = [];
+      return;
+    }
+
+    let cancelled = false;
+    let loopId: number | null = null;
+    let visible = true;
+    let previousTime = 0;
+    let previousScroll = window.scrollY;
+    let scrollImpulse = 0;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const viewportObserver = new IntersectionObserver(([entry]) => {
+      visible = entry?.isIntersecting ?? false;
+      if (!visible) mouseRef.current = null;
+    });
+    viewportObserver.observe(container);
+    const onScroll = () => {
+      const nextScroll = window.scrollY;
+      if (visible && !reduceMotion.matches) {
+        scrollImpulse = Math.max(
+          -45,
+          Math.min(45, scrollImpulse + (nextScroll - previousScroll) * 0.12),
+        );
+      }
+      previousScroll = nextScroll;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    let resizeFrame = 0;
+    let resizeSimulation: ((width: number, height: number) => void) | null =
+      null;
+
+    const setupWhenSized = async () => {
+      for (let i = 0; i < 60; i++) {
+        if (cancelled) return;
+
+        const rect = container.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          return start(rect.width, rect.height, urls);
+        }
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      }
+
+      const rect = container.getBoundingClientRect();
+      console.warn(
+        "[ImageExplodeLoader] container still has no size:",
+        rect,
+        containerId,
+      );
+    };
+
+    const start = async (
+      width: number,
+      height: number,
+      spriteUrls: string[],
+    ) => {
+      const resolveLayout = (nextWidth: number) => {
+        const isMobile = nextWidth < 640;
+        const isTablet = nextWidth >= 640 && nextWidth < 1024;
+        return {
+          isMobile,
+          isTablet,
+          imageSize: isMobile
+            ? mobileSize
+            : isTablet
+              ? tabletSize
+              : desktopSize,
+        };
+      };
+      const initialLayout = resolveLayout(width);
+      const { isMobile, isTablet } = initialLayout;
+      let currentImageSize = initialLayout.imageSize;
+      let worldWidth = width;
+      let worldHeight = height;
+
+      let gravityY = 3;
+      if (isTablet) gravityY = 0.35;
+      if (isMobile) gravityY = 0.75;
+
+      const engine = Engine.create();
+      engineRef.current = engine;
+      engine.world.gravity.y = gravityY;
+
+      const createWalls = (nextWidth: number, nextHeight: number) => {
+        const wallThickness = Math.max(
+          300,
+          Math.max(nextWidth, nextHeight) * 0.32,
+        );
+        return [
+          Bodies.rectangle(
+            nextWidth / 2,
+            -wallThickness / 2,
+            nextWidth,
+            wallThickness,
+            { isStatic: true },
+          ),
+          Bodies.rectangle(
+            nextWidth / 2,
+            nextHeight + wallThickness / 2,
+            nextWidth,
+            wallThickness,
+            { isStatic: true },
+          ),
+          Bodies.rectangle(
+            -wallThickness / 2,
+            nextHeight / 2,
+            wallThickness,
+            nextHeight,
+            { isStatic: true },
+          ),
+          Bodies.rectangle(
+            nextWidth + wallThickness / 2,
+            nextHeight / 2,
+            wallThickness,
+            nextHeight,
+            { isStatic: true },
+          ),
+        ];
+      };
+      let walls = createWalls(width, height);
+      World.add(engine.world, walls);
+
+      const cx = width / 2;
+      const cy = isMobile || isTablet ? height * 0.25 : height / 2;
+
+      const bodies: Body[] = [];
+      for (const url of spriteUrls) {
+        if (cancelled) return;
+
+        const body = await createBodyFromPng(url, cx, cy, currentImageSize);
+
+        const ang = Math.random() * Math.PI * 2;
+        const speed = 12 + Math.random() * 10;
+
+        Matter.Body.setVelocity(body, {
+          x: Math.cos(ang) * speed,
+          y:
+            Math.sin(ang) * speed +
+            (isMobile || isTablet ? Math.abs(Math.random() * 6) : 0),
+        });
+
+        bodies.push(body);
+      }
+
+      if (cancelled) return;
+
+      bodiesRef.current = bodies;
+      World.add(engine.world, bodies);
+
+      // seed render items once so ids exist immediately (prevents late first paint)
+      setRenderItems(
+        bodies.map((b, idx) => ({
+          id: `img-${idx}`,
+          url: (b as any).spriteUrl as string,
+          x: b.position.x,
+          y: b.position.y,
+          angle: b.angle,
+          size: currentImageSize,
+        })),
+      );
+
+      resizeSimulation = (nextWidth: number, nextHeight: number) => {
+        if (
+          cancelled ||
+          !nextWidth ||
+          !nextHeight ||
+          (Math.abs(nextWidth - worldWidth) < 0.5 &&
+            Math.abs(nextHeight - worldHeight) < 0.5)
+        ) {
+          return;
         }
 
-        const container = document.getElementById(containerId);
-        if (!container) {
-            console.warn("[ImageExplodeLoader] container not found:", containerId);
-            setRenderItems([]);
-            animatedIdsRef.current = new Set();
-            appearOrderRef.current = [];
-            return;
+        const nextLayout = resolveLayout(nextWidth);
+        const nextImageSize = nextLayout.imageSize;
+        const sizeScale = nextImageSize / Math.max(currentImageSize, 1);
+        engine.world.gravity.y = nextLayout.isMobile
+          ? 0.75
+          : nextLayout.isTablet
+            ? 0.35
+            : 3;
+        walls.forEach((wall) => World.remove(engine.world, wall));
+        walls = createWalls(nextWidth, nextHeight);
+        World.add(engine.world, walls);
+
+        bodies.forEach((body) => {
+          const normalizedX = Math.max(
+            0,
+            Math.min(1, body.position.x / Math.max(worldWidth, 1)),
+          );
+          const normalizedY = Math.max(
+            0,
+            Math.min(1, body.position.y / Math.max(worldHeight, 1)),
+          );
+          if (Math.abs(sizeScale - 1) > 0.001) {
+            Body.scale(body, sizeScale, sizeScale);
+          }
+          const halfSize = nextImageSize / 2;
+          Body.setPosition(body, {
+            x: Math.max(
+              halfSize,
+              Math.min(nextWidth - halfSize, normalizedX * nextWidth),
+            ),
+            y: Math.max(
+              halfSize,
+              Math.min(nextHeight - halfSize, normalizedY * nextHeight),
+            ),
+          });
+          Body.setVelocity(body, {
+            x: body.velocity.x * (nextWidth / Math.max(worldWidth, 1)),
+            y: body.velocity.y * (nextHeight / Math.max(worldHeight, 1)),
+          });
+        });
+
+        worldWidth = nextWidth;
+        worldHeight = nextHeight;
+        currentImageSize = nextImageSize;
+        setRenderItems(
+          bodies.map((body, index) => ({
+            id: `img-${index}`,
+            url: (body as any).spriteUrl as string,
+            x: body.position.x,
+            y: body.position.y,
+            angle: body.angle,
+            size: currentImageSize,
+          })),
+        );
+      };
+
+      const latestRect = container.getBoundingClientRect();
+      resizeSimulation(latestRect.width, latestRect.height);
+
+      const loop = (now: number) => {
+        if (cancelled) return;
+        loopId = requestAnimationFrame(loop);
+        const eng = engineRef.current;
+        if (!eng || !visible || document.hidden) {
+          previousTime = 0;
+          scrollImpulse = 0;
+          return;
         }
+        const delta = previousTime
+          ? Math.min(1000 / 60, now - previousTime)
+          : 1000 / 60;
+        previousTime = now;
+        const mouse = mouseRef.current;
+        const impulse = scrollImpulse;
+        scrollImpulse = 0;
 
-        let cancelled = false;
-        let loopId: number | null = null;
-        let resizeFrame = 0;
-        let resizeSimulation: ((width: number, height: number) => void) | null = null;
-
-        const setupWhenSized = async () => {
-            for (let i = 0; i < 60; i++) {
-                if (cancelled) return;
-
-                const rect = container.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0) {
-                    return start(rect.width, rect.height, urls);
-                }
-                await new Promise<void>((r) => requestAnimationFrame(() => r()));
-            }
-
-            const rect = container.getBoundingClientRect();
-            console.warn("[ImageExplodeLoader] container still has no size:", rect, containerId);
-        };
-
-        const start = async (width: number, height: number, spriteUrls: string[]) => {
-            const resolveLayout = (nextWidth: number) => {
-                const isMobile = nextWidth < 640;
-                const isTablet = nextWidth >= 640 && nextWidth < 1024;
-                return {
-                    isMobile,
-                    isTablet,
-                    imageSize: isMobile ? mobileSize : isTablet ? tabletSize : desktopSize,
-                };
-            };
-            const initialLayout = resolveLayout(width);
-            const { isMobile, isTablet } = initialLayout;
-            let currentImageSize = initialLayout.imageSize;
-            let worldWidth = width;
-            let worldHeight = height;
-
-            let gravityY = 3;
-            if (isTablet) gravityY = 0.35;
-            if (isMobile) gravityY = 0.75;
-
-            const engine = Engine.create();
-            engineRef.current = engine;
-            engine.world.gravity.y = gravityY;
-
-            const createWalls = (nextWidth: number, nextHeight: number) => {
-                const wallThickness = Math.max(300, Math.max(nextWidth, nextHeight) * 0.32);
-                return [
-                    Bodies.rectangle(nextWidth / 2, -wallThickness / 2, nextWidth, wallThickness, { isStatic: true }),
-                    Bodies.rectangle(nextWidth / 2, nextHeight + wallThickness / 2, nextWidth, wallThickness, { isStatic: true }),
-                    Bodies.rectangle(-wallThickness / 2, nextHeight / 2, wallThickness, nextHeight, { isStatic: true }),
-                    Bodies.rectangle(nextWidth + wallThickness / 2, nextHeight / 2, wallThickness, nextHeight, { isStatic: true }),
-                ];
-            };
-            let walls = createWalls(width, height);
-            World.add(engine.world, walls);
-
-            const cx = width / 2;
-            const cy = isMobile || isTablet ? height * 0.25 : height / 2;
-
-            const bodies: Body[] = [];
-            for (const url of spriteUrls) {
-                if (cancelled) return;
-
-                const body = await createBodyFromPng(url, cx, cy, currentImageSize);
-
-                const ang = Math.random() * Math.PI * 2;
-                const speed = 12 + Math.random() * 10;
-
-                Matter.Body.setVelocity(body, {
-                    x: Math.cos(ang) * speed,
-                    y: Math.sin(ang) * speed + (isMobile || isTablet ? Math.abs(Math.random() * 6) : 0),
-                });
-
-                bodies.push(body);
-            }
-
-            if (cancelled) return;
-
-            bodiesRef.current = bodies;
-            World.add(engine.world, bodies);
-
-            // seed render items once so ids exist immediately (prevents late first paint)
-            setRenderItems(
-                bodies.map((b, idx) => ({
-                    id: `img-${idx}`,
-                    url: (b as any).spriteUrl as string,
-                    x: b.position.x,
-                    y: b.position.y,
-                    angle: b.angle,
-                    size: currentImageSize,
-                }))
-            );
-
-            resizeSimulation = (nextWidth: number, nextHeight: number) => {
-                if (
-                    cancelled ||
-                    !nextWidth ||
-                    !nextHeight ||
-                    (Math.abs(nextWidth - worldWidth) < 0.5 &&
-                        Math.abs(nextHeight - worldHeight) < 0.5)
-                ) {
-                    return;
-                }
-
-                const nextLayout = resolveLayout(nextWidth);
-                const nextImageSize = nextLayout.imageSize;
-                const sizeScale = nextImageSize / Math.max(currentImageSize, 1);
-                engine.world.gravity.y = nextLayout.isMobile
-                    ? 0.75
-                    : nextLayout.isTablet
-                        ? 0.35
-                        : 3;
-                walls.forEach((wall) => World.remove(engine.world, wall));
-                walls = createWalls(nextWidth, nextHeight);
-                World.add(engine.world, walls);
-
-                bodies.forEach((body) => {
-                    const normalizedX = Math.max(0, Math.min(1, body.position.x / Math.max(worldWidth, 1)));
-                    const normalizedY = Math.max(0, Math.min(1, body.position.y / Math.max(worldHeight, 1)));
-                    if (Math.abs(sizeScale - 1) > 0.001) {
-                        Body.scale(body, sizeScale, sizeScale);
-                    }
-                    const halfSize = nextImageSize / 2;
-                    Body.setPosition(body, {
-                        x: Math.max(halfSize, Math.min(nextWidth - halfSize, normalizedX * nextWidth)),
-                        y: Math.max(halfSize, Math.min(nextHeight - halfSize, normalizedY * nextHeight)),
-                    });
-                    Body.setVelocity(body, {
-                        x: body.velocity.x * (nextWidth / Math.max(worldWidth, 1)),
-                        y: body.velocity.y * (nextHeight / Math.max(worldHeight, 1)),
-                    });
-                });
-
-                worldWidth = nextWidth;
-                worldHeight = nextHeight;
-                currentImageSize = nextImageSize;
-                setRenderItems(
-                    bodies.map((body, index) => ({
-                        id: `img-${index}`,
-                        url: (body as any).spriteUrl as string,
-                        x: body.position.x,
-                        y: body.position.y,
-                        angle: body.angle,
-                        size: currentImageSize,
-                    })),
-                );
-            };
-
-            const latestRect = container.getBoundingClientRect();
-            resizeSimulation(latestRect.width, latestRect.height);
-
-            const loop = () => {
-                if (cancelled) return;
-                const eng = engineRef.current;
-                if (!eng) return;
-
-                const mouse = mouseRef.current;
-
-                bodiesRef.current.forEach((body) => {
-                    if (mouse) {
-                        const dir = Vector.sub(mouse, body.position);
-                        const dist = Math.max(Vector.magnitude(dir), 30);
-                        const norm = Vector.mult(dir, 1 / dist);
-                        const strength = FORCE_SCALE * body.mass;
-                        const force = Vector.mult(norm, strength);
-                        Matter.Body.applyForce(body, body.position, force);
-                    }
-                });
-
-                Engine.update(eng, 1000 / 60);
-
-                setRenderItems(
-                    bodiesRef.current.map((b, idx) => ({
-                        id: `img-${idx}`,
-                        url: (b as any).spriteUrl as string,
-                        x: b.position.x,
-                        y: b.position.y,
-                        angle: b.angle,
-                        size: currentImageSize,
-                    }))
-                );
-
-                loopId = requestAnimationFrame(loop);
-            };
-
-            loop();
-        };
-
-        const resizeObserver = new ResizeObserver(([entry]) => {
-            const rect = entry?.contentRect ?? container.getBoundingClientRect();
-            if (resizeFrame) cancelAnimationFrame(resizeFrame);
-            resizeFrame = requestAnimationFrame(() => {
-                resizeFrame = 0;
-                resizeSimulation?.(rect.width, rect.height);
+        bodiesRef.current.forEach((body, index) => {
+          if (mouse) {
+            const dir = Vector.sub(mouse, body.position);
+            const dist = Math.max(Vector.magnitude(dir), 30);
+            const force = Vector.mult(dir, (FORCE_SCALE * body.mass) / dist);
+            Body.applyForce(body, body.position, force);
+          }
+          if (Math.abs(impulse) > 0.05) {
+            // Scroll lifts and tumbles the objects, with different lateral
+            // eddies per body. Mouse attraction remains active throughout.
+            const phase = now * 0.002 + index * 2.4;
+            Body.setVelocity(body, {
+              x: Math.max(
+                -20,
+                Math.min(
+                  20,
+                  body.velocity.x + Math.sin(phase) * Math.abs(impulse) * 0.22,
+                ),
+              ),
+              y: Math.max(
+                -18,
+                Math.min(
+                  18,
+                  body.velocity.y -
+                    Math.abs(impulse) * (0.24 + (index % 3) * 0.06),
+                ),
+              ),
             });
+            Body.setAngularVelocity(
+              body,
+              Math.max(
+                -0.12,
+                Math.min(
+                  0.12,
+                  body.angularVelocity + Math.cos(phase) * impulse * 0.0018,
+                ),
+              ),
+            );
+          }
         });
-        resizeObserver.observe(container);
-        setupWhenSized();
-
-        const handlePointerMove = (e: PointerEvent) => {
-            const elAtPoint = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-            if (elAtPoint?.closest("#site-header-root")) {
-                mouseRef.current = null;
-                return;
-            }
-
-            const el = document.getElementById(containerId);
-            if (!el) {
-                mouseRef.current = null;
-                return;
-            }
-
-            const rect = el.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
-                mouseRef.current = null;
-                return;
-            }
-
-            mouseRef.current = { x, y } as Vector;
-        };
-
-        const handlePointerDown = (e: PointerEvent) => {
-            handlePointerMove(e);
-        };
-
-        const handleBlur = () => {
-            mouseRef.current = null;
-        };
-
-        window.addEventListener("pointermove", handlePointerMove, { passive: true });
-        window.addEventListener("pointerdown", handlePointerDown, { passive: true });
-        window.addEventListener("blur", handleBlur);
-
-        return () => {
-            cancelled = true;
-            resizeObserver.disconnect();
-            if (resizeFrame) cancelAnimationFrame(resizeFrame);
-
-            window.removeEventListener("pointermove", handlePointerMove as any);
-            window.removeEventListener("pointerdown", handlePointerDown as any);
-            window.removeEventListener("blur", handleBlur as any);
-
-            if (loopId !== null) cancelAnimationFrame(loopId);
-
-            if (engineRef.current) {
-                Matter.World.clear(engineRef.current.world, false);
-                Matter.Engine.clear(engineRef.current);
-            }
-
-            engineRef.current = null;
-            bodiesRef.current = [];
-            mouseRef.current = null;
-            setRenderItems([]);
-            animatedIdsRef.current = new Set();
-            appearOrderRef.current = [];
-        };
-    }, [images, containerId, desktopSize, tabletSize, mobileSize]);
-
-    // Pop-in animation + "all done" callback
-    useLayoutEffect(() => {
-        if (!renderItems.length) return;
-
-        // record appearance order once (so stagger doesn't get weird)
-        for (const it of renderItems) {
-            if (!appearOrderRef.current.includes(it.id)) appearOrderRef.current.push(it.id);
-        }
-
-        const newIds = renderItems.map((it) => it.id).filter((id) => !animatedIdsRef.current.has(id));
-        if (!newIds.length) return;
-
-        const orderedNewIds = appearOrderRef.current.filter((id) => newIds.includes(id));
-
-        const els = orderedNewIds
-            .map((id) => document.querySelector(`[data-explode-inner="${id}"]`) as HTMLImageElement | null)
-            .filter(Boolean) as HTMLImageElement[];
-
-        if (!els.length) return;
-
-        // mark as animated immediately (prevents strict-mode double passes)
-        orderedNewIds.forEach((id) => animatedIdsRef.current.add(id));
-
-        gsap.killTweensOf(els);
-        gsap.set(els, { scale: 0, transformOrigin: "50% 50%" });
-
-        gsap.to(els, {
-            scale: 1,
-            duration: appearDuration,
-            ease: "elastic.out(1, 1)",
-            stagger: appearStaggerEach,
-            overwrite: true,
-            clearProps: "transform",
-            onComplete: () => {
-                // fire when we've animated-in all expected items for this run
-                const expected = expectedCountRef.current;
-                if (!expected) return;
-
-                // animatedIdsRef includes everything we've animated in this run (ids are stable img-0..n)
-                const animatedCount = animatedIdsRef.current.size;
-
-                if (!allFiredForRunRef.current && animatedCount >= expected) {
-                    allFiredForRunRef.current = true;
-                    onAllItemsAnimatedIn?.();
-                }
-            },
+        Engine.update(eng, delta);
+        bodiesRef.current.forEach((body, index) => {
+          const node = spriteNodesRef.current.get(`img-${index}`);
+          if (node)
+            node.style.transform = `translate3d(${body.position.x}px, ${body.position.y}px, 0) translate(-50%, -50%) rotate(${body.angle}rad)`;
         });
-    }, [renderItems, appearDuration, appearStaggerEach, onAllItemsAnimatedIn]);
+      };
+      loopId = requestAnimationFrame(loop);
+    };
 
-    if (!hasUrls) return null;
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      const rect = entry?.contentRect ?? container.getBoundingClientRect();
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        resizeSimulation?.(rect.width, rect.height);
+      });
+    });
+    resizeObserver.observe(container);
+    setupWhenSized();
 
-    return (
-        <div className="pointer-events-none absolute inset-0 z-[5]" aria-hidden="true">
-            {renderItems.map((item) => (
-                <div
-                    key={item.id}
-                    style={{
-                        position: "absolute",
-                        left: item.x,
-                        top: item.y,
-                        width: item.size,
-                        height: item.size,
-                        transform: `translate(-50%, -50%) rotate(${item.angle}rad)`,
-                        willChange: "transform",
-                    }}
-                >
-                    <img
-                        data-explode-inner={item.id}
-                        src={item.url}
-                        alt=""
-                        style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "contain",
-                            transform: "scale(1)",
-                            willChange: "transform",
-                        }}
-                    />
-                </div>
-            ))}
-        </div>
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!visible || document.hidden) return;
+      const elAtPoint = document.elementFromPoint(
+        e.clientX,
+        e.clientY,
+      ) as HTMLElement | null;
+      if (elAtPoint?.closest("#site-header-root")) {
+        mouseRef.current = null;
+        return;
+      }
+
+      const el = document.getElementById(containerId);
+      if (!el) {
+        mouseRef.current = null;
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+        mouseRef.current = null;
+        return;
+      }
+
+      mouseRef.current = { x, y } as Vector;
+    };
+
+    const handlePointerDown = (e: PointerEvent) => {
+      handlePointerMove(e);
+    };
+
+    const handleBlur = () => {
+      mouseRef.current = null;
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, {
+      passive: true,
+    });
+    window.addEventListener("pointerdown", handlePointerDown, {
+      passive: true,
+    });
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      cancelled = true;
+      resizeObserver.disconnect();
+      viewportObserver.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+
+      window.removeEventListener("pointermove", handlePointerMove as any);
+      window.removeEventListener("pointerdown", handlePointerDown as any);
+      window.removeEventListener("blur", handleBlur as any);
+
+      if (loopId !== null) cancelAnimationFrame(loopId);
+
+      if (engineRef.current) {
+        Matter.World.clear(engineRef.current.world, false);
+        Matter.Engine.clear(engineRef.current);
+      }
+
+      engineRef.current = null;
+      bodiesRef.current = [];
+      mouseRef.current = null;
+      setRenderItems([]);
+      animatedIdsRef.current = new Set();
+      appearOrderRef.current = [];
+    };
+  }, [images, containerId, desktopSize, tabletSize, mobileSize]);
+
+  // Pop-in animation + "all done" callback
+  useLayoutEffect(() => {
+    if (!renderItems.length) return;
+
+    // record appearance order once (so stagger doesn't get weird)
+    for (const it of renderItems) {
+      if (!appearOrderRef.current.includes(it.id))
+        appearOrderRef.current.push(it.id);
+    }
+
+    const newIds = renderItems
+      .map((it) => it.id)
+      .filter((id) => !animatedIdsRef.current.has(id));
+    if (!newIds.length) return;
+
+    const orderedNewIds = appearOrderRef.current.filter((id) =>
+      newIds.includes(id),
     );
+
+    const els = orderedNewIds
+      .map(
+        (id) =>
+          document.querySelector(
+            `[data-explode-inner="${id}"]`,
+          ) as HTMLImageElement | null,
+      )
+      .filter(Boolean) as HTMLImageElement[];
+
+    if (!els.length) return;
+
+    // mark as animated immediately (prevents strict-mode double passes)
+    orderedNewIds.forEach((id) => animatedIdsRef.current.add(id));
+
+    gsap.killTweensOf(els);
+    gsap.set(els, { scale: 0, transformOrigin: "50% 50%" });
+
+    gsap.to(els, {
+      scale: 1,
+      duration: appearDuration,
+      ease: "elastic.out(1, 1)",
+      stagger: appearStaggerEach,
+      overwrite: true,
+      clearProps: "transform",
+      onComplete: () => {
+        // fire when we've animated-in all expected items for this run
+        const expected = expectedCountRef.current;
+        if (!expected) return;
+
+        // animatedIdsRef includes everything we've animated in this run (ids are stable img-0..n)
+        const animatedCount = animatedIdsRef.current.size;
+
+        if (!allFiredForRunRef.current && animatedCount >= expected) {
+          allFiredForRunRef.current = true;
+          onAllItemsAnimatedIn?.();
+        }
+      },
+    });
+  }, [renderItems, appearDuration, appearStaggerEach, onAllItemsAnimatedIn]);
+
+  if (!hasUrls) return null;
+
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-[5]"
+      aria-hidden="true"
+    >
+      {renderItems.map((item) => (
+        <div
+          key={item.id}
+          data-explode-body={item.id}
+          ref={(node) => {
+            if (node) spriteNodesRef.current.set(item.id, node);
+            else spriteNodesRef.current.delete(item.id);
+          }}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: item.size,
+            height: item.size,
+            transform: `translate3d(${item.x}px, ${item.y}px, 0) translate(-50%, -50%) rotate(${item.angle}rad)`,
+            willChange: "transform",
+          }}
+        >
+          <img
+            data-explode-inner={item.id}
+            src={item.url}
+            alt=""
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              transform: "scale(1)",
+              willChange: "transform",
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
 }

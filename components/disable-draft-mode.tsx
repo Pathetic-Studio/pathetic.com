@@ -1,6 +1,4 @@
 "use client";
-import { Button } from "@/components/ui/button";
-
 import { useDraftModeEnvironment } from "next-sanity/hooks";
 
 export function DisableDraftMode() {
@@ -12,10 +10,11 @@ export function DisableDraftMode() {
   }
 
   return (
-    <Button asChild>
-      <a href="/api/draft-mode/disable" className="fixed bottom-4 right-4">
-        Disable Draft Mode
-      </a>
-    </Button>
+    <a
+      href="/api/draft-mode/disable"
+      className="fixed bottom-4 right-4 z-[100] inline-flex h-9 items-center justify-center bg-primary px-4 py-2 font-sans text-sm font-semibold uppercase text-primary-foreground underline-offset-4 hover:underline"
+    >
+      Disable Draft Mode
+    </a>
   );
 }

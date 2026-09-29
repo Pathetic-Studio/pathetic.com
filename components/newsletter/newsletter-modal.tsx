@@ -1,284 +1,157 @@
-// components/newsletter/newsletter-modal.tsx
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import gsap from "gsap";
-import Draggable from "gsap/Draggable";
-import { InertiaPlugin } from "gsap/InertiaPlugin";
+import ScrollSmoother from "gsap/ScrollSmoother";
 import { useNewsletterModal } from "@/components/contact/contact-modal-context";
-import NewsletterForm from "./newsletter-form";
-import TitleText from "../ui/title-text";
+import PigeonNewsletter from "./pigeon-newsletter";
 
-gsap.registerPlugin(Draggable, InertiaPlugin);
-
-const STAR_W = 900;
-const STAR_H = 650;
-
-const STAR_POINTS = 32;
-const INNER_RATIO = 0.8;
-
-const STROKE_W = 2;
-const PAD = 12;
-
-function starSvgPoints(opts: {
-  points: number;
-  innerRatio: number;
-  w: number;
-  h: number;
-  pad: number;
-}) {
-  const { points, innerRatio, w, h, pad } = opts;
-
-  const cx = w / 2;
-  const cy = h / 2;
-
-  const outerRx = Math.max(0, w / 2 - pad);
-  const outerRy = Math.max(0, h / 2 - pad);
-
-  const innerRx = outerRx * innerRatio;
-  const innerRy = outerRy * innerRatio;
-
-  const total = points * 2;
-  const startAngle = -Math.PI / 2;
-
-  const pts: string[] = [];
-  for (let i = 0; i < total; i++) {
-    const isOuter = i % 2 === 0;
-    const rx = isOuter ? outerRx : innerRx;
-    const ry = isOuter ? outerRy : innerRy;
-
-    const a = startAngle + (i * Math.PI) / points;
-
-    pts.push(
-      `${(cx + Math.cos(a) * rx).toFixed(3)},${(
-        cy + Math.sin(a) * ry
-      ).toFixed(3)}`,
-    );
-  }
-
-  return pts.join(" ");
-}
-
-function MiniStar({
-  size = 18,
-  rotateDeg = 0,
-}: {
-  size?: number;
-  rotateDeg?: number;
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      aria-hidden="true"
-      style={{
-        transform: `rotate(${rotateDeg}deg)`,
-        // hard, no-blur shadow bottom-right
-        filter: "drop-shadow(2px 2px 0px #000)",
-      }}
-    >
-      <polygon
-        points="50,7 61,38 94,38 66,57 76,89 50,70 24,89 34,57 6,38 39,38"
-        fill="#FFD400"
-        stroke="#000"
-        strokeWidth={1.5}
-        vectorEffect="non-scaling-stroke"
-        strokeLinejoin="miter"
-      />
-    </svg>
-  );
-}
+const FOCUSABLE =
+  'button:not([disabled]), input:not([type="hidden"]):not([aria-hidden="true"]), a[href], [tabindex="0"]';
+const onFlapSettled = () => undefined;
 
 export default function NewsletterModal() {
   const { isOpen, close } = useNewsletterModal();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const flightRef = useRef<gsap.core.Timeline | null>(null);
+  const departingRef = useRef(false);
 
-  const constraintsRef = useRef<HTMLDivElement | null>(null);
-  const modalRef = useRef<HTMLDivElement | null>(null);
+  const flyAway = useCallback(() => {
+    if (departingRef.current) return;
+    const panel = panelRef.current;
+    if (!panel) return close();
+    departingRef.current = true;
+    rootRef.current?.setAttribute("data-flight-state", "departing");
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    flightRef.current?.kill();
+    flightRef.current = gsap
+      .timeline({ onComplete: close })
+      .to(panel, {
+        x: reduceMotion ? 0 : -(window.innerWidth + panel.offsetWidth) / 2 - 80,
+        y: reduceMotion ? 0 : -window.innerHeight * 0.22,
+        rotation: reduceMotion ? 0 : -12,
+        opacity: reduceMotion ? 0 : 1,
+        duration: reduceMotion ? 0.15 : 0.62,
+        ease: "power2.in",
+      })
+      .to(backdropRef.current, { opacity: 0, duration: 0.2 }, "-=0.2");
+  }, [close]);
 
-  const isClosingRef = useRef(false);
-  const closeTweenRef = useRef<gsap.core.Tween | null>(null);
-
-  const starPoints = useMemo(() => {
-    return starSvgPoints({
-      points: STAR_POINTS,
-      innerRatio: INNER_RATIO,
-      w: STAR_W,
-      h: STAR_H,
-      pad: PAD + STROKE_W / 2,
-    });
-  }, []);
-
-  const animateClose = () => {
-    if (isClosingRef.current) return;
-
-    const modal = modalRef.current;
-    if (!modal) return close();
-
-    isClosingRef.current = true;
-
-    closeTweenRef.current?.kill();
-    closeTweenRef.current = gsap.to(modal, {
-      scale: 0.4,
-      y: 40,
-      duration: 0.25,
-      ease: "power2.in",
-      onComplete: () => {
-        isClosingRef.current = false;
-        close();
-      },
-    });
-  };
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) return;
-    if (!constraintsRef.current || !modalRef.current) return;
-
-    const modal = modalRef.current;
-    let draggableInstance: Draggable | null = null;
-
-    closeTweenRef.current?.kill();
-    isClosingRef.current = false;
-
-    gsap.set(modal, {
-      scale: 0.4,
-      y: -40,
-      transformOrigin: "50% 50%",
-    });
-
-    const intro = gsap.to(modal, {
-      scale: 1,
-      y: 0,
-      duration: 1,
-      ease: "back.out(1.8)",
-      onComplete: () => {
-        // Match your working ContactModal approach:
-        // - create Draggable AFTER intro so transforms are final
-        // - keep dragClickables + allowEventDefault so inputs can focus
-        const [draggable] = Draggable.create(modal, {
-          type: "x,y",
-          bounds: constraintsRef.current!,
-          inertia: true,
-          edgeResistance: 0.85,
-
-          allowContextMenu: true,
-          dragClickables: true,
-          allowEventDefault: true,
-
-          // This is the key "tap focuses, drag drags" knob:
-          // small finger jitter shouldn't turn into a drag, so clicks/focus win.
-          minimumMovement: 10,
-
-          zIndexBoost: false,
-          cursor: "grab",
-          activeCursor: "grabbing",
-        });
-
-        draggableInstance = draggable;
-      },
-    });
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") animateClose();
+    const panel = panelRef.current;
+    if (!panel) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const smoother = ScrollSmoother.get();
+    const wasPaused = smoother?.paused();
+    const originalOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    smoother?.paused(true);
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    departingRef.current = false;
+    rootRef.current?.setAttribute("data-flight-state", "arriving");
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    flightRef.current = gsap
+      .timeline({
+        onComplete: () => {
+          rootRef.current?.setAttribute("data-flight-state", "hovering");
+        },
+      })
+      .fromTo(
+        backdropRef.current,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.2 },
+        0,
+      )
+      .fromTo(
+        panel,
+        {
+          x: 0,
+          y: reduceMotion
+            ? 0
+            : (window.innerHeight + panel.offsetHeight) / 2 + 80,
+          rotation: reduceMotion ? 0 : 6,
+          opacity: reduceMotion ? 0 : 1,
+        },
+        {
+          x: 0,
+          y: 0,
+          rotation: 0,
+          opacity: 1,
+          duration: reduceMotion ? 0.18 : 0.86,
+          ease: "power3.out",
+        },
+        0,
+      );
+    panel.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        flyAway();
+      }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE),
+      );
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first || !last) return;
+      const current = document.activeElement;
+      if (event.shiftKey && (current === first || current === panel)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (current === last || current === panel)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-
     window.addEventListener("keydown", onKeyDown);
-
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      intro.kill();
-      if (draggableInstance) draggableInstance.kill();
+      flightRef.current?.kill();
+      flightRef.current = null;
+      smoother?.paused(wasPaused ?? false);
+      document.body.style.overflow = originalOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, [isOpen]);
+  }, [isOpen, flyAway]);
 
   if (!isOpen || typeof document === "undefined") return null;
-
   return createPortal(
     <div
-      ref={constraintsRef}
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) animateClose();
-      }}
+      ref={rootRef}
+      data-footer-newsletter
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden px-3 py-14"
     >
       <div
-        ref={modalRef}
-        className="relative"
-        style={{
-          width: STAR_W,
-          height: STAR_H,
-          // helps mobile taps behave like taps (and not get eaten by gesture handling)
-          touchAction: "manipulation",
-        }}
+        ref={backdropRef}
+        className="absolute inset-0 bg-black/70"
+        onClick={flyAway}
+        aria-hidden="true"
+      />
+      <div
+        ref={panelRef}
         role="dialog"
-        aria-label="Newsletter modal"
+        aria-modal="true"
+        aria-label="Join our mailing list"
+        tabIndex={-1}
+        className="relative max-h-[calc(100dvh-2rem)] origin-center outline-none will-change-transform [@media(max-height:600px)]:scale-[.72]"
       >
-        <svg
-          className="absolute inset-0 h-full w-full select-none pointer-events-none"
-          viewBox={`0 0 ${STAR_W} ${STAR_H}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <polygon
-            points={starPoints}
-            fill="#FF3939"
-            stroke="#000"
-            strokeWidth={STROKE_W}
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
-
-        <button
-          type="button"
-          onClick={animateClose}
-          className="absolute right-10 top-10 z-30 select-none text-4xl font-semibold text-white"
-          aria-label="Close"
-        >
-          ×
-        </button>
-
-        <div className="absolute inset-0 z-10 flex items-center justify-center p-10">
-          <div className="w-full max-w-[440px] text-center">
-            <div className="mb-4 flex justify-center">
-              <div className="flex items-center gap-2 select-none">
-                <div className="translate-y-[10px] rotate-[-18deg]">
-                  <MiniStar size={18} rotateDeg={-24} />
-                </div>
-
-                <div className="translate-y-0">
-                  <MiniStar size={20} rotateDeg={0} />
-                </div>
-
-                <div className="translate-y-[10px] rotate-[18deg]">
-                  <MiniStar size={18} rotateDeg={24} />
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-2 flex justify-center select-none">
-              <TitleText
-                variant="normal"
-                as="h4"
-                size="lg"
-                align="center"
-                maxChars={14}
-                textOutline
-                outlineWidth={2}
-                textColor="#ffffff"
-                outlineColor="#000000"
-              >
-                See what we drop next
-              </TitleText>
-            </div>
-
-            <div className="mb-6 select-none text-lg font-normal uppercase text-black">
-              Join our Newsletter
-            </div>
-
-            <NewsletterForm />
-          </div>
-        </div>
+        <PigeonNewsletter
+          onClose={flyAway}
+          flapping
+          heroVisible
+          onFlapSettled={onFlapSettled}
+        />
       </div>
     </div>,
     document.body,
