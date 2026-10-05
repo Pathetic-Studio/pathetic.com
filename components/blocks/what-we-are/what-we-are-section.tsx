@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
 import gsap from "gsap";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import styles from "./what-we-are.module.css";
-import WhatWeAreTitle from "./what-we-are-title";
+import TitleText from "@/components/ui/title-text";
 import { ROLES, wardrobeAsset, type OutfitPiece } from "./wardrobe-data";
 import { useHatWardrobe } from "./use-hat-wardrobe";
 
@@ -235,10 +235,18 @@ export default function WhatWeAre() {
       />
       <div className={styles.layout}>
         <div className={styles.title}>
-          <h2 id={`${id}-title`} data-hat-title>
-            <span className="sr-only">What we are</span>
-            <WhatWeAreTitle className={styles.titleImage} />
-          </h2>
+          <div id={`${id}-title`} data-hat-title>
+            <TitleText
+              as="h2"
+              variant="stretched"
+              size="belief"
+              maxChars={0}
+              className="!w-full [&_h2]:whitespace-nowrap [&_h2]:leading-[.84] [&_h2]:tracking-[-.01em] sm:[&_h2]:leading-[.76]"
+            >
+              WHAT WE<span className="hidden sm:inline"> </span>
+              <br className="sm:hidden" />ARE
+            </TitleText>
+          </div>
           {ROLES.map((role) => (
             <span
               key={role.id}

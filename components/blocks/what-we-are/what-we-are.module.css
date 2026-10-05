@@ -29,12 +29,6 @@
   opacity: 0.3;
 }
 
-.titleImage {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
 .stage {
   position: relative;
   aspect-ratio: 1440 / 850;
@@ -67,7 +61,7 @@
   display: block;
   width: max-content;
   max-width: 100%;
-  border: 2px solid currentColor;
+  border: 2px solid #111;
   padding: clamp(0.5rem, 0.833vw, 0.75rem) clamp(0.75rem, 1.66vw, 1.5rem);
   background: #fff;
   color: #111;
@@ -407,7 +401,7 @@
     padding: 3.5rem 1.5rem 2rem;
   }
   .title {
-    width: min(100%, 600px);
+    width: 100%;
     margin-bottom: 1rem;
   }
   .stage {
@@ -465,12 +459,14 @@
     opacity: 1;
   }
   .outfitCard .label {
-    width: 100%;
-    min-height: 3.75rem;
+    width: fit-content;
+    max-width: min(100%, 17rem);
+    min-height: 2.75rem;
+    margin-inline: auto;
     display: grid;
     place-items: center;
-    padding: 0.5rem 0.625rem;
-    font-size: clamp(1rem, 4vw, 1.2rem);
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
     text-align: center;
     cursor: inherit;
   }

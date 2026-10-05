@@ -395,7 +395,10 @@ export default function BeliefSection(props: BeliefBlock) {
         </>
       )}
       <GridRowAnimated {...props} />
-      <style jsx>{`
+      {/* The cloud banks render through renderClouds(), outside styled-jsx's
+          local scope. These belief-prefixed selectors must reach those banks
+          as well as the figures rendered directly in this component. */}
+      <style jsx global>{`
         .belief-cloud-idle {
           animation: belief-idle-cloud var(--belief-idle-duration) ease-in-out
             var(--belief-idle-delay) infinite alternate;

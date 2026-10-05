@@ -5,7 +5,6 @@ import Link from "next/link";
 import { stegaClean } from "next-sanity";
 import {
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -104,7 +103,7 @@ const REFERENCE_SCENE_OBJECTS = [
     src: "/images/what-we-do/cloud.png",
     alt: "",
     className:
-      "right-[4%] top-[-4%] w-[clamp(16rem,31vw,29rem)] opacity-95",
+      "right-[-24%] top-[-4%] w-[clamp(16rem,31vw,29rem)] opacity-95 sm:right-[-12%] lg:right-[4%]",
     depth: 0.11,
     endScale: 1.035,
     zIndex: 11,
@@ -115,7 +114,7 @@ const REFERENCE_SCENE_OBJECTS = [
     src: "/images/what-we-do/trash-pile.png",
     alt: "",
     className:
-      "bottom-[4%] right-[-24%] w-[clamp(16rem,28vw,28rem)] sm:right-[-18%] lg:right-[-16%] lg:!z-[55]",
+      "bottom-[4%] right-[-38%] w-[clamp(16rem,28vw,28rem)] sm:right-[-25%] lg:right-[-16%] lg:!z-[55]",
     depth: 0.72,
     endScale: 1.15,
     zIndex: 23,
@@ -376,8 +375,8 @@ function ServiceCard({
       aspectRatio: width / height,
     };
   })();
-  const mobileFrameWidth = `clamp(${15 * 16 * imageFrame.aspectRatio}px, ${34 * imageFrame.aspectRatio}svh, ${19 * 16 * imageFrame.aspectRatio}px)`;
-  const tabletFrameWidth = `clamp(${17 * 16 * imageFrame.aspectRatio}px, ${32 * imageFrame.aspectRatio}svh, ${21 * 16 * imageFrame.aspectRatio}px)`;
+  const mobileFrameWidth = `clamp(${12 * 16 * imageFrame.aspectRatio}px, ${28 * imageFrame.aspectRatio}svh, ${15 * 16 * imageFrame.aspectRatio}px)`;
+  const tabletFrameWidth = `clamp(${15 * 16 * imageFrame.aspectRatio}px, ${26 * imageFrame.aspectRatio}svh, ${18 * 16 * imageFrame.aspectRatio}px)`;
 
   const updateDetector = (event: ReactPointerEvent<HTMLElement>) => {
     if (!objectDetectHover || !detectorRef.current) return;
@@ -432,7 +431,7 @@ function ServiceCard({
             updateDetector(event);
           }
         }}
-        className="relative mx-0 h-[clamp(15rem,34svh,19rem)] w-[min(72vw,var(--service-mobile-width))] origin-bottom overflow-hidden sm:h-[clamp(17rem,32svh,21rem)] sm:w-[min(39vw,var(--service-tablet-width))] lg:h-[var(--service-image-height)] lg:w-[var(--service-image-width)] lg:max-w-none"
+        className="relative mx-0 h-[clamp(12rem,28svh,15rem)] w-[min(72vw,var(--service-mobile-width))] origin-bottom overflow-hidden sm:h-[clamp(15rem,26svh,18rem)] sm:w-[min(39vw,var(--service-tablet-width))] lg:h-[var(--service-image-height)] lg:w-[var(--service-image-width)] lg:max-w-none"
         style={{
           "--service-image-width": `${imageFrame.width}px`,
           "--service-image-height": `${imageFrame.height}px`,
@@ -532,12 +531,12 @@ function ServiceCard({
               {cleanServiceDescription}
             </div>
           ) : (
-            <div className={`relative hidden w-auto max-w-xs lg:block ${TEXT_STYLES.body}`}>
+            <div className={`relative w-full max-w-xs lg:w-auto ${TEXT_STYLES.body}`}>
               <div className="invisible whitespace-normal break-words px-3 py-2">
                 {cleanServiceDescription}
               </div>
               <div
-                className={`pointer-events-none absolute inset-0 origin-top-left whitespace-normal break-words px-3 py-2 transition-all duration-200 ${cardActive ? "scale-100 opacity-100 ease-out" : "scale-80 opacity-0 ease-in"}`}
+                className={`pointer-events-none absolute inset-0 hidden origin-top-left whitespace-normal break-words px-3 py-2 transition-all duration-200 lg:block ${cardActive ? "scale-100 opacity-100 ease-out" : "scale-80 opacity-0 ease-in"}`}
                 style={{ backgroundColor: accent, color: textColor }}
               >
                 <TypeOnText
@@ -575,7 +574,6 @@ export function WhatWeDoGridView({
   const background = colorValue(block.backgroundColor, "#e7e7e2");
   const services = (block.services || []).slice(0, 4);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const headingRef = useRef<HTMLDivElement | null>(null);
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const scrollEndTimerRef = useRef(0);
   const pointerDragRef = useRef({
@@ -598,43 +596,6 @@ export function WhatWeDoGridView({
     cleanDescription,
     2,
   );
-
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    const heading = headingRef.current;
-    if (!root || !heading) return;
-
-    let frame = 0;
-    const syncRailPosition = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        if (window.innerWidth >= 1024) {
-          root.style.removeProperty("--what-touch-rail-top");
-          return;
-        }
-        const rootBounds = root.getBoundingClientRect();
-        const headingBounds = heading.getBoundingClientRect();
-        const gap = window.innerWidth < 640 ? 38 : 58;
-        root.style.setProperty(
-          "--what-touch-rail-top",
-          `${Math.ceil(headingBounds.bottom - rootBounds.top + gap)}px`,
-        );
-      });
-    };
-
-    const observer = new ResizeObserver(syncRailPosition);
-    observer.observe(root);
-    observer.observe(heading);
-    window.addEventListener("resize", syncRailPosition);
-    syncRailPosition();
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      window.removeEventListener("resize", syncRailPosition);
-      root.style.removeProperty("--what-touch-rail-top");
-    };
-  }, [cleanDescription]);
 
   const commitNearestTouchCard = () => {
     const carousel = carouselRef.current;
@@ -779,7 +740,8 @@ export function WhatWeDoGridView({
   return (
     <div
       ref={rootRef}
-      className={`relative h-full min-h-[100svh] overflow-hidden text-black ${className}`}
+      data-what-grid
+      className={`relative overflow-hidden text-black lg:h-full lg:min-h-[100svh] ${className}`}
       style={{ backgroundColor: background }}
     >
       <LayeredBackground block={block} />
@@ -787,9 +749,8 @@ export function WhatWeDoGridView({
       <PizzaRatScene />
 
       <div
-        ref={headingRef}
         data-what-heading
-        className="absolute inset-x-3 top-[10%] z-40 flex flex-col items-center text-center sm:inset-x-4 sm:top-[12%] lg:top-[16.5%]"
+        className="relative z-40 mx-3 flex flex-col items-center pt-14 text-center sm:mx-4 sm:pt-16 lg:absolute lg:inset-x-3 lg:top-[16.5%] lg:mx-0 lg:pt-0"
         style={{ "--what-accent": accent } as CSSProperties}
       >
         <TitleText
@@ -849,7 +810,7 @@ export function WhatWeDoGridView({
           }
         }}
         onDragStart={(event) => event.preventDefault()}
-        className="absolute inset-x-0 bottom-[1%] top-[var(--what-touch-rail-top,30%)] z-[60] flex cursor-grab snap-x snap-mandatory scroll-px-[14vw] gap-[4vw] overflow-x-scroll overflow-y-hidden px-[14vw] pb-8 pt-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:bottom-[4%] lg:top-[40%] lg:z-auto lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
+        className="relative z-[60] mt-6 flex cursor-grab snap-x snap-mandatory scroll-px-[14vw] gap-[4vw] overflow-x-scroll overflow-y-hidden px-[14vw] pb-20 pt-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] lg:absolute lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:mt-0 lg:bottom-[4%] lg:top-[40%] lg:z-auto lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
       >
         {services.map((service, index) => (
           <div
@@ -896,7 +857,7 @@ export default function WhatWeDoGridSection(block: WhatWeDoGridBlock) {
   const id = stegaClean(block.anchor?.anchorId) || `_what-we-do-grid-${block._key}`;
 
   return (
-    <section id={id} className="relative min-h-[100svh] overflow-hidden">
+    <section id={id} className="relative overflow-hidden lg:min-h-[100svh]">
       <WhatWeDoGridView block={block} />
     </section>
   );

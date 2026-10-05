@@ -6,16 +6,12 @@
 .what,
 .talent {
   position: relative;
-  height: 100svh;
   opacity: 1;
   visibility: visible;
 }
 
-.what {
-  min-height: 760px;
-}
-
 .talent {
+  height: 100svh;
   min-height: 640px;
 }
 
