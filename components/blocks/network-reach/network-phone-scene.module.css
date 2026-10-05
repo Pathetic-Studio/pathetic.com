@@ -183,23 +183,64 @@
     position: relative;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 5px 0;
-    padding: 0 10px;
+    grid-template-rows: repeat(3, 150px);
+    gap: 0;
+    margin-top: -20px;
+    padding: 0 12px 25px;
   }
   .point:nth-child(n) {
     position: relative;
     inset: auto;
-    width: auto;
+    width: 100%;
     align-self: center;
+  }
+  .point.metric {
+    width: min(100%, 185px);
+  }
+  .point.detail {
+    width: min(78%, 132px);
+    justify-self: center;
+  }
+  .point:nth-child(1) {
+    grid-area: 1 / 1;
+    align-self: start;
+  }
+  .point:nth-child(2) {
+    grid-area: 1 / 2;
+    top: 35px;
+    left: -4%;
+  }
+  .point:nth-child(3) {
+    grid-area: 2 / 2;
+    top: 18px;
+    justify-self: end;
+  }
+  .point:nth-child(4) {
+    grid-area: 2 / 1;
+    top: -5px;
+    left: 5%;
+  }
+  .point:nth-child(5) {
+    grid-area: 3 / 1;
+    top: 17px;
+    left: 3%;
+  }
+  .point:nth-child(6) {
+    grid-area: 3 / 2;
+    top: 35px;
+    left: -2%;
+  }
+  .detail::before {
+    inset: -15px -12px;
   }
   .pointContent {
     padding: 22px 2px;
   }
   .detail .pointContent {
-    padding: 25px 3px;
+    padding: 15px 0;
   }
   .detail p {
-    font-size: 13px;
+    font-size: clamp(11px, 3.1vw, 13px);
   }
   .metric p + p {
     font-size: 12px;

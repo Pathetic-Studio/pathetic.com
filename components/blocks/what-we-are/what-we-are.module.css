@@ -1,0 +1,543 @@
+.section {
+  position: relative;
+  isolation: isolate;
+  background: #fff;
+  color: #111;
+  padding: 3.5rem 1.5rem;
+  overflow: clip;
+}
+
+.layout {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.title {
+  position: relative;
+  width: min(62%, 710.429px);
+  margin: 0 auto clamp(1.5rem, 3.35vw, 3rem);
+}
+
+.paperPanel::before {
+  content: "";
+  position: absolute;
+  inset: -7.2% -19.3% -15.8% -5.5%;
+  background: url("/images/what-we-are/parchment.webp") center / cover;
+  mix-blend-mode: multiply;
+  opacity: 0.3;
+}
+
+.titleImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.stage {
+  position: relative;
+  aspect-ratio: 1440 / 850;
+}
+
+.corner {
+  position: absolute;
+  z-index: 2;
+  width: 25%;
+  top: 3.765%;
+}
+
+.corner[data-role="media"],
+.corner[data-role="apparel"] {
+  left: 13.75%;
+  width: 21%;
+}
+
+.corner[data-role="studio"],
+.corner[data-role="distribution"] {
+  left: 71.04%;
+}
+
+.corner[data-role="apparel"],
+.corner[data-role="distribution"] {
+  top: 75.18%;
+}
+
+.label {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  border: 2px solid currentColor;
+  padding: clamp(0.5rem, 0.833vw, 0.75rem) clamp(0.75rem, 1.66vw, 1.5rem);
+  background: #fff;
+  color: #111;
+  font-size: clamp(1.15rem, 2.12vw, 1.907rem);
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.label:focus-visible,
+.figureButton:focus-visible {
+  outline: 2px solid #627aff;
+  outline-offset: 6px;
+}
+
+.corner[data-active="true"] .label {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.copy {
+  max-width: min(100%, 278px);
+  margin: clamp(1rem, 2vw, 1.8rem) 0 0;
+  padding-right: 0.5rem;
+  font-size: clamp(1rem, 1.39vw, 1.25rem);
+  line-height: 1.25;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease,
+    visibility 180ms;
+}
+
+.corner[data-active="true"] .copy {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.figureButton {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 27.57%;
+  width: 44.861%;
+  aspect-ratio: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  perspective: 1300px;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.figureButton:active {
+  cursor: grabbing;
+}
+
+.float,
+.figure {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-style: preserve-3d;
+}
+
+.float {
+  animation: vitruvian-turn 10s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+
+.section[data-in-view="true"] .float {
+  animation-play-state: running;
+}
+
+.figureButton:hover .float,
+.figureButton:focus-visible .float {
+  animation-play-state: paused;
+}
+
+.drawing {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The dock slots follow the four hats placed above the Figma heading. */
+.hatDock {
+  position: absolute;
+  top: -2.9rem;
+  width: 12%;
+  pointer-events: none;
+}
+.hatDock[data-hat-dock="media"] {
+  left: -2%;
+  width: 9.5%;
+}
+.hatDock[data-hat-dock="studio"] {
+  left: 31%;
+  width: 10.5%;
+  top: -2.7rem;
+}
+.hatDock[data-hat-dock="apparel"] {
+  left: 58%;
+  width: 12%;
+  top: -3.4rem;
+}
+.hatDock[data-hat-dock="distribution"] {
+  left: 84%;
+  width: 14%;
+  top: -0.9rem;
+}
+.hatFlights {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.flyingHat,
+.wornHat {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.flyingHat {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: auto;
+  will-change: transform;
+}
+.flyingHat img,
+.wornHat img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+.flyingHat:active,
+.wornHat:active {
+  cursor: grabbing;
+}
+.flyingHat:focus-visible,
+.wornHat:focus-visible,
+.spinSurface:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 5px;
+}
+.spinSurface {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: pan-y;
+}
+.drawing {
+  position: relative;
+  z-index: 1;
+}
+.headHatSlot {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+}
+.wornHat {
+  width: 100%;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.wornHat[data-visible="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.headDropzone {
+  position: absolute;
+  left: 39%;
+  top: 15%;
+  width: 22%;
+  height: 22%;
+  border-radius: 50%;
+  z-index: 0;
+  opacity: 0;
+  transform: scale(1.15);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+  pointer-events: none;
+}
+.headDropzone::before {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    #fff 0% 24%,
+    #fff5d0ee 40%,
+    #ffe28d88 60%,
+    transparent 76%
+  );
+  filter: blur(10px);
+}
+.section[data-hat-dragging] .headDropzone {
+  opacity: 0.8;
+}
+.section[data-hat-near-head="true"] .headDropzone {
+  opacity: 1;
+  transform: scale(1.4);
+}
+.outfit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.clothingSlot {
+  position: absolute;
+  display: block;
+}
+.clothingPiece {
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.55);
+  transform-origin: center;
+}
+.clothingPiece img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.section[data-hat-dragging] .float {
+  animation-play-state: paused;
+}
+
+@keyframes vitruvian-turn {
+  from {
+    transform: rotateX(1deg) rotateY(-6deg);
+  }
+  to {
+    transform: rotateX(-1deg) rotateY(6deg);
+  }
+}
+
+/* Scale the complete desktop composition with the available viewport height. */
+@media (min-width: 901px) {
+  .section {
+    height: min(100svh, 1000px);
+    min-height: 760px;
+    padding: clamp(6.5rem, 8vw, 7rem) 2rem 4rem;
+  }
+
+  .layout {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    row-gap: clamp(1rem, 2vh, 2rem);
+  }
+
+  .title {
+    margin-bottom: 0;
+  }
+
+  .stage {
+    min-height: 0;
+    aspect-ratio: auto;
+  }
+
+  .figureButton {
+    left: 50%;
+    width: auto;
+    height: calc(100% - 1.5rem);
+    max-width: 49%;
+    transform: translateX(-50%);
+  }
+
+  .corner[data-role="media"],
+  .corner[data-role="apparel"] {
+    left: 8%;
+    width: 24%;
+  }
+
+  .corner[data-role="studio"],
+  .corner[data-role="distribution"] {
+    left: 71%;
+    width: 27%;
+  }
+
+  .corner[data-role="apparel"],
+  .corner[data-role="distribution"] {
+    top: 74%;
+  }
+
+  .label {
+    font-size: clamp(0.95rem, 1.3vw, 1.125rem);
+    border-width: 1px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .copy {
+    margin-top: 1rem;
+    font-size: 1rem;
+  }
+}
+
+.mobileWardrobe {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .section {
+    padding: 3.5rem 1.5rem 2rem;
+  }
+  .title {
+    width: min(100%, 600px);
+    margin-bottom: 1rem;
+  }
+  .stage {
+    max-width: 540px;
+    margin-inline: auto;
+    aspect-ratio: auto;
+  }
+  .corner[data-role],
+  .hatDock,
+  .hatFlights {
+    display: none;
+  }
+  .figureButton {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: min(100%, 440px);
+    margin: 0 auto 0.5rem;
+  }
+  .wornHat[data-visible="true"] {
+    pointer-events: none;
+  }
+  .mobileWardrobe {
+    display: block;
+  }
+  .outfitRail {
+    position: relative;
+    display: flex;
+    gap: 5%;
+    margin-inline: -0.75rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding: 0.5rem 7.5%;
+    touch-action: pan-x pan-y;
+  }
+  .outfitRail::-webkit-scrollbar {
+    display: none;
+  }
+  .outfitRail:focus-visible {
+    outline: 2px solid #111;
+    outline-offset: 2px;
+  }
+  .outfitCard {
+    flex: 0 0 100%;
+    min-width: 0;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    text-align: center;
+    opacity: 0.45;
+    transition: opacity 180ms ease;
+  }
+  .outfitCard[data-selected="true"] {
+    opacity: 1;
+  }
+  .outfitCard .label {
+    width: 100%;
+    min-height: 3.75rem;
+    display: grid;
+    place-items: center;
+    padding: 0.5rem 0.625rem;
+    font-size: clamp(1rem, 4vw, 1.2rem);
+    text-align: center;
+    cursor: inherit;
+  }
+  .outfitCard[data-selected="true"] .label {
+    background: #111;
+    color: #fff;
+  }
+  .outfitCard p {
+    margin: 0.75rem auto 0;
+    max-width: 25rem;
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+  .outfitPagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+  .outfitPagination button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+  }
+  .outfitPagination span {
+    width: 7px;
+    height: 7px;
+    border: 1px solid #111;
+    border-radius: 50%;
+  }
+  .outfitPagination [aria-pressed="true"] span {
+    background: #111;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float {
+    animation: none;
+  }
+  .label,
+  .copy {
+    transition: none;
+  }
+  .figureButton,
+  .figureButton:active {
+    cursor: default;
+  }
+}
+
+@media (max-width: 575px) {
+  .hatDock {
+    top: -1.6rem;
+    width: 17%;
+  }
+  .hatDock[data-hat-dock="studio"] {
+    top: -1.75rem;
+    width: 15%;
+    left: 27%;
+  }
+  .hatDock[data-hat-dock="apparel"] {
+    top: -2rem;
+    width: 16%;
+    left: 54%;
+  }
+  .hatDock[data-hat-dock="distribution"] {
+    top: -0.6rem;
+    width: 19%;
+    left: 82%;
+  }
+}

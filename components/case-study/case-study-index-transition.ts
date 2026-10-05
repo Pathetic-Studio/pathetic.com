@@ -31,10 +31,78 @@ export function leaveForCaseIndex(page: HTMLElement, next: () => void) {
   });
   const copy = page.cloneNode(true) as HTMLElement;
   copy.removeAttribute("id");
-  copy.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+  const identifiedSources = page.querySelectorAll<HTMLElement>("[id]");
+  copy.querySelectorAll<HTMLElement>("[id]").forEach((node, index) => {
+    const source = identifiedSources[index];
+    // Some CMS blocks size themselves with ID-scoped CSS (the home spacer,
+    // for example). Removing those IDs used to collapse the cloned layout.
+    if (source instanceof HTMLElement) {
+      const computed = getComputedStyle(source);
+      for (const property of [
+        "height",
+        "min-height",
+        "max-height",
+        "width",
+        "min-width",
+        "max-width",
+        "padding-top",
+        "padding-right",
+        "padding-bottom",
+        "padding-left",
+        "margin-top",
+        "margin-right",
+        "margin-bottom",
+        "margin-left",
+        "box-sizing",
+      ])
+        node.style.setProperty(property, computed.getPropertyValue(property));
+    }
+    node.removeAttribute("id");
+  });
+  const mediaSources = page.querySelectorAll<HTMLElement>(
+    "iframe, video, audio",
+  );
   copy
-    .querySelectorAll("script, iframe, video, audio")
-    .forEach((node) => node.remove());
+    .querySelectorAll<HTMLElement>("iframe, video, audio")
+    .forEach((node, index) => {
+      const source = mediaSources[index];
+      const placeholder = document.createElement(
+        source instanceof HTMLVideoElement && source.readyState >= 2
+          ? "canvas"
+          : "div",
+      );
+      placeholder.className = node.className;
+      placeholder.style.cssText = node.style.cssText;
+      const computed = getComputedStyle(source);
+      placeholder.style.width = computed.width;
+      placeholder.style.height = computed.height;
+      if (
+        source instanceof HTMLVideoElement &&
+        placeholder instanceof HTMLCanvasElement
+      ) {
+        placeholder.width = Math.min(source.videoWidth, 960);
+        placeholder.height = Math.round(
+          (placeholder.width * source.videoHeight) / source.videoWidth,
+        );
+        placeholder.style.objectFit = computed.objectFit;
+        placeholder.style.objectPosition = computed.objectPosition;
+        try {
+          placeholder
+            .getContext("2d")
+            ?.drawImage(source, 0, 0, placeholder.width, placeholder.height);
+        } catch {
+          // A video can lose its decoded frame during route teardown. Keep
+          // its dimensions even when there is no frame left to capture.
+        }
+      } else if (source instanceof HTMLVideoElement && source.poster) {
+        placeholder.style.backgroundImage = `url(${JSON.stringify(source.poster)})`;
+        placeholder.style.backgroundSize = computed.objectFit;
+        placeholder.style.backgroundPosition = computed.objectPosition;
+        placeholder.style.backgroundRepeat = "no-repeat";
+      }
+      node.replaceWith(placeholder);
+    });
+  copy.querySelectorAll("script").forEach((node) => node.remove());
   // The clone is a static visual only; no hidden videos or duplicate IDs.
   Object.assign(copy.style, {
     position: "absolute",

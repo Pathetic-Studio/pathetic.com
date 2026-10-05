@@ -109,8 +109,7 @@ function syncBoundaryToHeaderItems(header: HTMLElement, boundary: number) {
   // `boundary` follows the actual section seam through the viewport. Each
   // header visual then converts that shared page-space Y into its own mask.
   // This keeps oversized artwork (the feature star) aligned with normal text.
-  const boundaryLead = Math.min(44, window.innerHeight * 0.045);
-  const edgeY = (1 - boundary) * window.innerHeight - boundaryLead;
+  const edgeY = (1 - boundary) * window.innerHeight;
 
   visibleTargets.forEach(({ target, bounds }) => {
     const localProgress =

@@ -1,13 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import NetworkPhoneScene from "./network-phone-scene";
+import styles from "./network-friends.module.css";
 import EyeFollow from "@/components/effects/eye-follow";
 import TitleText from "@/components/ui/title-text";
 import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
@@ -61,9 +61,57 @@ const fallbackDetailStats = [
   },
 ];
 
+// Handles supplied in the approved source filenames; no CMS changes needed.
+const FRIENDS = [
+  {
+    file: "gucci_pineapple",
+    handle: "gucci_pineapple",
+    width: 254,
+    height: 317,
+    alt: "Community member crouching with a Popeyes cup",
+  },
+  {
+    file: "winnie_thepooj",
+    handle: "winnie_thepooj",
+    width: 171,
+    height: 306,
+    alt: "Community member with a basketball in a PATHETIC T-shirt",
+  },
+  {
+    file: "kael_fangs",
+    handle: "kael_fangs",
+    width: 247,
+    height: 369,
+    alt: "Two community members in furry costumes and PATHETIC T-shirts",
+  },
+  {
+    file: "thejeanluc",
+    handle: "thejeanluc",
+    width: 137,
+    height: 358,
+    alt: "Community member waving in a graphic top and jeans",
+  },
+  {
+    file: "brettneustrom",
+    handle: "brettneustrom",
+    width: 114,
+    height: 353,
+    alt: "Community member wearing sunglasses and denim shorts",
+  },
+  {
+    file: "racheltokar_",
+    handle: "racheltokar_",
+    width: 116,
+    height: 161,
+    alt: "Community member leaning forward in a white hoodie",
+  },
+] as const;
+
 const NETWORK_FLOAT_EFFECTS = {
   intro: { enabled: false, speed: 0.9, lag: 0.2 },
 } as const;
+
+const FRIEND_LABEL_POSITIONS = [[49, 68], [44, 36], [51, 61], [52, 30], [46, 52], [49, 77]] as const;
 
 function cleanColor(
   color: { hex?: string | null } | null | undefined,
@@ -117,12 +165,6 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
   const detailStats = props.detailStats?.length
     ? props.detailStats
     : fallbackDetailStats;
-  const friends = (props.friends ?? []).filter(
-    (friend) => friend.image?.asset?.url,
-  );
-  const displayedFriends = friends.length
-    ? Array.from({ length: 6 }, (_, index) => friends[index % friends.length])
-    : [];
   // Keep this revision local to the feature branch; no Sanity mutation needed.
   const cleanDescription =
     "We distribute our work through @PATHETIC, our Instagram community that reaches 50 million people every month.";
@@ -133,7 +175,8 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
     const listenerCleanups: Array<() => void> = [];
 
     const context = gsap.context(() => {
-      const finePointer = window.matchMedia("(pointer: fine)").matches;
+      const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches && navigator.maxTouchPoints === 0;
+      root.dataset.touchLabels = String(!finePointer);
       const friendItems = gsap.utils.toArray<HTMLElement>(
         "[data-network-friend]",
         root,
@@ -227,7 +270,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
       listenerCleanups.forEach((cleanup) => cleanup());
       context.revert();
     };
-  }, [displayedFriends.length]);
+  }, []);
 
   return (
     <section
@@ -410,82 +453,49 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
             )}
           </div>
 
-          {displayedFriends.length > 0 && (
-            <div className="network-friends-row relative mt-5 flex h-[clamp(9rem,15vw,14.5rem)] w-full items-end justify-center overflow-visible px-1 sm:mt-4 sm:px-3">
-              {displayedFriends.map((friend, index) => {
-                const href = stegaClean(friend.link?.href) || "";
-                const name = stegaClean(friend.name) || "Network friend";
-                const className =
-                  "network-friend-cutout relative h-full w-[clamp(5.5rem,9.5vw,9.5rem)] flex-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
-                const content = (
-                  <>
-                    <div
-                      data-network-friend-visual
-                      className="absolute inset-0 overflow-hidden will-change-transform"
-                    >
-                      <Image
-                        src={friend.image!.asset!.url!}
-                        alt={
-                          index < friends.length
-                            ? stegaClean(friend.image?.alt) || name
-                            : ""
-                        }
-                        fill
-                        sizes="(min-width: 1024px) 152px, 88px"
-                        className="object-cover object-top"
-                      />
-                    </div>
-                    <span
-                      data-network-friend-tag
-                      aria-hidden="true"
-                      className={`pointer-events-none absolute left-0 top-0 z-30 whitespace-nowrap border border-white bg-black px-2 py-1 text-white opacity-0 ${TEXT_STYLES.label}`}
-                    >
-                      {name}
-                    </span>
-                  </>
-                );
-
-                return href ? (
-                  <Link
-                    key={`${friend._key}-${index}`}
-                    href={href}
-                    target={friend.link?.target ? "_blank" : undefined}
-                    rel={
-                      friend.link?.target ? "noopener noreferrer" : undefined
-                    }
-                    data-network-friend
-                    className={className}
-                    style={{ zIndex: index + 1 }}
-                    aria-label={`Open ${name}`}
-                  >
-                    {content}
-                  </Link>
-                ) : (
-                  <div
-                    key={`${friend._key}-${index}`}
-                    data-network-friend
-                    className={className}
-                    style={{ zIndex: index + 1 }}
-                  >
-                    {content}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="network-friends-row relative mt-8 grid w-full max-w-[1050px] grid-cols-3 items-end justify-items-center gap-x-1 gap-y-5 px-1 sm:flex sm:items-end sm:justify-center sm:gap-0">
+            {FRIENDS.map((friend, index) => (
+              <a
+                key={friend.file}
+                href={`https://www.instagram.com/${friend.handle}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Visit @${friend.handle} on Instagram`}
+                data-network-friend
+                className="group network-friend-cutout focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 relative flex h-[12rem] w-full items-end justify-center sm:h-[clamp(12rem,24vw,20rem)] sm:w-auto sm:flex-1"
+                style={{
+                  zIndex: index + 1,
+                  "--friend-label-x": `${FRIEND_LABEL_POSITIONS[index][0]}%`,
+                  "--friend-label-y": `${FRIEND_LABEL_POSITIONS[index][1]}%`,
+                } as CSSProperties}
+              >
+                <div
+                  data-network-friend-visual
+                  className="flex h-full w-full items-end justify-center"
+                >
+                  <Image
+                    src={`/images/network/friends/${friend.file}.webp`}
+                    loading="eager"
+                    alt={friend.alt}
+                    width={friend.width}
+                    height={friend.height}
+                    sizes="(min-width: 1024px) 200px, (min-width: 640px) 130px, 110px"
+                    className="h-auto max-h-full w-full object-contain object-bottom"
+                    style={{ maxWidth: friend.width }}
+                  />
+                </div>
+                <span
+                  data-network-friend-tag
+                  aria-hidden="true"
+                  className={`${styles.tag} pointer-events-none absolute left-0 top-0 z-30 whitespace-nowrap border border-white bg-black px-2 py-1 text-white opacity-0 ${TEXT_STYLES.label}`}
+                >
+                  @{friend.handle}
+                </span>
+              </a>
+            ))}
+          </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .network-friend-cutout + .network-friend-cutout {
-          margin-left: clamp(-2.4rem, -2.2vw, -1.15rem);
-        }
-        @media (max-width: 639px) {
-          .network-friend-cutout + .network-friend-cutout {
-            margin-left: -1.35rem;
-          }
-        }
-      `}</style>
     </section>
   );
 }

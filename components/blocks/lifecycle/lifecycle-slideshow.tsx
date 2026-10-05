@@ -33,6 +33,8 @@ type LifecycleObjectHeaderEffect = {
   idleIntensity?: number | null;
 };
 
+const SLIDE_STAGE_THRESHOLDS = [0, 0.34, 0.62] as const;
+
 function LifecycleTitleCharacters({ text }: { text: string }) {
   return (
     <>
@@ -288,6 +290,9 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           const threeStage = root.querySelector<HTMLElement>(
             "[data-lifecycle-three-stage]",
           );
+          const funButton = root.querySelector<HTMLElement>(
+            "[data-lifecycle-fun-button]",
+          );
           const progress = root.querySelector<HTMLElement>(
             "[data-lifecycle-progress]",
           );
@@ -350,11 +355,18 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           if (orbitReveals.length) {
             gsap.set(orbitReveals, { autoAlpha: 0, scale: 0.45 });
           }
+          if (funButton) {
+            gsap.set(funButton, {
+              autoAlpha: 0,
+              scale: 0,
+              transformOrigin: "50% 50%",
+            });
+          }
           if (threeStage) {
             gsap.set(threeStage, {
-              yPercent: 68,
+              yPercent: 100,
               rotation: 0,
-              scale: 0.58,
+              scale: 0.9,
               transformOrigin: "50% 50%",
             });
           }
@@ -422,8 +434,8 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           const secondTextInAt = 0.78;
           const secondRestAt = 1.3;
           const secondOutAt = secondRestAt;
-          const thirdInAt = secondOutAt + 0.1;
-          const thirdRestAt = thirdInAt + 0.4;
+          const thirdInAt = secondOutAt + 0.08;
+          const thirdRestAt = thirdInAt + 0.52;
           const timelineEnd = thirdRestAt + 0.3;
 
           timeline.call(
@@ -631,9 +643,10 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
               orbitStage,
               {
                 autoAlpha: 0,
-                scale: 1.08,
-                duration: 0.25,
-                ease: "power3.in",
+                yPercent: -12,
+                scale: 0.88,
+                duration: 0.32,
+                ease: "power2.inOut",
               },
               secondOutAt,
             );
@@ -642,8 +655,8 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           timeline
             .to(
               slides[1],
-              { autoAlpha: 0, duration: 0.16 },
-              secondOutAt + 0.06,
+              { autoAlpha: 0, duration: 0.12 },
+              secondOutAt + 0.26,
             )
             .set(
               slides[2],
@@ -658,13 +671,26 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
                 yPercent: 0,
                 rotation: 0,
                 scale: 1,
-                duration: 0.4,
-                ease: "power4.out",
+                duration: 0.52,
+                ease: "power2.inOut",
                 force3D: true,
                 onStart: () =>
                   setObjectEntryKey((current) => current + 1),
               },
               thirdInAt,
+            );
+          }
+
+          if (funButton) {
+            timeline.to(
+              funButton,
+              {
+                autoAlpha: 1,
+                scale: 1,
+                duration: 0.24,
+                ease: "back.out(1.7)",
+              },
+              thirdInAt + 0.22,
             );
           }
 
@@ -700,7 +726,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
 
           timeline.to({}, { duration: timelineEnd - thirdInAt }, thirdInAt);
 
-          const stageThresholds = [0, 0.34, 0.62] as const;
+          const stageThresholds = SLIDE_STAGE_THRESHOLDS;
           const stageTimes = [0, secondRestAt, thirdRestAt] as const;
           let currentStage = 0;
           let stageTween: gsap.core.Tween | null = null;
@@ -720,7 +746,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
               // Preserve the original first/second-slide timeline pacing.
               // Only transitions involving the glasses use the shorter duration.
               ...(transitioningThirdSlide
-                ? { duration: Math.abs(velocity) > 2000 ? 0.2 : 0.38 }
+                ? { duration: Math.abs(velocity) > 2000 ? 0.42 : 0.56 }
                 : {}),
               ease: "none",
               overwrite: true,
@@ -853,6 +879,9 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           const threeStage = root.querySelector<HTMLElement>(
             "[data-lifecycle-three-stage]",
           );
+          const funButton = root.querySelector<HTMLElement>(
+            "[data-lifecycle-fun-button]",
+          );
           const readableItems = gsap.utils.toArray<HTMLElement>(
             "[data-lifecycle-top-text], [data-lifecycle-title-char]",
             root,
@@ -936,6 +965,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           }
 
           if (slides[2] && threeStage) {
+            if (funButton) gsap.set(funButton, { autoAlpha: 0, scale: 0 });
             gsap.set(threeStage, {
               yPercent: 38,
               scale: 0.68,
@@ -981,6 +1011,19 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
                 },
                 0,
               );
+
+            if (funButton) {
+              objectEntrance.to(
+                funButton,
+                {
+                  autoAlpha: 1,
+                  scale: 1,
+                  duration: 0.24,
+                  ease: "back.out(1.7)",
+                },
+                0.16,
+              );
+            }
 
             if (objectEntrance.scrollTrigger?.isActive) {
               objectSlideActiveRef.current = true;
@@ -1162,6 +1205,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
 
           <button
             type="button"
+            data-lifecycle-fun-button
             aria-pressed={boosted}
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -1182,7 +1226,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
                 setBoosted(false);
               }
             }}
-            className="absolute bottom-6 right-5 z-50 flex h-20 w-20 touch-none select-none items-center justify-center rounded-full bg-[#ff241a] px-3 text-center text-[10px] font-bold uppercase leading-[0.95] text-white transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4 lg:bottom-8 lg:right-8 lg:h-28 lg:w-28 lg:text-xs"
+            className="absolute bottom-6 right-5 z-50 flex h-20 w-20 touch-none select-none items-center justify-center rounded-full bg-[#ff241a] px-3 text-center text-[10px] font-bold uppercase leading-[0.95] text-white hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4 lg:bottom-8 lg:right-8 lg:h-28 lg:w-28 lg:text-xs"
           >
             Fun Button
           </button>
@@ -1197,6 +1241,13 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             data-lifecycle-progress
             className="absolute inset-y-0 left-0 w-full origin-left scale-x-0 bg-current will-change-transform"
           />
+          {SLIDE_STAGE_THRESHOLDS.slice(1).map((boundary) => (
+            <span
+              key={boundary}
+              className="absolute top-1/2 h-[9px] w-[3px] -translate-x-1/2 -translate-y-1/2 bg-white"
+              style={{ left: `${boundary * 100}%` }}
+            />
+          ))}
         </div>
       </div>
     </section>

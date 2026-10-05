@@ -770,7 +770,7 @@ export default function LifecycleThreeScene({
       let powerCharge = 0;
       let backgroundCharge = 0;
       let wasLightningActive = false;
-      let lastLightningUpdate = -1;
+      const lastLightningUpdates = [-1, -1, -1, -1];
       const prefersReducedMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
       ).matches;
@@ -801,12 +801,10 @@ export default function LifecycleThreeScene({
         const elapsed = clock.elapsedTime;
         const boostActive = boostedRef.current && !prefersReducedMotion;
 
-        surgeIntensity = THREE.MathUtils.damp(
-          surgeIntensity,
-          boostActive ? 1 : 0,
-          boostActive ? 1.15 : 2.35,
-          transitionDelta,
-        );
+        // Immediate response, with a progressive 4.5-second build to full speed.
+        surgeIntensity = boostActive
+          ? Math.min(1, surgeIntensity + transitionDelta / 4.5)
+          : THREE.MathUtils.damp(surgeIntensity, 0, 2.35, transitionDelta);
         powerCharge = THREE.MathUtils.damp(
           powerCharge,
           boostActive ? 1 : 0,
@@ -833,12 +831,17 @@ export default function LifecycleThreeScene({
 
         const lightningActive = boostActive && powerCharge > 0.78;
         if (lightningActive && !wasLightningActive) {
-          lastLightningUpdate = -1;
+          lastLightningUpdates.forEach((_, index) => {
+            lastLightningUpdates[index] = elapsed - 0.066 + index * 0.0165;
+          });
         }
         wasLightningActive = lightningActive;
 
         if (!prefersReducedMotion) {
-          const surgeRamp = Math.pow(surgeIntensity, 2.15);
+          const surgeRamp = Math.pow(
+            THREE.MathUtils.smoothstep(surgeIntensity, 0, 1),
+            1.7,
+          );
           const multiplier = 1 + surgeRamp * 115;
           idleRotationY += delta * (rotationSpeed || 0.35) * multiplier;
           root.rotation.y = idleRotationY + entrySpinRef.current.value;
@@ -872,16 +875,25 @@ export default function LifecycleThreeScene({
           lightningBloom.strength = lightningActive ? 0.58 + flicker * 0.18 : 0;
           lightningBloom.radius = 0.34 + flicker * 0.08;
 
-          if (lightningActive && elapsed - lastLightningUpdate > 0.066) {
-            lastLightningUpdate = elapsed;
-            upperLightningGeometry.update(elapsed);
-            lowerLightningGeometry.update(elapsed + 1.73);
-            logoArcCluster.geometries.forEach((geometry, index) =>
-              geometry.update(elapsed + 0.47 + index * 0.61),
-            );
-            featureArcCluster.geometries.forEach((geometry, index) =>
-              geometry.update(elapsed + 1.13 + index * 0.57),
-            );
+          if (lightningActive) {
+            // Keep each bolt at its original update rate, distributed across
+            // frames instead of rebuilding every lightning mesh in one burst.
+            const groupCount = headerArcTargetsAvailable ? 4 : 2;
+            for (let group = 0; group < groupCount; group++) {
+              if (elapsed - lastLightningUpdates[group] < 0.066) continue;
+              lastLightningUpdates[group] = elapsed;
+              if (group === 0) upperLightningGeometry.update(elapsed);
+              else if (group === 1) lowerLightningGeometry.update(elapsed + 1.73);
+              else {
+                const cluster = group === 2 ? logoArcCluster : featureArcCluster;
+                cluster.geometries.forEach((geometry, index) =>
+                  geometry.update(
+                    elapsed + (group === 2 ? 0.47 : 1.13) +
+                    index * (group === 2 ? 0.61 : 0.57),
+                  ),
+                );
+              }
+            }
           }
 
           const visualIntensity = Math.max(powerCharge, surgeIntensity);
@@ -916,7 +928,6 @@ export default function LifecycleThreeScene({
           .copy(currentSceneBackground)
           .convertLinearToSRGB();
         environment.update(
-          currentSceneBackground.getStyle(),
           backgroundProgress,
           displaySceneBackground.r,
         );

@@ -27,6 +27,9 @@ import TalentMatrixSection from "@/components/blocks/talent-matrix/talent-matrix
 import WhatWeDoTalentSequence from "@/components/blocks/talent-matrix/what-we-do-talent-sequence";
 import NetworkReachSection from "@/components/blocks/network-reach/network-reach-section";
 import BeliefSection from "@/components/blocks/belief/belief-section";
+import WhatWeAreSection, {
+  type WhatWeAreSectionBlock,
+} from "@/components/blocks/what-we-are/what-we-are-section";
 import ProjectCtaSection, { type ProjectCtaSectionBlock } from "@/components/blocks/project-cta/project-cta-section";
 import BasketLinksSection, { type BasketLinksSectionBlock } from "@/components/blocks/basket-links/basket-links-section";
 import BingoFooter, { type BingoFooterBlock } from "@/components/blocks/bingo-footer/bingo-footer";
@@ -36,7 +39,8 @@ type Block =
   | FooterBlockType
   | ProjectCtaSectionBlock
   | BasketLinksSectionBlock
-  | BingoFooterBlock;
+  | BingoFooterBlock
+  | WhatWeAreSectionBlock;
 
 const componentMap: {
   [K in Block["_type"]]: React.ComponentType<Extract<Block, { _type: K }>>;
@@ -68,6 +72,7 @@ const componentMap: {
   "talent-matrix-section": TalentMatrixSection,
   "network-reach-section": NetworkReachSection,
   "belief-section": BeliefSection,
+  "what-we-are-section": WhatWeAreSection,
   "project-cta-section": ProjectCtaSection,
   "basket-links-section": BasketLinksSection,
   "bingo-footer": BingoFooter,
@@ -75,6 +80,19 @@ const componentMap: {
 
 export default function Blocks({ blocks }: { blocks: Block[] }) {
   const rendered: React.ReactNode[] = [];
+  // Keep the new section as its own block while the feature stays local.
+  // An explicit CMS block can replace this insertion later without nesting it
+  // inside the belief section or duplicating it.
+  if (!blocks?.some((block) => block._type === "what-we-are-section")) {
+    blocks = blocks?.flatMap((block): Block[] =>
+      block._type === "belief-section"
+        ? [
+            block,
+            { _type: "what-we-are-section", _key: `${block._key}-what-we-are` },
+          ]
+        : [block],
+    );
+  }
 
   for (let index = 0; index < (blocks?.length || 0); index += 1) {
     const block = blocks[index];

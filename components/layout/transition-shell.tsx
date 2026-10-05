@@ -69,7 +69,10 @@ function teleportToAnchor(anchorId: string, offsetPercent?: number | null) {
     const current = smoother.scrollTop();
     const rectTop = target.getBoundingClientRect().top;
     const y = current + rectTop - offsetPx;
-    smoother.scrollTo(y, false);
+    // Repeated writes of the same position leave ScrollSmoother waiting for a
+    // programmatic scroll that never happens. Its next real scroll then gets
+    // consumed, skipping the first part of the following section's animation.
+    if (Math.abs(current - y) > 0.5) smoother.scrollTo(y, false);
   } else {
     const rect = target.getBoundingClientRect();
     const y = rect.top + window.scrollY - offsetPx;
@@ -100,8 +103,10 @@ function enterAtScrollPosition(
     if (anchorId) teleportToAnchor(anchorId);
     else if (restoredScroll !== undefined) {
       const smoother = ScrollSmoother.get();
-      if (smoother) smoother.scrollTop(restoredScroll);
-      else window.scrollTo(0, restoredScroll);
+      if (smoother) {
+        if (Math.abs(smoother.scrollTop() - restoredScroll) > 0.5)
+          smoother.scrollTop(restoredScroll);
+      } else window.scrollTo(0, restoredScroll);
     }
     ScrollTrigger.update();
   };
@@ -510,8 +515,9 @@ export default function TransitionShell({
 
         if (!window.location.hash) {
           const smoother = ScrollSmoother.get();
-          if (smoother) smoother.scrollTop(0);
-          else window.scrollTo(0, 0);
+          if (smoother) {
+            if (smoother.scrollTop() > 0.5) smoother.scrollTop(0);
+          } else window.scrollTo(0, 0);
         }
 
         const caseEnter = enterCaseStudy(el, next);

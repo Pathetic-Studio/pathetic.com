@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import type * as Three from "three";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { InstagramProfile } from "@/lib/instagram/profile";
 import {
   createProfileScreen,
@@ -21,6 +23,7 @@ export default function NetworkPhoneModel({
   const fallbackRef = useRef<HTMLCanvasElement>(null);
   const addImpactRef = useRef<(x?: number, y?: number) => void>(() => {});
   const [ready, setReady] = useState(false);
+  const [fallbackActive, setFallbackActive] = useState(false);
   const fallbackImpactRef = useRef<(x?: number, y?: number) => void>(() => {});
   const [impactCount, setImpactCount] = useState(0);
 
@@ -32,18 +35,30 @@ export default function NetworkPhoneModel({
     let visible = false;
     let contextAvailable = true;
     let presented = false;
+    let prepared = false;
     let frame = 0;
     let resume = () => {};
     let dispose = () => {};
+    // ScrollSmoother clips its wrapper, so an IntersectionObserver rootMargin
+    // cannot prewarm a child canvas outside it. Use the same scroll coordinates
+    // as the rest of the page; keep the render observer viewport-only below.
+    gsap.registerPlugin(ScrollTrigger);
+    const preloader = ScrollTrigger.create({
+      trigger: canvas,
+      start: "top bottom+=2400",
+      once: true,
+      onEnter: () => {
+        if (started) return;
+        started = true;
+        void setup();
+      },
+    });
     const observer = new IntersectionObserver(
       ([entry]) => {
         visible = entry.isIntersecting;
-        if (visible && !started) {
-          started = true;
-          void setup();
-        } else if (visible) resume();
+        if (visible) resume();
       },
-      { rootMargin: "200px" },
+      { rootMargin: "100px 0px" },
     );
     observer.observe(canvas);
     const lost = (event: Event) => {
@@ -54,6 +69,7 @@ export default function NetworkPhoneModel({
       frame = 0;
       canvas.dataset.ready = "false";
       setReady(false);
+      setFallbackActive(true);
     };
     const restored = () => {
       contextAvailable = true;
@@ -88,7 +104,9 @@ export default function NetworkPhoneModel({
         camera.position.set(0, 0, 11.2);
         const pmrem = new THREE.PMREMGenerator(webgl);
         const room = new RoomEnvironment();
-        const environment = pmrem.fromScene(room, 0.035);
+        const environment = pmrem.fromScene(room, 0.035, 0.1, 100, {
+          size: 128,
+        });
         room.dispose();
         pmrem.dispose();
         scene.environment = environment.texture;
@@ -347,7 +365,13 @@ export default function NetworkPhoneModel({
         resizeObserver.observe(canvas!);
         const render = (time: number) => {
           frame = 0;
-          if (cancelled || !visible || document.hidden || !contextAvailable) {
+          if (
+            cancelled ||
+            !prepared ||
+            !visible ||
+            document.hidden ||
+            !contextAvailable
+          ) {
             lastTime = 0;
             return;
           }
@@ -389,6 +413,7 @@ export default function NetworkPhoneModel({
           canvas!.dataset.ready = "true";
           if (!presented) {
             presented = true;
+            setFallbackActive(false);
             setReady(true);
           }
           if (!reducedMotion) frame = requestAnimationFrame(render);
@@ -396,6 +421,7 @@ export default function NetworkPhoneModel({
         resume = () => {
           if (
             !frame &&
+            prepared &&
             visible &&
             !cancelled &&
             contextAvailable &&
@@ -407,19 +433,6 @@ export default function NetworkPhoneModel({
           if (!document.hidden) resume();
         };
         document.addEventListener("visibilitychange", onVisibility);
-        resize();
-        resume();
-        // Instagram refresh never blocks the local phone or its interactions.
-        void createProfileScreen(onProfile, true)
-          .then((updated) => {
-            if (cancelled) return;
-            screenTexture.image = updated;
-            screenTexture.needsUpdate = true;
-            canvas!.dataset.profileSource =
-              updated.dataset.profileSource || "snapshot";
-            resume();
-          })
-          .catch(() => {});
         dispose = () => {
           resizeObserver.disconnect();
           document.removeEventListener("visibilitychange", onVisibility);
@@ -442,14 +455,47 @@ export default function NetworkPhoneModel({
           environment.dispose();
           webgl.dispose();
         };
+        resize();
+        phone.rotation.set(0.07, -0.12, -0.16);
+        phone.scale.setScalar(reducedMotion ? 1 : 0.96);
+        phone.position.y = reducedMotion ? 0 : -0.12;
+        // Upload the actual screen and finish GPU compilation before revealing
+        // the canvas. The flat fallback is reserved for unavailable WebGL.
+        await webgl.compileAsync(scene, camera);
+        if (cancelled) return;
+        prepared = true;
+        if (contextAvailable) {
+          webgl.render(scene, camera);
+          presented = true;
+          canvas!.dataset.ready = "true";
+          setFallbackActive(false);
+          setReady(true);
+        }
+        resume();
+        // Instagram refresh never blocks the local phone or its interactions.
+        void createProfileScreen(onProfile, true)
+          .then((updated) => {
+            if (cancelled) return;
+            screenTexture.image = updated;
+            screenTexture.needsUpdate = true;
+            canvas!.dataset.profileSource =
+              updated.dataset.profileSource || "snapshot";
+            resume();
+          })
+          .catch(() => {});
       } catch {
+        dispose();
         renderer?.dispose();
-        if (!cancelled) setReady(false);
+        if (!cancelled) {
+          setReady(false);
+          setFallbackActive(true);
+        }
       }
     }
     return () => {
       cancelled = true;
       observer.disconnect();
+      preloader.kill();
       canvas.removeEventListener("webglcontextlost", lost);
       canvas.removeEventListener("webglcontextrestored", restored);
       cancelAnimationFrame(frame);
@@ -459,6 +505,7 @@ export default function NetworkPhoneModel({
   }, [pointer, onProfile]);
 
   useEffect(() => {
+    if (!fallbackActive) return;
     let cancelled = false;
     void createProfileScreen().then((profile) => {
       const canvas = fallbackRef.current;
@@ -475,10 +522,15 @@ export default function NetworkPhoneModel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fallbackActive]);
 
   return (
-    <div className="network-phone-model">
+    <div
+      className="network-phone-model"
+      data-phone-state={
+        ready ? "ready" : fallbackActive ? "fallback" : "preparing"
+      }
+    >
       {
         <canvas
           ref={fallbackRef}
@@ -486,12 +538,13 @@ export default function NetworkPhoneModel({
           height={SCREEN_HEIGHT}
           className="network-phone-fallback"
           style={{
-            opacity: ready ? 0 : 1,
-            pointerEvents: ready ? "none" : "auto",
+            opacity: fallbackActive ? 1 : 0,
+            visibility: fallbackActive ? "visible" : "hidden",
+            pointerEvents: fallbackActive ? "auto" : "none",
           }}
-          aria-hidden={ready}
+          aria-hidden={!fallbackActive}
           role="button"
-          tabIndex={ready ? -1 : 0}
+          tabIndex={fallbackActive ? 0 : -1}
           aria-label="Crack the phone screen"
           onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();

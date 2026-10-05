@@ -84,7 +84,6 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                 data-case-project-anchor
               >
                 {campaign.title}
-                <span aria-hidden="true">↘</span>
               </a>
             ))}
           </nav>
@@ -154,7 +153,7 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        {campaign.link.label} ↗
+                        {campaign.link.label}
                       </a>
                     )}
                     {study.slug === "air" && (
@@ -164,7 +163,7 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        Watch Mike’s explainer ↗
+                        Watch Mike’s explainer
                       </a>
                     )}
                   </div>

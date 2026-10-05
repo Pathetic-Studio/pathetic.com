@@ -78,7 +78,7 @@ function ShopPopup({ href, onClose }: { href?: string; onClose: () => void }) {
       <h3 className="absolute left-1/2 top-[10%] z-20 -translate-x-1/2 text-[clamp(2.8rem,9vw,5.2rem)] font-black uppercase leading-none tracking-[-.07em] text-white [paint-order:stroke_fill] [-webkit-text-stroke:clamp(2px,.3vw,4px)_#000]">Shop</h3>
       <div data-basket-popup-hero className="absolute left-1/2 top-1/2 z-10 h-[62%] w-[62%] -translate-x-1/2 -translate-y-[44%]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/basket-links/hoodie.png" alt="Pathetic shop hoodie" className="h-full w-full object-contain" style={{ transform: "rotate(48deg) scale(.92)" }} />
+        <img src="/images/lifecycle/slide-2/pathetic/rhinestone-tee.webp" alt="Black PATHETIC rhinestone T-shirt" className="h-full w-full object-contain" style={{ transform: "rotate(-12deg) scale(.92)" }} />
       </div>
       <Link href={href || "/#shop"} className="absolute bottom-[5%] right-[1%] z-30 grid aspect-square w-[31%] place-items-center text-center" aria-label="Visit the Pathetic shop">
         <svg ref={smallStarRef} viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">

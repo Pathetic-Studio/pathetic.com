@@ -1,0 +1,14 @@
+:global([data-touch-labels="true"]) .tag {
+  left: var(--friend-label-x);
+  top: var(--friend-label-y);
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 639px) {
+  :global([data-touch-labels="true"]) .tag {
+    padding: 5px 4px;
+    font-size: clamp(9px, 2.6vw, 12px);
+  }
+}

@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import gsap from "gsap";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 
 export type WorkViewerContent = {
   title: string;
@@ -129,9 +131,10 @@ export default function WorkContentViewer({
           <Link
             href={content.caseStudyHref}
             onClick={onClose}
-            className="mt-3 border-b border-current pb-1 text-sm font-bold uppercase focus-visible:outline focus-visible:outline-offset-4"
+            scroll={false}
+            className={cn(buttonVariants({ variant: "outline" }), "mt-3")}
           >
-            View the case study ↗
+            View the case study
           </Link>
         )}
       </div>

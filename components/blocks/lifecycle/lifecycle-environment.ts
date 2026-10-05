@@ -11,8 +11,17 @@ export function createLifecycleEnvironment(
     context: CanvasRenderingContext2D;
     edge: "top" | "bottom";
     mask: CanvasGradient;
+    visible: boolean;
   }> = [];
   let marked = false;
+  let lastBrightness = "";
+  let lastInk = "";
+  const spillObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const spill = spills.find(({ canvas }) => canvas === entry.target);
+      if (spill) spill.visible = entry.isIntersecting;
+    }
+  });
 
   const addSpill = (section: HTMLElement, edge: "top" | "bottom") => {
     const canvas = document.createElement("canvas");
@@ -43,12 +52,21 @@ export function createLifecycleEnvironment(
       if (panel) panel.after(canvas);
       else section.prepend(canvas);
       section.setAttribute("data-lifecycle-environment-spill-host", "");
-      spills.push({ canvas, context, edge, mask });
+      const bounds = canvas.getBoundingClientRect();
+      spills.push({
+        canvas,
+        context,
+        edge,
+        mask,
+        visible: bounds.top < innerHeight && bounds.bottom > 0,
+      });
+      spillObserver.observe(canvas);
     }
   };
   const mark = () => {
     if (!root || marked) return;
     marked = true;
+    html.setAttribute("data-lifecycle-environment", "");
     const all = [
       ...document.querySelectorAll<HTMLElement>("main section"),
     ].filter((section) => !section.parentElement?.closest("section"));
@@ -119,11 +137,15 @@ export function createLifecycleEnvironment(
     surfaces.forEach((element) => {
       element.removeAttribute("data-lifecycle-environment-surface");
       element.style.removeProperty("--lifecycle-original-color");
+      element.style.removeProperty("--lifecycle-environment-brightness");
+      element.style.removeProperty("--lifecycle-environment-darkness");
     });
-    sections.forEach((element) =>
-      element.removeAttribute("data-lifecycle-environment-section"),
-    );
+    sections.forEach((element) => {
+      element.removeAttribute("data-lifecycle-environment-section");
+      element.style.removeProperty("--lifecycle-environment-ink");
+    });
     spills.forEach(({ canvas }) => {
+      spillObserver.unobserve(canvas);
       canvas.parentElement?.removeAttribute(
         "data-lifecycle-environment-spill-host",
       );
@@ -133,31 +155,48 @@ export function createLifecycleEnvironment(
     sections.clear();
     spills.length = 0;
     marked = false;
+    lastBrightness = "";
+    lastInk = "";
   };
   return {
-    update(color: string, progress: number, brightness: number) {
+    update(progress: number, brightness: number) {
       if (progress < 0.001) {
         if (marked) reset();
         return;
       }
       mark();
-      html.setAttribute("data-lifecycle-environment", "");
-      html.style.setProperty("--lifecycle-environment-color", color);
-      html.style.setProperty(
-        "--lifecycle-environment-brightness",
-        String(brightness),
-      );
-      html.style.setProperty(
-        "--lifecycle-environment-darkness",
-        `${(1 - brightness) * 100}%`,
-      );
-      html.style.setProperty(
-        "--lifecycle-environment-ink",
-        progress > 0.5 ? "#fff" : "#050505",
-      );
+      // Non-inheriting properties update just these surfaces. Animating an
+      // inherited variable on <html> invalidates styles across the whole site.
+      const nextBrightness = (Math.round(brightness * 4096) / 4096).toString();
+      if (nextBrightness !== lastBrightness) {
+        lastBrightness = nextBrightness;
+        for (const element of surfaces) {
+          const type = element.getAttribute(
+            "data-lifecycle-environment-surface",
+          );
+          if (type === "base")
+            element.style.setProperty(
+              "--lifecycle-environment-darkness",
+              `${(1 - Number(nextBrightness)) * 100}%`,
+            );
+          if (type === "panel")
+            element.style.setProperty(
+              "--lifecycle-environment-brightness",
+              nextBrightness,
+            );
+        }
+      }
+      const ink = progress > 0.5 ? "#fff" : "#050505";
+      if (ink !== lastInk) {
+        lastInk = ink;
+        sections.forEach((section) =>
+          section.style.setProperty("--lifecycle-environment-ink", ink),
+        );
+      }
       // Reuse this frame's edge light, copying just a two-pixel strip. No extra
       // 3D render, per-frame pixel readback, or new lighting is needed.
-      spills.forEach(({ context, edge, mask }) => {
+      spills.forEach(({ context, edge, mask, visible }) => {
+        if (!visible) return;
         context.clearRect(0, 0, 128, 128);
         context.globalCompositeOperation = "source-over";
         context.drawImage(
@@ -176,6 +215,9 @@ export function createLifecycleEnvironment(
         context.fillRect(0, 0, 128, 128);
       });
     },
-    dispose: reset,
+    dispose() {
+      reset();
+      spillObserver.disconnect();
+    },
   };
 }

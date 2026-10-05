@@ -1,0 +1,56 @@
+.stages {
+  position: relative;
+  overflow: hidden;
+}
+
+.what,
+.talent {
+  position: relative;
+  height: 100svh;
+  opacity: 1;
+  visibility: visible;
+}
+
+.what {
+  min-height: 760px;
+}
+
+.talent {
+  min-height: 640px;
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .stages:not([data-sequence-mode="mobile"]):not(
+      [data-sequence-mode="tablet"]
+    ) {
+    height: 100svh;
+    min-height: 680px;
+    box-shadow:
+      0 -12px 0 var(--sequence-background),
+      0 12px 0 var(--sequence-background);
+  }
+
+  .stages:not([data-sequence-mode="mobile"]):not([data-sequence-mode="tablet"])
+    > .what,
+  .stages:not([data-sequence-mode="mobile"]):not([data-sequence-mode="tablet"])
+    > .talent {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .what {
+    z-index: 30;
+    mask-repeat: no-repeat;
+    mask-size: 100% 100%;
+    will-change: mask-image, opacity;
+  }
+
+  .stages:not([data-sequence-mode="mobile"]):not([data-sequence-mode="tablet"])
+    > .talent {
+    z-index: 20;
+    opacity: 0;
+    will-change: opacity;
+  }
+}

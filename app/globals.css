@@ -297,6 +297,21 @@ html[data-home-loader-pending="true"] #page-content-root {
 
 /* One frame drives the scene and the adjoining surfaces. The light spill is
    behind the neighbouring content, never a dark mask over the glasses. */
+@property --lifecycle-environment-brightness {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+@property --lifecycle-environment-darkness {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+@property --lifecycle-environment-ink {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: #050505;
+}
 html[data-lifecycle-environment] [data-lifecycle-environment-surface="base"] {
   background-color: color-mix(in srgb, var(--lifecycle-original-color, #fff), #000 var(--lifecycle-environment-darkness)) !important;
   background-image: none !important;
@@ -348,7 +363,9 @@ html[data-lifecycle-environment] [data-lifecycle-environment-section] {
 [data-header-feature-matrix-texture],
 [data-header-feature-matrix-streams] {
   filter: drop-shadow(0 0 5px var(--header-effect-accent));
-  transition: opacity 80ms linear;
+  /* The exit is already masked by the section edge. Fading after that mask
+     is removed briefly exposes the complete green star again. */
+  transition: none;
 }
 
 /* The Meme Booth preset resolves to a solid matrix-green star. Its label

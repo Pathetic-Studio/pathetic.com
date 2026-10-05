@@ -54,7 +54,7 @@ export type BasketLinksSectionBlock = {
 const LOCAL_ASSETS: Record<string, string> = {
   computer: "/images/basket-links/computer.png",
   portal: "/images/basket-links/portal.png",
-  hoodie: "/images/basket-links/hoodie.png",
+  hoodie: "/images/lifecycle/slide-2/pathetic/rhinestone-tee.webp",
   pigeon: "/images/basket-links/pigeon.png",
 };
 
@@ -83,7 +83,7 @@ const BASKET_PRESETS: Record<string, BasketPreset> = {
   hoodie: {
     title: "Shop",
     genericTitle: "Hoodie",
-    artworkRotation: 48,
+    artworkRotation: -12,
     artworkScale: 0.92,
     labelX: 49,
     labelY: 79,
@@ -165,7 +165,8 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         const localKey = stegaClean(item.localAsset) || "";
         const preset = BASKET_PRESETS[localKey];
         if (!preset) return null;
-        const customImageUrl = item.image?.asset?.url || "";
+        const customImageUrl =
+          localKey === "hoodie" ? "" : item.image?.asset?.url || "";
         const src = customImageUrl || LOCAL_ASSETS[localKey];
         if (!src) return null;
 
@@ -445,28 +446,48 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
     );
     observer.observe(root);
 
-    const scrollTrigger = ScrollTrigger.create({
-      trigger: root,
-      start: "top bottom",
-      end: "bottom top",
-      onUpdate: (self) => {
-        if (!active || drag) return;
-        const now = performance.now();
-        if (now - lastImpulseTime < 70) return;
-        lastImpulseTime = now;
-        const normalized = clamp(-self.getVelocity() / 2600, -1, 1);
-        if (Math.abs(normalized) < 0.035) return;
+    const nativeScroll =
+      window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const applyScrollImpulse = (velocity: number) => {
+      if (!active || drag || reducedMotion.matches) return;
+      const now = performance.now();
+      if (now - lastImpulseTime < 70) return;
+      lastImpulseTime = now;
+      const normalized = clamp(-velocity / (nativeScroll ? 1800 : 2600), -1, 1);
+      if (Math.abs(normalized) < 0.035) return;
 
-        bodies.forEach((body, index) => {
-          if (body.isStatic) return;
-          Body.setVelocity(body, {
-            x: clamp(body.velocity.x + normalized * ((index % 3) - 1) * 1.6, -13, 13),
-            y: clamp(body.velocity.y + normalized * (4.5 + (index % 3)), -15, 15),
-          });
-          Sleeping.set(body, false);
+      bodies.forEach((body, index) => {
+        if (body.isStatic) return;
+        Sleeping.set(body, false);
+        Body.setVelocity(body, {
+          x: clamp(body.velocity.x + normalized * ((index % 3) - 1) * 1.6, -13, 13),
+          y: clamp(body.velocity.y + normalized * (4.5 + (index % 3)), -15, 15),
         });
-      },
-    });
+      });
+    };
+    const scrollTrigger = nativeScroll
+      ? null
+      : ScrollTrigger.create({
+          trigger: root,
+          start: "top bottom",
+          end: "bottom top",
+          onUpdate: (self) => applyScrollImpulse(self.getVelocity()),
+        });
+    // Native touch momentum scroll does not use the desktop scroll proxy.
+    // Measure document movement directly, including inertial scroll events.
+    let lastScrollY = window.scrollY;
+    let lastScrollTime = performance.now();
+    const onNativeScroll = () => {
+      const now = performance.now();
+      const y = window.scrollY;
+      const velocity = ((y - lastScrollY) / Math.max(16, now - lastScrollTime)) * 1000;
+      lastScrollY = y;
+      lastScrollTime = now;
+      applyScrollImpulse(velocity);
+    };
+    if (nativeScroll)
+      window.addEventListener("scroll", onNativeScroll, { passive: true });
 
     const getStagePoint = (event: PointerEvent) => {
       const rect = stage.getBoundingClientRect();
@@ -566,7 +587,8 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       resizeObserver.disconnect();
       if (resizeFrame) cancelAnimationFrame(resizeFrame);
       observer.disconnect();
-      scrollTrigger.kill();
+      scrollTrigger?.kill();
+      window.removeEventListener("scroll", onNativeScroll);
       if (animationFrame) cancelAnimationFrame(animationFrame);
       stage.removeEventListener("pointerdown", onPointerDown);
       stage.removeEventListener("pointermove", onPointerMove);
@@ -596,7 +618,11 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={item.src}
-        alt={stegaClean(item.image?.alt) || stegaClean(item.title) || ""}
+        alt={
+          item.presetKey === "hoodie"
+            ? "Black PATHETIC rhinestone T-shirt"
+            : stegaClean(item.image?.alt) || stegaClean(item.title) || ""
+        }
         draggable={false}
         className="absolute inset-0 h-full w-full select-none object-contain"
         style={{
@@ -606,11 +632,11 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       />
       <span
         data-basket-label
-        className="pointer-events-none absolute z-20 whitespace-nowrap text-center text-[clamp(1.05rem,2.3vw,2.05rem)] font-black italic uppercase leading-none tracking-[-.055em] text-black"
+        className="pointer-events-none absolute z-20 whitespace-nowrap text-center text-[clamp(1.35rem,5.5vw,1.65rem)] sm:text-[clamp(1.05rem,2.3vw,2.05rem)] font-black italic uppercase leading-none tracking-[-.055em] text-black"
         style={{
           left: `${item.preset.labelX}%`,
           top: `${item.preset.labelY}%`,
-          transform: "translate(-50%, -50%) rotate(0deg)",
+          transform: `translate(-50%, -50%) rotate(${item.presetKey === "hoodie" ? item.preset.artworkRotation : 0}deg)`,
           WebkitTextStroke: "clamp(2px,.22vw,3px) #fff",
           paintOrder: "stroke fill",
           transformOrigin: "50% 50%",
@@ -632,7 +658,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       <h2 className="sr-only">{title}</h2>
       <div
         ref={stageRef}
-        className={`relative aspect-[2/3] w-[min(92vw,58svh)] touch-none select-none transition-[filter] sm:aspect-[1151/768] sm:w-[min(96vw,112svh,78rem)] ${activePopup === "abyss" ? "duration-[3000ms] ease-in brightness-0" : "duration-700 ease-out"}`}
+        className={`relative aspect-[2/3] w-[min(92vw,58svh)] touch-pan-y select-none transition-[filter] sm:aspect-[1151/768] sm:w-[min(96vw,112svh,78rem)] ${activePopup === "abyss" ? "duration-[3000ms] ease-in brightness-0" : "duration-700 ease-out"}`}
       >
         <span className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[66.666%] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-90 sm:inset-0 sm:h-full sm:w-full sm:translate-x-0 sm:translate-y-0 sm:rotate-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -679,7 +705,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         onClose={closePopup}
         origin={popupOrigin}
         sourceElement={popupSourceRef.current}
-        shopHref={stegaClean(items.find((item) => item.presetKey === "hoodie")?.link?.href) || undefined}
+        shopHref="https://pathetic.fashion/"
       />
     </section>
   );

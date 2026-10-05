@@ -17,10 +17,10 @@ import type { ColorVariant, PAGE_QUERYResult } from "@/sanity.types";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
 import TitleText from "@/components/ui/title-text";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import { cn } from "@/lib/utils";
 import {
-  AIR_OBJECT,
   CASH_APP_OBJECT,
   SQUARE_OBJECT,
   WORK_TITLE_CARDS,
@@ -149,6 +149,20 @@ const ARM_FILL = "#171717";
 const SIZZLE_FIRE_SRC = "/images/what-we-do/sizzle-fire-9987911.gif";
 const DEFAULT_CASE_STUDY_HREF = "/case-study";
 
+// Tight artwork bounds keep hover labels beside the object. Widths preserve
+// the visible size from the old, padded 4:3 / 9:16 frames.
+const WORK_MEDIA_FRAMES: Record<
+  string,
+  { src?: string; ratio: number; width: number }
+> = {
+  whatWeDoDoorDash: { src: "doordash", ratio: 599 / 935, width: 599 / 800 },
+  whatWeDoAdidas: { src: "adidas", ratio: 304 / 137, width: 304 / 329 },
+  "local-sandbar": { src: "sandbar", ratio: 990 / 1070, width: (0.75 * 990) / 1254 },
+  "local-square": { src: "square", ratio: 1030 / 1098, width: (0.75 * 1030) / 1254 },
+  "local-cash-app": { src: "cash-app", ratio: 724 / 1131, width: (0.75 * 724) / 1254 },
+  "local-bless-this-desk": { ratio: 9 / (16 * 0.72), width: 1 },
+};
+
 const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
   {
     _key: "local-sandbar",
@@ -198,7 +212,7 @@ const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
     interactionMode: "fullscreen",
     mediaType: "video",
     videoUrl: "/media/work/bless-this-desk-preview.mp4",
-    titleCardUrl: WORK_TITLE_CARDS["bless-this-desk"],
+    titleCardUrl: "/images/what-we-do/trimmed/bless-this-desk.webp",
     previewScale: 0.72,
     videoPosterUrl: "/media/case-studies/deel/bless-this-desk-poster.webp",
     expandedMediaType: "video",
@@ -244,21 +258,6 @@ const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
     width: 15,
     floatAmount: 9,
     floatDuration: 6.3,
-  },
-  {
-    _key: "local-air",
-    title: "AIR",
-    href: "/case-study/air",
-    interactionMode: "link",
-    mediaType: "image",
-    imageUrl: AIR_OBJECT.src,
-    imageAlt: AIR_OBJECT.alt,
-    mediaFit: "contain",
-    positionX: 52,
-    positionY: 85,
-    width: 15,
-    floatAmount: 11,
-    floatDuration: 6.6,
   },
 ];
 
@@ -379,9 +378,12 @@ function ProjectMedia({
   }
 
   if (item.imageUrl) {
+    const trimmed = WORK_MEDIA_FRAMES[item._key]?.src;
     return (
       <Image
-        src={item.imageUrl}
+        src={
+          trimmed ? `/images/what-we-do/trimmed/${trimmed}.webp` : item.imageUrl
+        }
         alt={item.imageAlt || ""}
         fill
         style={
@@ -441,7 +443,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
   };
   const sizzleReel = sectionSettings.sizzleReel;
   const showSizzleReel = stegaClean(sizzleReel?.enabled) !== false;
-  const sizzleLabel = stegaClean(sizzleReel?.label) || "SIZZLE REEL";
+  const sizzleLabel = "Sizzle Reel";
   const sizzleVideoUrl = "/media/work/sizzle.mp4";
   const sizzleVideoPosterUrl = "/media/work/sizzle-poster.webp";
   const sizzleFireSrc = sizzleReel?.fireGif?.asset?.url || SIZZLE_FIRE_SRC;
@@ -1355,7 +1357,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       id={cleanAnchor || "work"}
       data-typeon-trigger="true"
       className={cn(
-        "relative isolate z-[3] h-auto min-h-[82rem] overflow-visible sm:min-h-[72rem] lg:h-[100svh] lg:min-h-[100svh]",
+        "relative isolate z-[3] h-auto min-h-[72rem] overflow-visible sm:min-h-[72rem] lg:h-[100svh] lg:min-h-[100svh]",
         getSectionSurfaceClass(cleanColor),
         padding?.top ? "pt-16 xl:pt-20" : undefined,
         padding?.bottom ? "pb-16 xl:pb-20" : undefined,
@@ -1363,8 +1365,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     >
       <BackgroundPanel background={background} className="!border-0" />
 
-      <div className="relative mx-auto min-h-[82rem] max-w-[1800px] sm:min-h-[72rem] lg:h-full lg:min-h-0">
-        <div className="pointer-events-none absolute inset-x-0 top-[12%] z-20 flex justify-center px-4 sm:top-[14%] lg:top-[16%]">
+      <div className="relative mx-auto min-h-[72rem] max-w-[1800px] sm:min-h-[72rem] lg:h-full lg:min-h-0">
+        <div className="pointer-events-none absolute inset-x-0 top-[7%] z-20 flex justify-center px-4 sm:top-[9%] lg:top-[16%]">
           <div
             data-what-we-do-scroll-lag
             data-scroll-rate="0.96"
@@ -1384,20 +1386,6 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
             >
               We make Ads people love.
             </TitleText>
-            <TitleText
-              as="h2"
-              variant="stretched"
-              size="what-we-do"
-              fontWeight="bold"
-              singleLine
-              animation={headingVisible ? "typeOn" : "none"}
-              animationSpeed={TYPE_ON_SPEEDS.quick}
-              typeOnTrigger="immediate"
-              typeOnDelay={0.1}
-              className="!mt-4 !w-auto [&_h2]:leading-[.9] [&_h2]:tracking-[-.045em]"
-            >
-              OUR WORK
-            </TitleText>
           </div>
         </div>
 
@@ -1412,10 +1400,10 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               "--item-y": `${item.positionY ?? fallback.y}%`,
               "--item-width": `${item.width ?? fallback.width}%`,
               "--item-mobile-x": `${mobile.x}%`,
-              "--item-mobile-y": `${mobile.y}%`,
+              "--item-mobile-y": `${mobile.y - 10}%`,
               "--item-mobile-width": `${mobile.width}%`,
               "--item-tablet-x": `${tablet.x}%`,
-              "--item-tablet-y": `${tablet.y}%`,
+              "--item-tablet-y": `${tablet.y - 5}%`,
               "--item-tablet-width": `${tablet.width}%`,
               zIndex: 20 + index,
             };
@@ -1424,6 +1412,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
             const isRevealActive = activeRevealKey === item._key;
             const scrollSpeed = 0.15 + (index % 5) * 0.04;
             const scrollLag = 0.85 + (index % 4) * 0.34;
+            const mediaFrame = WORK_MEDIA_FRAMES[item._key];
             const projectContent = (
               <div
                 data-what-we-do-scroll-lag
@@ -1442,6 +1431,16 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                     className="relative lg:will-change-transform"
                   >
                     <div
+                      data-work-media-frame
+                      style={
+                        mediaFrame
+                          ? {
+                              aspectRatio: mediaFrame.ratio,
+                              width: `${mediaFrame.width * 100}%`,
+                              marginInline: "auto",
+                            }
+                          : undefined
+                      }
                       className={cn(
                         "relative w-full overflow-hidden border-2 border-transparent transition-[transform,border-color] duration-300 ease-out group-hover:scale-105 group-focus-visible:scale-105",
                         item.interactionMode === "reveal" && isRevealActive
@@ -1498,6 +1497,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                 <Link
                   key={item._key}
                   href={href}
+                  scroll={false}
                   target={item.target ? "_blank" : undefined}
                   rel={item.target ? "noopener noreferrer" : undefined}
                   data-what-we-do-project
@@ -1577,7 +1577,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           {showSizzleReel && (
             <div
               data-what-we-do-project
-              className="group absolute left-[72%] top-[87%] z-40 w-[25%] -translate-x-1/2 -translate-y-1/2 md:left-[76%] md:top-[85%] md:w-[15%] lg:left-[50%] lg:top-[72%] lg:w-[13%]"
+              className="group absolute left-[72%] top-[79%] z-40 w-[25%] -translate-x-1/2 -translate-y-1/2 md:left-[76%] md:top-[80%] md:w-[15%] lg:left-[50%] lg:top-[72%] lg:w-[13%]"
             >
               <div
                 data-what-we-do-scroll-lag
@@ -1628,6 +1628,9 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                         className="absolute left-1/2 top-0 w-[60%] -translate-x-1/2"
                       />
                     </button>
+                    <span className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 md:text-base">
+                      {sizzleLabel}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1635,9 +1638,13 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           )}
           <Link
             href="/case-study"
-            className="absolute bottom-[4%] left-[6%] z-40 border-b border-current pb-1 text-sm font-bold uppercase focus-visible:outline focus-visible:outline-offset-4"
+            scroll={false}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "lg" }),
+              "absolute bottom-[4%] left-1/2 z-40 -translate-x-1/2 whitespace-nowrap lg:left-[6%] lg:translate-x-0",
+            )}
           >
-            See more of our work <span aria-hidden="true">↗</span>
+            See more of our work
           </Link>
         </div>
 

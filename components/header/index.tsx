@@ -14,7 +14,7 @@ export default async function Header() {
   const instagramUrl = navDoc?.instagram ?? null;
 
   return (
-    <header id="site-header-root" className="fixed inset-x-0 top-0 z-[70]">
+    <header id="site-header-root" className="pointer-events-none fixed inset-x-0 top-0 z-[70]">
       <div
         className="w-full px-4 flex items-center justify-between py-4"
         data-deploy-marker="live-push-test-2026-04-18"

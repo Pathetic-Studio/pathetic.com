@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { stegaClean } from "next-sanity";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -15,6 +15,7 @@ import {
 import MatrixRevealCanvas from "./matrix-reveal-canvas";
 import { matrixRevealSoftMask } from "./matrix-reveal-edge";
 import { useHeaderVisualTheme } from "@/components/header/visual-theme";
+import styles from "./what-we-do-talent-sequence.module.css";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -45,6 +46,9 @@ export default function WhatWeDoTalentSequence({
   talent: TalentMatrixBlock;
 }) {
   const rootRef = useRef<HTMLElement | null>(null);
+  const whatSceneRef = useRef<HTMLDivElement>(null);
+  const talentSceneRef = useRef<HTMLDivElement>(null);
+  const pinTargetRef = useRef<HTMLDivElement>(null);
   const transitionProgress = useRef({ value: 0 });
   const cameraScrollProgress = useRef({ value: 0 });
   const [viewportMode, setViewportMode] = useState<SequenceViewportMode | null>(null);
@@ -103,38 +107,25 @@ export default function WhatWeDoTalentSequence({
 
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!root || !viewportMode || viewportMode === "reduced") return;
+    if (!root || viewportMode !== "desktop") return;
 
     // A breakpoint change destroys and rebuilds this section's triggers.
     // Clear the old claim before measuring the new layout so a matrix nav
     // cannot survive for a frame at an unrelated restored scroll position.
     clearHeaderVisualTheme(headerThemeSource);
 
-    const isDesktop = viewportMode === "desktop";
-    const sequenceDuration = isDesktop
-      ? duration
-      : viewportMode === "tablet"
-        ? Math.max(3, Math.min(3.5, duration * 0.58))
-        : Math.max(2.3, Math.min(2.75, duration * 0.44));
-    const animationScrub = isDesktop
-      ? 0.72
-      : viewportMode === "tablet"
-        ? 0.3
-        : 0.18;
-    const parallaxScrub = isDesktop
-      ? 0.35
-      : viewportMode === "tablet"
-        ? 0.24
-        : 0.16;
+    const sequenceDuration = duration;
+    const animationScrub = 0.72;
+    const parallaxScrub = 0.35;
 
     const media = gsap.matchMedia();
     const context = gsap.context(() => {
       media.add(
         "(prefers-reduced-motion: no-preference)",
         () => {
-          const whatScene = root.querySelector<HTMLElement>("[data-sequence-what]");
-          const talentScene = root.querySelector<HTMLElement>("[data-sequence-talent]");
-          const pinTarget = root.querySelector<HTMLElement>("[data-pin-target='true']");
+          const whatScene = whatSceneRef.current;
+          const talentScene = talentSceneRef.current;
+          const pinTarget = pinTargetRef.current;
           if (!whatScene || !talentScene || !pinTarget) return;
 
           const layers = gsap.utils.toArray<HTMLElement>(
@@ -146,6 +137,8 @@ export default function WhatWeDoTalentSequence({
             whatScene,
           );
           const heading = whatScene.querySelector<HTMLElement>("[data-what-heading]");
+          let headerBoundary = 0;
+          let headerExited = false;
           const applyRevealMask = (reveal: number) => {
             if (reveal <= 0.001) {
               whatScene.style.maskImage = "none";
@@ -158,10 +151,13 @@ export default function WhatWeDoTalentSequence({
           };
           const applyHeaderProgress = (
             progressValue: number,
-            boundary = 0,
+            boundary = headerBoundary,
           ) => {
             const progress = Math.max(0, Math.min(1, progressValue));
-            if (!matrixHeaderEnabled || progress <= 0.001) {
+            if (
+              !matrixHeaderEnabled || progress <= 0.001 ||
+              headerExited || boundary >= 1
+            ) {
               clearHeaderVisualTheme(headerThemeSource);
               return;
             }
@@ -232,11 +228,15 @@ export default function WhatWeDoTalentSequence({
               start: "top top",
               end: () => `+=${window.innerHeight * sequenceDuration}`,
               scrub: animationScrub,
-              pin: isDesktop ? false : pinTarget,
-              pinSpacing: isDesktop ? false : true,
-              anticipatePin: isDesktop ? 0 : 1,
+              pin: false,
+              pinSpacing: false,
+              anticipatePin: 0,
               invalidateOnRefresh: true,
-              onEnter: () => clearHeaderVisualTheme(headerThemeSource),
+              onEnter: () => {
+                headerExited = false;
+                headerBoundary = 0;
+                clearHeaderVisualTheme(headerThemeSource);
+              },
               onEnterBack: () =>
                 applyHeaderReveal(transitionProgress.current.value),
               onLeave: () => applyHeaderProgress(1),
@@ -303,7 +303,11 @@ export default function WhatWeDoTalentSequence({
                 scrub: true,
                 invalidateOnRefresh: true,
                 onUpdate: (self) => {
-                  if (self.progress < exitStartProgress) return;
+                  if (self.progress < exitStartProgress) {
+                    headerExited = false;
+                    headerBoundary = 0;
+                    return;
+                  }
                   const exitProgress = Math.max(
                     0,
                     Math.min(
@@ -312,10 +316,12 @@ export default function WhatWeDoTalentSequence({
                         Math.max(0.0001, 1 - exitStartProgress),
                     ),
                   );
-                  const boundaryProgress = boundaryForExit(exitProgress);
-                  applyHeaderProgress(1, boundaryProgress);
+                  headerBoundary = boundaryForExit(exitProgress);
+                  headerExited = headerBoundary >= 1;
+                  applyHeaderProgress(1);
                 },
                 onEnterBack: (self) => {
+                  headerExited = false;
                   const exitProgress = Math.max(
                     0,
                     Math.min(
@@ -324,17 +330,20 @@ export default function WhatWeDoTalentSequence({
                         Math.max(0.0001, 1 - exitStartProgress),
                     ),
                   );
-                  const boundaryProgress = boundaryForExit(exitProgress);
-                  applyHeaderProgress(1, boundaryProgress);
+                  headerBoundary = boundaryForExit(exitProgress);
+                  applyHeaderProgress(1);
                 },
                 onLeave: () => {
-                  // Paint the completed boundary state before dropping the
-                  // Matrix claim. Without this final frame, fast scrolling can
-                  // clear the theme one tick before the text/icon masks finish.
-                  applyHeaderProgress(1, 1);
-                  requestAnimationFrame(() => {
-                    clearHeaderVisualTheme(headerThemeSource);
-                  });
+                  // A lagging scrub tween can still finish after this trigger.
+                  // Its reveal callback must not restore a full Matrix claim.
+                  headerExited = true;
+                  headerBoundary = 1;
+                  clearHeaderVisualTheme(headerThemeSource);
+                },
+                onLeaveBack: () => {
+                  headerExited = false;
+                  headerBoundary = 0;
+                  clearHeaderVisualTheme(headerThemeSource);
                 },
               },
             })
@@ -369,7 +378,7 @@ export default function WhatWeDoTalentSequence({
       context.revert();
       transitionProgress.current.value = 0;
       cameraScrollProgress.current.value = 0;
-      const whatScene = root.querySelector<HTMLElement>("[data-sequence-what]");
+      const whatScene = whatSceneRef.current;
       if (whatScene) {
         whatScene.style.maskImage = "";
         whatScene.style.webkitMaskImage = "";
@@ -387,6 +396,37 @@ export default function WhatWeDoTalentSequence({
     viewportMode,
   ]);
 
+  useLayoutEffect(() => {
+    if (!viewportMode || viewportMode === "desktop") return;
+    const talentScene = talentSceneRef.current;
+    if (!talentScene) return;
+    const syncHeader = (trigger: ScrollTrigger) => {
+      if (!matrixHeaderEnabled || !trigger.isActive) {
+        clearHeaderVisualTheme(headerThemeSource);
+        return;
+      }
+      setHeaderVisualTheme(headerThemeSource, {
+        mode: "matrix", accent, surface: matrixSurface,
+        intensity: 0.72, progress: 1, boundary: 0, priority: 20,
+      });
+    };
+    // The mobile city is a normal section. Only the navigation colour follows
+    // its boundaries; neither scene is pinned or masked while scrolling.
+    const trigger = ScrollTrigger.create({
+      trigger: talentScene,
+      start: "top top",
+      end: "bottom top",
+      onToggle: syncHeader,
+      onRefresh: syncHeader,
+    });
+    const refresh = requestAnimationFrame(() => ScrollTrigger.refresh());
+    return () => {
+      cancelAnimationFrame(refresh);
+      trigger.kill();
+      clearHeaderVisualTheme(headerThemeSource);
+    };
+  }, [viewportMode, matrixHeaderEnabled, headerThemeSource, accent, matrixSurface, setHeaderVisualTheme, clearHeaderVisualTheme]);
+
   return (
     <section
       ref={rootRef}
@@ -395,72 +435,37 @@ export default function WhatWeDoTalentSequence({
       data-pin-duration={duration}
       data-pin-spacing="true"
       data-pin-resize-refresh="false"
-      className="relative z-[2] -mt-[8px]"
+      className="relative z-[2] lg:-mt-[8px]"
       style={{ backgroundColor: sequenceBackground }}
     >
-      {viewportMode === "reduced" && (
-        <div>
+      <div
+        ref={pinTargetRef}
+        data-pin-target="true"
+        data-sequence-mode={viewportMode || undefined}
+        className={styles.stages}
+        style={{ backgroundColor: sequenceBackground, "--sequence-background": sequenceBackground } as CSSProperties}
+      >
+        <div ref={whatSceneRef} data-sequence-what className={styles.what}>
           <WhatWeDoGridView block={whatWeDo} />
-          <div id={talentId}>
-            <TalentMatrixView block={talent} quality="mobile" />
-          </div>
         </div>
-      )}
-
-      {viewportMode !== "reduced" && (
-        <div
-          data-pin-target="true"
-          data-sequence-mode={viewportMode || "mobile"}
-          className="relative overflow-hidden"
-          style={{
-            backgroundColor: sequenceBackground,
-            boxShadow: `0 -12px 0 ${sequenceBackground}, 0 12px 0 ${sequenceBackground}`,
-            height:
-              viewportMode === "desktop"
-                ? "100svh"
-                : "var(--app-height, 100dvh)",
-            minHeight:
-              viewportMode === "desktop"
-                ? "680px"
-                : "var(--app-height, 100dvh)",
-          }}
-        >
-          <div
-            data-sequence-what
-            className="absolute inset-0 z-30"
-            style={{
-              visibility: "visible",
-              maskRepeat: "no-repeat",
-              maskSize: "100% 100%",
-              WebkitMaskRepeat: "no-repeat",
-              WebkitMaskSize: "100% 100%",
-              willChange: "mask-image, opacity",
-            }}
-          >
-            <WhatWeDoGridView block={whatWeDo} />
-          </div>
-          <div
-            id={talentId}
-            data-sequence-talent
-            className="absolute inset-0 z-20 opacity-0 will-change-opacity"
-            style={{ visibility: "visible" }}
-          >
-            <TalentMatrixView
-              block={talent}
-              cameraScrollProgress={cameraScrollProgress}
-              quality={viewportMode === "desktop" ? "desktop" : viewportMode === "tablet" ? "tablet" : "mobile"}
-            />
-          </div>
+        <div ref={talentSceneRef} id={talentId} data-sequence-talent className={styles.talent}>
+          <TalentMatrixView
+            block={talent}
+            cameraScrollProgress={viewportMode === "desktop" ? cameraScrollProgress : undefined}
+            quality={viewportMode === "desktop" ? "desktop" : viewportMode === "tablet" ? "tablet" : "mobile"}
+          />
+        </div>
+        {viewportMode === "desktop" && (
           <MatrixRevealCanvas
             progress={transitionProgress}
             color={accent}
             density={density}
             changeSpeed={changeSpeed}
             softness={softness}
-            quality={viewportMode === "desktop" ? "desktop" : viewportMode === "tablet" ? "tablet" : "mobile"}
+            quality="desktop"
           />
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

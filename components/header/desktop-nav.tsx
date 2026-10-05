@@ -541,7 +541,7 @@ export default function DesktopNav({
           aria-label="Home page"
           id="header-logo-main-desktop"
           data-header-logo-main="true"
-          className="relative flex h-8 items-center justify-center will-change-transform"
+          className="pointer-events-auto relative flex h-8 items-center justify-center will-change-transform"
           style={headerLogoStyle}
         >
           <span

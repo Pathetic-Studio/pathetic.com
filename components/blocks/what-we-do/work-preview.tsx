@@ -117,7 +117,9 @@ export default function WorkPreview({
           sizes="(min-width: 1024px) 15vw, 30vw"
           className={cn(
             "transition-opacity duration-300 motion-reduce:transition-none",
-            titleCard || !cover ? "object-contain" : "object-cover",
+            titleCard || !cover
+              ? "object-contain object-bottom"
+              : "object-cover",
             playing ? "opacity-0" : "opacity-100",
           )}
         />
@@ -130,7 +132,11 @@ export default function WorkPreview({
         playsInline
         preload="metadata"
         aria-hidden="true"
-        style={{ transform: `scale(${videoScale})` }}
+        style={{
+          width: `${videoScale * 100}%`,
+          left: "50%",
+          transform: "translateX(-50%)",
+        }}
         className={cn(
           "absolute inset-0 h-full w-full transition-opacity duration-300 motion-reduce:transition-none",
           playing ? "opacity-100" : "opacity-0",

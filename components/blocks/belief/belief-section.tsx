@@ -73,12 +73,7 @@ const BELIEF_FLOAT_EFFECTS: Record<BeliefFloatGroup, BeliefFloatEffect> = {
   "cloud-lower-right-soft": { speed: 1.03, lag: 0.15 },
 };
 
-/**
- * Dedicated What We Believe section entry point. Its first version deliberately
- * shares the proven animated-grid renderer so the extracted section remains
- * visually and behaviourally identical while giving us an independent block
- * to extend from here.
- */
+/** The cloud bank belongs only to the belief grid. */
 export default function BeliefSection(props: BeliefBlock) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cloudsEnabled = stegaClean(props.cloudsEnabled) !== false;
@@ -269,7 +264,7 @@ export default function BeliefSection(props: BeliefBlock) {
     };
   }, [cloudsEnabled, partDuration]);
 
-  return (
+  const beliefContent = (
     <div ref={rootRef} className="relative isolate overflow-visible">
       {cloudsEnabled && (
         <>
@@ -614,4 +609,6 @@ export default function BeliefSection(props: BeliefBlock) {
       `}</style>
     </div>
   );
+
+  return beliefContent;
 }

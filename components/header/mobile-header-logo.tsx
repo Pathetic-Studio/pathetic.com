@@ -94,7 +94,7 @@ export default function MobileHeaderLogo({ className }: { className?: string }) 
       aria-label="Home page"
       id="header-logo-main-mobile"
       data-header-logo-main="true"
-      className={cn("relative flex items-center justify-center will-change-transform", className)}
+      className={cn("pointer-events-auto relative flex items-center justify-center will-change-transform", className)}
     >
       <span
         data-header-logo-native="true"
