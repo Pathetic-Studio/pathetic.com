@@ -121,7 +121,17 @@ function cleanColor(
 
 export default function NetworkReachSection(props: NetworkReachBlock) {
   const rootRef = useRef<HTMLElement | null>(null);
+  const friendsRef = useRef<HTMLDivElement | null>(null);
   const [introVisible, setIntroVisible] = useState(false);
+  useEffect(() => {
+    const friends = friendsRef.current;
+    if (!friends) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      friends.dataset.inView = String(entry.isIntersecting);
+    }, { rootMargin: "100px" });
+    observer.observe(friends);
+    return () => observer.disconnect();
+  }, []);
   const introEyes = useMemo(() => {
     const positions = [
       [16, 12, 52],
@@ -279,10 +289,10 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
     <section
       ref={rootRef}
       id={sectionId}
-      className="relative isolate bg-background p-2.5 sm:p-4 lg:p-6"
+      className={`${styles.section} relative isolate bg-background p-2.5 sm:p-4 lg:p-6`}
     >
       <div
-        className="relative overflow-hidden rounded-none border border-current before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[100] before:h-px before:bg-current before:content-['']"
+        className={`${styles.panel} relative overflow-hidden rounded-none border border-current before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[100] before:h-px before:bg-current before:content-['']`}
         style={{ backgroundColor, color: textColor }}
       >
         <div
@@ -436,46 +446,62 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
             )}
           </div>
 
-          <div className="network-friends-row relative mt-8 grid w-full max-w-[1050px] grid-cols-3 items-end justify-items-center gap-x-1 gap-y-5 px-1 sm:flex sm:items-end sm:justify-center sm:gap-0">
-            {FRIENDS.map((friend, index) => (
-              <a
-                key={friend.file}
-                href={`https://www.instagram.com/${friend.handle}/`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Visit @${friend.handle} on Instagram`}
-                data-network-friend
-                className="group network-friend-cutout focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 relative flex h-[12rem] w-full items-end justify-center sm:h-[clamp(12rem,24vw,20rem)] sm:w-auto sm:flex-1"
-                style={{
-                  zIndex: index + 1,
-                  "--friend-label-x": `${FRIEND_LABEL_POSITIONS[index][0]}%`,
-                  "--friend-label-y": `${FRIEND_LABEL_POSITIONS[index][1]}%`,
-                } as CSSProperties}
-              >
+          <div
+            ref={friendsRef}
+            data-network-friends-viewport
+            data-in-view="false"
+            className={`${styles.viewport} network-friends-row relative mt-8 w-full max-w-[1050px] px-1 sm:flex sm:items-end sm:justify-center`}
+          >
+            <div className={styles.track} data-network-friends-track>
+              {[false, true].map((repeat) => (
                 <div
-                  data-network-friend-visual
-                  className="flex h-full w-full items-end justify-center"
+                  key={String(repeat)}
+                  className={`${styles.group} ${repeat ? styles.repeat : ""}`}
+                  aria-hidden={repeat || undefined}
                 >
-                  <Image
-                    src={`/images/network/friends/${friend.file}.webp`}
-                    loading="eager"
-                    alt={friend.alt}
-                    width={friend.width}
-                    height={friend.height}
-                    sizes="(min-width: 1024px) 200px, (min-width: 640px) 130px, 110px"
-                    className="h-auto max-h-full w-full object-contain object-bottom"
-                    style={{ maxWidth: friend.width }}
-                  />
+                  {FRIENDS.map((friend, index) => (
+                    <a
+                      key={friend.file}
+                      href={`https://www.instagram.com/${friend.handle}/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Visit @${friend.handle} on Instagram`}
+                      tabIndex={repeat ? -1 : undefined}
+                      data-network-friend
+                      className={`${styles.friend} group network-friend-cutout focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 relative flex h-[12rem] w-full items-end justify-center sm:h-[clamp(12rem,24vw,20rem)] sm:w-auto sm:flex-1`}
+                      style={{
+                        zIndex: index + 1,
+                        "--friend-label-x": `${FRIEND_LABEL_POSITIONS[index][0]}%`,
+                        "--friend-label-y": `${FRIEND_LABEL_POSITIONS[index][1]}%`,
+                      } as CSSProperties}
+                    >
+                      <div
+                        data-network-friend-visual
+                        className="flex h-full w-full items-end justify-center"
+                      >
+                        <Image
+                          src={`/images/network/friends/${friend.file}.webp`}
+                          loading="eager"
+                          alt={friend.alt}
+                          width={friend.width}
+                          height={friend.height}
+                          sizes="(min-width: 1024px) 200px, (min-width: 768px) 130px, 136px"
+                          className="h-auto max-h-full w-full object-contain object-bottom"
+                          style={{ maxWidth: friend.width }}
+                        />
+                      </div>
+                      <span
+                        data-network-friend-tag
+                        aria-hidden="true"
+                        className={`${styles.tag} pointer-events-none absolute left-0 top-0 z-30 whitespace-nowrap border border-white bg-black px-2 py-1 text-white opacity-0 ${TEXT_STYLES.label}`}
+                      >
+                        @{friend.handle}
+                      </span>
+                    </a>
+                  ))}
                 </div>
-                <span
-                  data-network-friend-tag
-                  aria-hidden="true"
-                  className={`${styles.tag} pointer-events-none absolute left-0 top-0 z-30 whitespace-nowrap border border-white bg-black px-2 py-1 text-white opacity-0 ${TEXT_STYLES.label}`}
-                >
-                  @{friend.handle}
-                </span>
-              </a>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

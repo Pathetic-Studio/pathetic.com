@@ -1536,7 +1536,12 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               </div>
             );
             const projectClassName =
-              `${layoutStyles.item} group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-tablet-x)] md:top-[var(--item-tablet-y)] md:w-[var(--item-tablet-width)] lg:left-[var(--item-x)] lg:top-[var(--item-y)] lg:w-[var(--item-width)]`;
+              cn(
+                layoutStyles.item,
+                item._key === "whatWeDoDoorDash" && layoutStyles.deliveryBag,
+                item._key === "local-yom" && layoutStyles.muteVideo,
+                "group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-tablet-x)] md:top-[var(--item-tablet-y)] md:w-[var(--item-tablet-width)] lg:left-[var(--item-x)] lg:top-[var(--item-y)] lg:w-[var(--item-width)]",
+              );
 
             if (comingSoon) {
               return (

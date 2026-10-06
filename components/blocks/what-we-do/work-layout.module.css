@@ -67,6 +67,17 @@
     margin-top: 2rem;
   }
 
+  /* Reduce these taller pieces while keeping their column centre unchanged. */
+  .item.deliveryBag {
+    width: 68%;
+    margin-left: 12%;
+  }
+
+  .item.muteVideo {
+    width: 66%;
+    margin-left: 14%;
+  }
+
   .label {
     display: block;
     position: relative;

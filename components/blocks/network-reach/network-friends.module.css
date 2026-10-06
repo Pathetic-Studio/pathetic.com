@@ -1,3 +1,78 @@
+.track,
+.group {
+  display: contents;
+}
+
+.group.repeat {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .section {
+    overflow: clip;
+  }
+
+  .panel {
+    overflow: visible;
+  }
+
+  .viewport {
+    display: block;
+    width: 100vw;
+    max-width: none;
+    padding-inline: 0;
+    overflow: hidden;
+  }
+
+  .viewport .track {
+    display: flex;
+    width: max-content;
+    animation: friends-scroll 28s linear infinite paused;
+  }
+
+  .viewport[data-in-view="true"] .track {
+    animation-play-state: running;
+  }
+
+  .viewport:has(:focus-visible) .track,
+  .viewport:active .track {
+    animation-play-state: paused;
+  }
+
+  .group,
+  .group.repeat {
+    display: flex;
+    flex: none;
+    align-items: flex-end;
+    gap: 1.25rem;
+    padding: 0.5rem 1.25rem 0.5rem 0;
+  }
+
+  .friend {
+    flex: none;
+    width: clamp(6.5rem, 29vw, 8.5rem);
+    height: clamp(12rem, 52vw, 14rem);
+  }
+}
+
+@keyframes friends-scroll {
+  to { transform: translateX(-50%); }
+}
+
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  .viewport {
+    overflow-x: auto;
+  }
+
+  .viewport .track {
+    animation: none;
+  }
+
+  .group.repeat {
+    display: none;
+  }
+}
+
 :global([data-touch-labels="true"]) .tag {
   left: var(--friend-label-x);
   top: var(--friend-label-y);

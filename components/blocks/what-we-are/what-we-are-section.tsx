@@ -241,10 +241,10 @@ export default function WhatWeAre() {
               variant="stretched"
               size="belief"
               maxChars={0}
+              singleLine
               className="!w-full [&_h2]:whitespace-nowrap [&_h2]:leading-[1.02] [&_h2]:tracking-[-.01em] sm:[&_h2]:leading-[.76]"
             >
-              WHAT WE<span className="hidden sm:inline"> </span>
-              <br className="sm:hidden" />ARE
+              WHAT WE ARE
             </TitleText>
           </div>
           {ROLES.map((role) => (

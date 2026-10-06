@@ -517,6 +517,10 @@
 }
 
 @media (max-width: 575px) {
+  .title h2 {
+    font-size: clamp(4rem, 20vw, 4.75rem);
+  }
+
   .hatDock {
     top: -1.6rem;
     width: 17%;
