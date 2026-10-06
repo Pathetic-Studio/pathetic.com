@@ -193,7 +193,7 @@ export default function LifecycleThreeScene({
       > | null = null;
       try {
         const reflectionLogo = await new THREE.TextureLoader().loadAsync(
-          "/models/pathetic-goggles-reflection.webp",
+          "/models/pathetic-com-goggles-reflection.webp",
         );
         reflectionLogo.colorSpace = THREE.SRGBColorSpace;
         reflectionLogo.anisotropy = Math.min(

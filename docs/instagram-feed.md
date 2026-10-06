@@ -1,6 +1,8 @@
 # Connect the phone screen to @pathetic
 
-This feature reads Instagram directly. It does not write to Instagram or Sanity. Until connected, the phone shows the local snapshot and existing meme artwork in `lib/instagram/profile.ts`, not a live feed.
+The phone currently uses a static capture of the six latest public @pathetic posts from **6 October 2026**. The optimized WebP files and their original post links are in `public/images/network/posts/`; `lib/instagram/profile.ts` selects them. The rest of the phone interface and profile copy are unchanged. No Instagram request is needed at runtime, and nothing is written to Instagram or Sanity.
+
+The optional live API integration remains available below. To activate it in the phone later, opt into `createProfileScreen(onProfile, true)` in `network-phone-model.tsx` and apply the returned canvas to the screen texture. It is deliberately not enabled for the current static version.
 
 ## One-time account connection
 
@@ -16,11 +18,11 @@ This feature reads Instagram directly. It does not write to Instagram or Sanity.
    ```
 
 5. Restart the local dev server after setting `.env.local`. For a hosted preview, the environment needs to be applied to a new preview deployment. No production deployment or CMS publishing is needed to test this.
-6. Open `/api/instagram/profile` on that same local/preview site. A working connection returns **`"source": "instagram"`** and **`"username": "pathetic"`**. Reload the page and inspect the phone's avatar, follower count, and six recent posts. `"source": "snapshot"` means credentials are absent, invalid, expired, belong to another account, or Instagram is temporarily unavailable. After changing credentials, a previously cached response may persist until its cache interval expires.
+6. Open `/api/instagram/profile` on that same local/preview site. A working connection returns **`"source": "instagram"`** and **`"username": "pathetic"`**. Once the phone's live opt-in is restored, reload the page and inspect its avatar, follower count, and six recent posts. `"source": "snapshot"` means credentials are absent, invalid, expired, belong to another account, or Instagram is temporarily unavailable. After changing credentials, a previously cached response may persist until its cache interval expires.
 
 ## How it stays updated
 
-The server caches profile counts, biography, avatar, and six recent posts for one hour and revalidates on subsequent requests. The phone reads the latest cached result when its scene mounts. This is hourly caching on demand, not a background poll or an instant webhook. Recent videos use their thumbnails. Large reach statistics, demographics, and the 50-million claim remain editorial values: this basic profile permission does not supply those insights.
+When enabled, the API caches profile counts, biography, avatar, and six recent posts for one hour and revalidates on subsequent requests. A phone configured for live data reads the latest cached result when its scene mounts. This is hourly caching on demand, not a background poll or an instant webhook. Recent videos use their thumbnails. Large reach statistics, demographics, and the 50-million claim remain editorial values: this basic profile permission does not supply those insights.
 
 Account authorization needs maintenance too. Tokens expire or can be revoked; hourly content refresh does **not** renew a token. Consult [Meta's token exchange](https://developers.facebook.com/docs/instagram-platform/reference/access_token/) and [token refresh](https://developers.facebook.com/docs/instagram-platform/reference/refresh_access_token/) for the token's current validity and renewal rules.
 

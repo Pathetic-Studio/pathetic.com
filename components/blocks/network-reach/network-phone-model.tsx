@@ -472,17 +472,8 @@ export default function NetworkPhoneModel({
           setReady(true);
         }
         resume();
-        // Instagram refresh never blocks the local phone or its interactions.
-        void createProfileScreen(onProfile, true)
-          .then((updated) => {
-            if (cancelled) return;
-            screenTexture.image = updated;
-            screenTexture.needsUpdate = true;
-            canvas!.dataset.profileSource =
-              updated.dataset.profileSource || "snapshot";
-            resume();
-          })
-          .catch(() => {});
+        // Use the current local feed capture. The API connection remains
+        // available for a future live feed without changing the phone UI.
       } catch {
         dispose();
         renderer?.dispose();

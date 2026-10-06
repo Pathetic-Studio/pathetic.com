@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
+import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import styles from './jobs-office-scene.module.css';
 import { createOfficeFurniture } from './jobs-office-furniture';
 import { createTabletopCompoundBody } from './jobs-office-physics';
@@ -443,7 +444,8 @@ export function JobsOfficeScene({
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const detailRef = useRef<HTMLElement | null>(null);
-  const jobLabelRefs = useRef(new Map<string, HTMLDivElement>());
+  const jobLabelRefs = useRef(new Map<string, HTMLButtonElement>());
+  const selectJobRef = useRef<(key: string) => void>(() => undefined);
   const clearSelectionRef = useRef<() => void>(() => undefined);
   const duckAudioPoolRef = useRef<HTMLAudioElement[]>([]);
   const duckAudioIndexRef = useRef(0);
@@ -469,7 +471,7 @@ export function JobsOfficeScene({
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: !initialIsCompact,
+        antialias: true,
         powerPreference: 'high-performance',
       });
     } catch {
@@ -517,7 +519,7 @@ export function JobsOfficeScene({
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = !initialIsCompact;
     renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, initialIsCompact ? 1 : 1.25));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, initialIsCompact ? 1.5 : 1.25));
     renderer.domElement.className = styles.canvas;
     mountElement.appendChild(renderer.domElement);
 
@@ -526,6 +528,17 @@ export function JobsOfficeScene({
     const jobStarBodies: ToyBody[] = [];
     const roomProps: RoomPropBody[] = [];
     let effectDisposed = false;
+    const assetTimers = new Set<number>();
+    const spawnQueue: Array<() => void> = [];
+    const entrances = new Map<THREE.Object3D, { scale: THREE.Vector3; progress: number }>();
+    let nextSpawnAt = 0;
+    const deferAsset = (callback: () => void, delay = 120) => {
+      const timer = window.setTimeout(() => {
+        assetTimers.delete(timer);
+        if (!effectDisposed) callback();
+      }, delay);
+      assetTimers.add(timer);
+    };
     const world = new CANNON.World({ gravity: new CANNON.Vec3(0, GRAVITY, 0) });
     world.allowSleep = true;
     world.broadphase = new CANNON.SAPBroadphase(world);
@@ -1471,7 +1484,39 @@ export function JobsOfficeScene({
         roomEnvironment.dispose();
         pmremGenerator.dispose();
         disposables.push(officeEnvironment);
-        const loader = new GLTFLoader();
+        const gltfLoader = new GLTFLoader();
+        const mobileModels: Record<string, string> = {
+          [CUBICLE_GLB_PATH]: '/models/jobs-mobile/desk.glb',
+          [GOGGLES_GLB_PATH]: '/models/jobs-mobile/goggles.glb',
+          [TRASH_CAN_GLB_PATH]: '/models/jobs-mobile/trashcan.glb',
+          [WATER_COOLER_GLB_PATH]: '/models/jobs-mobile/water-cooler.glb',
+          [DUCK_GLB_PATH]: '/models/jobs-mobile/duck.glb',
+        };
+        type ModelTask = { path: string; ready: (model: GLTF) => void; failed?: (error: unknown) => void };
+        const modelQueue: ModelTask[] = [];
+        const priority = [CUBICLE_GLB_PATH, BOX_GLB_PATH, COMPUTER_GLB_PATH, COUCH_GLB_PATH, DUCK_GLB_PATH, WATER_COOLER_GLB_PATH, TRASH_CAN_GLB_PATH, GOGGLES_GLB_PATH];
+        const loadNext = async () => {
+          if (effectDisposed) return;
+          const task = modelQueue.shift();
+          if (!task) return;
+          try {
+            const model = await gltfLoader.loadAsync(initialIsCompact ? mobileModels[task.path] || task.path : task.path);
+            if (effectDisposed) {
+              disposeObject(model.scene);
+              return;
+            }
+            task.ready(model);
+          } catch (error) {
+            if (!effectDisposed) task.failed?.(error);
+          }
+          // Let physics/rendering and input breathe between model parses.
+          deferAsset(() => void loadNext());
+        };
+        const loader = {
+          load(path: string, ready: ModelTask['ready'], _progress?: unknown, failed?: ModelTask['failed']) {
+            modelQueue.push({ path, ready, failed });
+          },
+        };
         loader.load(
           CUBICLE_GLB_PATH,
           (gltf) => {
@@ -1587,7 +1632,7 @@ export function JobsOfficeScene({
             applyBoxMaterials(gltf.scene);
             boxTemplate = centerAndScaleObject(gltf.scene, 0.64);
             pendingBoxSpawns.splice(0).forEach(({ position, scale }) => {
-              createBox(position, scale);
+              spawnQueue.push(() => createBox(position, scale));
             });
           },
           undefined,
@@ -1595,7 +1640,7 @@ export function JobsOfficeScene({
             boxLoadComplete = true;
             boxTemplate = null;
             pendingBoxSpawns.splice(0).forEach(({ position, scale }) => {
-              createBox(position, scale);
+              spawnQueue.push(() => createBox(position, scale));
             });
           },
         );
@@ -1609,7 +1654,7 @@ export function JobsOfficeScene({
             duckTemplate = centerAndScaleObject(gltf.scene, 0.52);
             const queuedPositions = pendingDuckPositions.splice(0);
             queuedPositions.forEach((position) => {
-              createDuck(position);
+              spawnQueue.push(() => createDuck(position));
             });
           },
           undefined,
@@ -1629,7 +1674,7 @@ export function JobsOfficeScene({
             computerTemplate = centerAndScaleObject(gltf.scene, 1.1);
             const queuedPositions = pendingComputerPositions.splice(0);
             queuedPositions.forEach((position) => {
-              createMonitor(position);
+              spawnQueue.push(() => createMonitor(position));
             });
           },
           undefined,
@@ -1648,7 +1693,7 @@ export function JobsOfficeScene({
             waterCoolerTemplate = centerAndScaleObject(gltf.scene, 2.9);
             replaceRoomPropVisual(waitingRoomCoolerProp, waterCoolerTemplate.clone(true), -0.18);
             pendingWaterCoolerPositions.splice(0).forEach((position) => {
-              createWaterCooler(position);
+              spawnQueue.push(() => createWaterCooler(position));
             });
           },
           undefined,
@@ -1656,7 +1701,7 @@ export function JobsOfficeScene({
             waterCoolerLoadComplete = true;
             waterCoolerTemplate = null;
             pendingWaterCoolerPositions.splice(0).forEach((position) => {
-              createWaterCooler(position);
+              spawnQueue.push(() => createWaterCooler(position));
             });
           },
         );
@@ -1670,7 +1715,7 @@ export function JobsOfficeScene({
             }
             trashCanTemplate = centerAndScaleObject(gltf.scene, 0.72);
             pendingTrashCanPositions.splice(0).forEach((position) => {
-              createTrashCan(position);
+              spawnQueue.push(() => createTrashCan(position));
             });
           },
           undefined,
@@ -1678,10 +1723,12 @@ export function JobsOfficeScene({
             trashCanLoadComplete = true;
             trashCanTemplate = null;
             pendingTrashCanPositions.splice(0).forEach((position) => {
-              createTrashCan(position);
+              spawnQueue.push(() => createTrashCan(position));
             });
           },
         );
+        modelQueue.sort((a, b) => priority.indexOf(a.path) - priority.indexOf(b.path));
+        deferAsset(() => void loadNext(), 0);
       })
       .catch(() => {
         duckTemplate = null;
@@ -1693,10 +1740,10 @@ export function JobsOfficeScene({
         trashCanLoadComplete = true;
         trashCanTemplate = null;
         pendingWaterCoolerPositions.splice(0).forEach((position) => {
-          createWaterCooler(position);
+          spawnQueue.push(() => createWaterCooler(position));
         });
         pendingTrashCanPositions.splice(0).forEach((position) => {
-          createTrashCan(position);
+          spawnQueue.push(() => createTrashCan(position));
         });
       });
 
@@ -1731,6 +1778,10 @@ export function JobsOfficeScene({
       scene.add(object);
       world.addBody(body);
       syncVisual(toy);
+      if (collection === toys) {
+        entrances.set(object, { scale: object.scale.clone(), progress: 0 });
+        object.scale.multiplyScalar(0.15);
+      }
       return toy;
     }
 
@@ -1959,6 +2010,9 @@ export function JobsOfficeScene({
     }
 
     function clearBodies(): void {
+      spawnQueue.length = 0;
+      entrances.forEach((entry, object) => object.scale.copy(entry.scale));
+      entrances.clear();
       while (toys.length) {
         const toy = toys.pop();
         if (!toy) continue;
@@ -2186,6 +2240,11 @@ export function JobsOfficeScene({
       detailAnchorKey = null;
       setActiveJobKey(null);
     };
+    selectJobRef.current = (key) => {
+      selectedJobKey = key;
+      detailAnchorKey = null;
+      setActiveJobKey(key);
+    };
 
     function currentPinchDistance(): number {
       const [first, second] = Array.from(activePointers.values());
@@ -2204,9 +2263,7 @@ export function JobsOfficeScene({
         releasedBody.body.wakeUp();
       }
       if (activateJob && releasedBody?.jobKey) {
-        selectedJobKey = releasedBody.jobKey;
-        detailAnchorKey = null;
-        setActiveJobKey(releasedBody.jobKey);
+        selectJobRef.current(releasedBody.jobKey);
       }
       selectedBody = null;
       selectedMoved = false;
@@ -2406,25 +2463,44 @@ export function JobsOfficeScene({
     renderer.domElement.addEventListener('pointercancel', releasePointer);
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
 
+    let viewportWidth = mountElement.clientWidth;
+    let viewportHeight = mountElement.clientHeight;
+    const labelSizes = new Map<string, { width: number; height: number }>();
     function resize(): void {
       const width = Math.max(1, mountElement.clientWidth);
       const height = Math.max(1, mountElement.clientHeight);
       const isCompact = width < 768;
       renderer.shadowMap.enabled = !isCompact;
       key.castShadow = !isCompact;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isCompact ? 1 : 1.25));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isCompact ? 1.5 : 1.25));
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       applyCameraPose();
+      viewportWidth = width;
+      viewportHeight = height;
+      jobLabelRefs.current.forEach((label, key) => {
+        labelSizes.set(key, { width: label.offsetWidth, height: label.offsetHeight });
+      });
     }
 
     const clock = new THREE.Clock();
     let animationFrame = 0;
+    let firstRender = true;
 
     function render(): void {
+      if (effectDisposed || document.hidden) return;
       const delta = Math.min(clock.getDelta(), 0.05);
       const elapsed = clock.elapsedTime;
+      if (spawnQueue.length && elapsed >= nextSpawnAt) {
+        spawnQueue.shift()?.();
+        nextSpawnAt = elapsed + 0.16;
+      }
+      entrances.forEach((entry, object) => {
+        entry.progress = Math.min(1, entry.progress + delta / 0.32);
+        object.scale.copy(entry.scale).multiplyScalar(1 - 0.85 * (1 - entry.progress) ** 3);
+        if (entry.progress === 1) entrances.delete(object);
+      });
       jobStars.forEach((jobStar) => {
         const body = jobStar.toy.body;
         if (body.type !== CANNON.Body.DYNAMIC) return;
@@ -2471,8 +2547,6 @@ export function JobsOfficeScene({
       jobStarBodies.forEach(syncVisual);
       roomProps.forEach(syncVisual);
 
-      const viewportWidth = Math.max(1, mountElement.clientWidth);
-      const viewportHeight = Math.max(1, mountElement.clientHeight);
       jobStars.forEach((jobStar, index) => {
         const isActive = selectedJobKey === jobStar.key;
         jobStar.spinner.rotation.y = elapsed * (0.28 + (index % 3) * 0.025) + jobStar.phase * 0.28;
@@ -2489,9 +2563,10 @@ export function JobsOfficeScene({
           const projectedX = (jobLabelProjection.x * 0.5 + 0.5) * viewportWidth;
           const projectedY = (-jobLabelProjection.y * 0.5 + 0.5) * viewportHeight
             + (viewportWidth < 640 ? 42 : 56);
-          const labelHalfWidth = label.offsetWidth * 0.5;
+          const labelSize = labelSizes.get(jobStar.key) || { width: 160, height: 38 };
+          const labelHalfWidth = labelSize.width * 0.5;
           const labelX = clamp(projectedX, labelHalfWidth + 8, viewportWidth - labelHalfWidth - 8);
-          const labelY = clamp(projectedY, 8, viewportHeight - label.offsetHeight - 8);
+          const labelY = clamp(projectedY, 8, viewportHeight - labelSize.height - 8);
           label.style.setProperty('--job-label-x', `${labelX}px`);
           label.style.setProperty('--job-label-y', `${labelY}px`);
           label.style.visibility = jobLabelProjection.z < -1
@@ -2506,7 +2581,7 @@ export function JobsOfficeScene({
       const activeStar = selectedJobKey
         ? jobStars.find((jobStar) => jobStar.key === selectedJobKey)
         : null;
-      if (activeStar && detailRef.current) {
+      if (activeStar && detailRef.current && viewportWidth >= 1024) {
         if (detailAnchorKey !== activeStar.key) {
           detailAnchor.copy(activeStar.root.position);
           detailAnchorKey = activeStar.key;
@@ -2525,16 +2600,32 @@ export function JobsOfficeScene({
       }
 
       renderer.render(scene, camera);
+      if (firstRender) {
+        mountElement.dataset.ready = 'true';
+        firstRender = false;
+      }
       animationFrame = window.requestAnimationFrame(render);
     }
+
+    const onVisibilityChange = () => {
+      window.cancelAnimationFrame(animationFrame);
+      clock.getDelta();
+      if (!document.hidden) render();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     resize();
     render();
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(mountElement);
+    jobLabelRefs.current.forEach((label) => resizeObserver.observe(label));
 
     return () => {
       effectDisposed = true;
+      assetTimers.forEach((timer) => window.clearTimeout(timer));
+      spawnQueue.length = 0;
+      entrances.clear();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       duckLoadCancelled = true;
       boxLoadCancelled = true;
       computerLoadCancelled = true;
@@ -2553,7 +2644,9 @@ export function JobsOfficeScene({
       delete mountElement.dataset.officeWalls;
       delete mountElement.dataset.officeWindows;
       delete mountElement.dataset.jobStarCount;
+      delete mountElement.dataset.ready;
       clearSelectionRef.current = () => undefined;
+      selectJobRef.current = () => undefined;
       jobStars.forEach((jobStar) => scene.remove(jobStar.root));
       clearBodies();
       while (roomProps.length) {
@@ -2592,10 +2685,13 @@ export function JobsOfficeScene({
       </div>
 
       <div className={styles.hud}>
-        <div className={styles.jobLabels} aria-hidden="true">
+        <div className={styles.jobLabels}>
           {jobs.map((job) => (
-            <div
+            <button
               key={job.key}
+              type="button"
+              onClick={() => selectJobRef.current(job.key)}
+              aria-expanded={activeJobKey === job.key}
               ref={(node) => {
                 if (node) jobLabelRefs.current.set(job.key, node);
                 else jobLabelRefs.current.delete(job.key);
@@ -2604,7 +2700,7 @@ export function JobsOfficeScene({
               style={{ backgroundColor: resolveJobStarColor(job.starColor) }}
             >
               {job.title}
-            </div>
+            </button>
           ))}
         </div>
 

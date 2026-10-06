@@ -741,7 +741,7 @@ export function WhatWeDoGridView({
     <div
       ref={rootRef}
       data-what-grid
-      className={`relative overflow-hidden text-black lg:h-full lg:min-h-[100svh] ${className}`}
+      className={`mobile-section-cropped relative overflow-hidden text-black lg:h-full lg:min-h-[100svh] ${className}`}
       style={{ backgroundColor: background }}
     >
       <LayeredBackground block={block} />
@@ -844,8 +844,35 @@ export function WhatWeDoGridView({
         }
 
         @media (max-width: 1023px) {
+          [data-what-grid] {
+            display: flex;
+            flex-direction: column;
+          }
+          [data-what-heading] {
+            flex-shrink: 0;
+            padding-top: clamp(1.75rem, 5svh, 3.5rem);
+          }
+          [data-what-heading] + div {
+            flex: 1;
+            min-height: 0;
+            margin-top: clamp(.75rem, 3svh, 1.5rem);
+            padding-bottom: 1.5rem;
+          }
           [data-what-service-image] {
             transform: none !important;
+            flex-shrink: 0;
+            height: clamp(8rem, 25svh, 16rem);
+          }
+          [data-what-service] {
+            justify-content: center;
+          }
+        }
+        @media (max-width: 1023px) and (max-height: 650px) {
+          [data-what-service-image] {
+            height: 19svh;
+          }
+          [data-what-heading] {
+            padding-top: 1rem;
           }
         }
       `}</style>

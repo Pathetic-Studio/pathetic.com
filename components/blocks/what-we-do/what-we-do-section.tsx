@@ -146,7 +146,6 @@ const GENERATED_BODY_SOCKET = { x: 35.45, y: 25.45 } as const;
 const GENERATED_BODY_EXIT_ANGLE = -Math.PI + 0.15;
 const GENERATED_HAND_CUFF_OUTWARD_ANGLE = (34 * Math.PI) / 180;
 const ARM_FILL = "#171717";
-const SIZZLE_FIRE_SRC = "/images/what-we-do/sizzle-fire-9987911.gif";
 const DEFAULT_CASE_STUDY_HREF = "/case-study";
 
 // Tight artwork bounds keep hover labels beside the object. Widths preserve
@@ -446,7 +445,6 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
   const sizzleLabel = "Sizzle Reel";
   const sizzleVideoUrl = "/media/work/sizzle.mp4";
   const sizzleVideoPosterUrl = "/media/work/sizzle-poster.webp";
-  const sizzleFireSrc = sizzleReel?.fireGif?.asset?.url || SIZZLE_FIRE_SRC;
   const validItems: ResolvedFloatingProject[] = (items ?? [])
     .filter((item) => {
       const itemName = stegaClean(
@@ -458,8 +456,9 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         item.project?.image?.asset?.url;
       return (
         Boolean(hasMedia) &&
+        item._key !== "whatWeDoDoorDash" &&
         !itemName.includes("flower") &&
-        !/(bless|mute|sandbar|dictation|cash.?app|square|meme.?booth|^air$)/i.test(
+        !/(bless|mute|sandbar|dictation|cash.?app|square|meme.?booth|door.?dash|^air$)/i.test(
           itemName,
         )
       );
@@ -1605,27 +1604,16 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                           videoPosterUrl: sizzleVideoPosterUrl,
                         })
                       }
-                      className="relative flex aspect-[2.1/1] w-full items-center justify-center overflow-hidden bg-transparent px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                      className="relative flex w-full items-center justify-center bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                       aria-label={`Open ${sizzleLabel} fullscreen`}
                     >
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-0 z-10 scale-110 bg-center transition-transform duration-300 group-hover:scale-125"
-                        style={{
-                          backgroundImage: touchLayout
-                            ? "url(/images/what-we-do/sizzle-fire-poster.png)"
-                            : `url(${sizzleFireSrc})`,
-                          backgroundPosition: "center bottom",
-                          backgroundRepeat: "no-repeat",
-                          backgroundSize: "contain",
-                        }}
-                      />
                       <Image
-                        src="/images/what-we-do/pathetic-sizzle-logo.svg"
-                        alt="PATHETIC"
-                        width={115}
-                        height={51}
-                        className="absolute left-1/2 top-0 w-[60%] -translate-x-1/2"
+                        src="/images/what-we-do/sizzle-butter-pan.webp"
+                        alt="A frying pan with melting butter"
+                        width={900}
+                        height={529}
+                        sizes="(min-width: 1024px) 13vw, (min-width: 768px) 15vw, 25vw"
+                        className="h-auto w-full transition-transform duration-300 group-hover:scale-105"
                       />
                     </button>
                     <span className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 md:text-base">

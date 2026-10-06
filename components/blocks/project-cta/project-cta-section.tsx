@@ -675,7 +675,7 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
               {title}
             </TitleText>
           </span>
-          <span className="absolute left-1/2 top-1/2 z-40 -translate-x-1/2 translate-y-[clamp(3.75rem,5.3vw,4.75rem)]">
+          <span className="absolute left-1/2 top-1/2 z-40 hidden -translate-x-1/2 translate-y-[clamp(3.75rem,5.3vw,4.75rem)] lg:block">
             <ContactFormTrigger
               data-project-cta-button
               onFocus={() => setProjectHover(true)}

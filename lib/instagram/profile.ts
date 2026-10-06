@@ -20,8 +20,10 @@ export const INSTAGRAM_SNAPSHOT: InstagramProfile = {
   following: 1640,
   posts: 635,
   avatar: "/images/network/profile-logo.svg",
+  // Static capture of the public feed on 6 October 2026. Local files avoid
+  // expiring Instagram CDN URLs and keep the phone independent of API access.
   media: Array.from({ length: 6 }, (_, i) => ({
-    id: `local-${i + 1}`,
-    image: `/starter-pack-refs/ref-${i + 1}.webp`,
+    id: `snapshot-2026-10-06-${i + 1}`,
+    image: `/images/network/posts/2026-10-06-${i + 1}.webp`,
   })),
 };

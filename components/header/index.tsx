@@ -5,10 +5,22 @@ import MobileHeaderSocialAnim from "@/components/header/mobile-header-social-ani
 import MobileHeaderLogo from "@/components/header/mobile-header-logo";
 import { InstagramIcon } from "../ui/instagram-icon";
 import { fetchSanitySettings, fetchSanityNavigation } from "@/sanity/lib/fetch";
+import type { NAVIGATION_QUERYResult } from "@/sanity.types";
+
+// Shared by desktop and mobile, without changing the published navigation document.
+const PRIMARY_LINKS = [
+  { _key: "services", _type: "link", title: "Our Services", linkType: "anchor-link", anchorId: "what-we-do-grid", href: "/#what-we-do-grid", buttonVariant: "menu" },
+  { _key: "work", _type: "link", title: "Our Work", linkType: "internal", href: "/case-study", buttonVariant: "menu" },
+  { _key: "jobs", _type: "link", title: "Jobs", linkType: "internal", href: "/jobs", buttonVariant: "menu" },
+  { _key: "contact", _type: "link", title: "Contact Us", linkType: "contact", buttonVariant: "menu" },
+] as NAVIGATION_QUERYResult[number]["rightLinks"];
 
 export default async function Header() {
   const settings = await fetchSanitySettings();
-  const navigation = await fetchSanityNavigation();
+  const navigation = (await fetchSanityNavigation()).map((document) => ({
+    ...document,
+    rightLinks: PRIMARY_LINKS,
+  }));
 
   const navDoc = navigation?.[0];
   const instagramUrl = navDoc?.instagram ?? null;

@@ -183,9 +183,9 @@
     position: relative;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(3, 150px);
+    grid-template-rows: repeat(3, 125px);
     gap: 0;
-    margin-top: -20px;
+    margin-top: -35px;
     padding: 0 12px 25px;
   }
   .point:nth-child(n) {
@@ -195,7 +195,10 @@
     align-self: center;
   }
   .point.metric {
-    width: min(100%, 185px);
+    width: 100%;
+  }
+  .metric .pointContent > div p {
+    font-size: clamp(2.35rem, 10.6vw, 3rem);
   }
   .point.detail {
     width: min(78%, 132px);
@@ -207,12 +210,12 @@
   }
   .point:nth-child(2) {
     grid-area: 1 / 2;
-    top: 35px;
+    top: 23px;
     left: -4%;
   }
   .point:nth-child(3) {
     grid-area: 2 / 2;
-    top: 18px;
+    top: 8px;
     justify-self: end;
   }
   .point:nth-child(4) {
@@ -222,12 +225,12 @@
   }
   .point:nth-child(5) {
     grid-area: 3 / 1;
-    top: 17px;
+    top: 9px;
     left: 3%;
   }
   .point:nth-child(6) {
     grid-area: 3 / 2;
-    top: 35px;
+    top: 23px;
     left: -2%;
   }
   .detail::before {

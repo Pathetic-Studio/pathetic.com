@@ -254,7 +254,7 @@ export default function TalentMatrixScene({
     }
 
     const renderPixelRatio =
-      quality === "desktop" ? 0.8 : quality === "tablet" ? 0.68 : 0.56;
+      quality === "desktop" ? 0.8 : quality === "tablet" ? 1 : 1.5;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderPixelRatio));
     renderer.setClearColor(0x000200, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -836,6 +836,17 @@ export default function TalentMatrixScene({
           } else if (isFloor) {
             object.material = floorMaterial;
             object.renderOrder = -1;
+            if (quality !== "desktop") {
+              // The portrait camera can see past the authored floor. Extend its
+              // local plane axes (XY), preserving the size of the matrix glyphs.
+              object.scale.x *= 3;
+              object.scale.y *= 3;
+              const uv = object.geometry.getAttribute("uv");
+              for (let i = 0; i < uv.count; i++) {
+                uv.setXY(i, (uv.getX(i) - 0.5) * 3 + 0.5, (uv.getY(i) - 0.5) * 3 + 0.5);
+              }
+              uv.needsUpdate = true;
+            }
           } else {
             originalBuildingGeometries.add(object.geometry);
             cropBuildingAtFloor(object, floorY + 0.003);

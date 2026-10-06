@@ -4,6 +4,25 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Stable section framing, independent of the mobile browser toolbar opening. */
+:root {
+  --site-nav-height: 82px;
+  --section-full-height: 100svh;
+  --section-cropped-height: calc(var(--section-full-height) - var(--site-nav-height));
+}
+
+@media (max-width: 1023px) {
+  .mobile-section-cropped {
+    height: var(--section-cropped-height);
+    min-height: 0;
+  }
+
+  .mobile-section-full {
+    height: var(--section-full-height);
+    min-height: 0;
+  }
+}
+
 @theme {
   --font-sans: var(--font-sans);
 

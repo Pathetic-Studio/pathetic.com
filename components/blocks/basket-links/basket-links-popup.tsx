@@ -100,9 +100,9 @@ function JobsPopup({ onClose }: { onClose: () => void }) {
       <div className="flex flex-col items-center px-6 py-7">
         <div data-basket-popup-hero className="h-56 w-56 sm:h-64 sm:w-64">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/basket-links/computer.png" alt="Retro computer" className="h-full w-full object-contain" style={{ transform: "rotate(-22deg) scale(.8)" }} />
+          <img src="/images/basket-links/sticker-macbook.webp" alt="Sticker-covered MacBook" className="h-full w-full object-contain" style={{ transform: "rotate(-8deg) scale(.94)" }} />
         </div>
-        <h3 className="-mt-2 text-2xl">Careers</h3>
+        <h3 className="-mt-2 text-2xl">Jobs</h3>
         <Link href="/jobs" className="mt-4 border-2 border-b-[#202020] border-l-white border-r-[#202020] border-t-white bg-[#c0c0c0] px-4 py-2 text-sm shadow-[inset_1px_1px_0_#dfdfdf,inset_-1px_-1px_0_#808080] active:translate-x-px active:translate-y-px active:border-b-white active:border-l-[#202020] active:border-r-white active:border-t-[#202020]">
           Learn more
         </Link>

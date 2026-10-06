@@ -252,6 +252,8 @@ export default function LifecycleMemeSwarm({
         });
       }
       const placed: Array<{ x: number; y: number; radius: number }> = [];
+      const compact = bounds.width < 1024;
+      const sidePadding = compact ? 18 : 0;
       root
         .querySelectorAll<HTMLElement>("[data-lifecycle-meme-image]")
         .forEach((item, index) => {
@@ -263,6 +265,8 @@ export default function LifecycleMemeSwarm({
           const halfHeight =
             Number(item.dataset.restHeight) * scale * 0.61 + 14;
           const clear = (x: number, y: number) =>
+            (!compact || (x - halfWidth >= sidePadding && x + halfWidth <= bounds.width - sidePadding
+              && y - halfHeight >= 20 && y + halfHeight <= bounds.height - 24)) &&
             zones.every(
               (zone) =>
                 x + halfWidth < zone.left ||
@@ -272,7 +276,7 @@ export default function LifecycleMemeSwarm({
             );
           const origin = {
             x: (bounds.width * layer.restX) / 100,
-            y: (bounds.height * layer.restY) / 100,
+            y: (bounds.height * (compact ? 50 + (layer.restY - 50) * 1.28 : layer.restY)) / 100,
           };
           let best = origin;
           let bestScore = Infinity;
@@ -287,8 +291,8 @@ export default function LifecycleMemeSwarm({
               candidate === 0
                 ? origin.y
                 : bounds.height *
-                  (0.18 +
-                    ((candidate * 0.41421356237 + index * 0.17) % 1) * 0.64);
+                  ((compact ? 0.07 : 0.18) +
+                    ((candidate * 0.41421356237 + index * 0.17) % 1) * (compact ? 0.86 : 0.64));
             if (!clear(x, y)) continue;
             const crowding = placed.reduce(
               (total, point) =>

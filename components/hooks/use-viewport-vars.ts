@@ -17,6 +17,14 @@ export function useViewportVars() {
         const vv = window.visualViewport;
         let frame = 0;
         let lastHeight = 0;
+        const header = document.getElementById("site-header-root");
+        const measureHeader = () => {
+            if (!header) return;
+            document.documentElement.style.setProperty("--site-nav-height", `${header.offsetHeight}px`);
+        };
+        const headerObserver = new ResizeObserver(measureHeader);
+        if (header) headerObserver.observe(header);
+        measureHeader();
 
         const commitVars = () => {
             frame = 0;
@@ -40,6 +48,7 @@ export function useViewportVars() {
         window.addEventListener("orientationchange", setVars);
 
         return () => {
+            headerObserver.disconnect();
             if (frame) cancelAnimationFrame(frame);
             vv?.removeEventListener("resize", setVars);
             vv?.removeEventListener("scroll", setVars);

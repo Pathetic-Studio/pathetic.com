@@ -48,7 +48,7 @@ export function TalentMatrixView({
 
   return (
     <div
-      className={`relative h-full min-h-[100svh] overflow-hidden text-white ${className}`}
+      className={`mobile-section-full relative h-full min-h-[100svh] overflow-hidden text-white ${className}`}
       style={{ backgroundColor }}
     >
       <TalentMatrixScene
@@ -114,26 +114,24 @@ export function TalentMatrixView({
             ))}
           </p>
         )}
-        {block.cta?.title && (
-          <div
-            data-matrix-submit-hover="true"
-            className="pointer-events-auto mt-5"
-            onMouseEnter={() => {
-              highlightAllBuildings.current.value = true;
-            }}
-            onMouseLeave={() => {
-              highlightAllBuildings.current.value = false;
-            }}
+        <div
+          data-matrix-submit-hover="true"
+          className="pointer-events-auto mt-5"
+          onMouseEnter={() => {
+            highlightAllBuildings.current.value = true;
+          }}
+          onMouseLeave={() => {
+            highlightAllBuildings.current.value = false;
+          }}
+        >
+          <Button
+            href="/jobs"
+            size="lg"
+            className="border border-white bg-white text-sm font-semibold uppercase text-black hover:bg-black hover:text-white"
           >
-            <Button
-              link={block.cta as any}
-              size="lg"
-              className="border border-white bg-white text-sm font-semibold uppercase text-black hover:bg-black hover:text-white"
-            >
-              {stegaClean(block.cta.title)}
-            </Button>
-          </div>
-        )}
+            View Opportunities
+          </Button>
+        </div>
       </div>
 
       {!!talents.length && (

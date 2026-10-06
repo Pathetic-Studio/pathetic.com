@@ -52,7 +52,7 @@ export type BasketLinksSectionBlock = {
 };
 
 const LOCAL_ASSETS: Record<string, string> = {
-  computer: "/images/basket-links/computer.png",
+  computer: "/images/basket-links/sticker-macbook.webp",
   portal: "/images/basket-links/portal.png",
   hoodie: "/images/lifecycle/slide-2/pathetic/rhinestone-tee.webp",
   pigeon: "/images/basket-links/pigeon.png",
@@ -93,8 +93,8 @@ const BASKET_PRESETS: Record<string, BasketPreset> = {
   computer: {
     title: "Jobs",
     genericTitle: "Computer",
-    artworkRotation: -22,
-    artworkScale: 0.8,
+    artworkRotation: -8,
+    artworkScale: 0.94,
     labelX: 50,
     labelY: 64,
     startX: 72,
@@ -166,7 +166,9 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         const preset = BASKET_PRESETS[localKey];
         if (!preset) return null;
         const customImageUrl =
-          localKey === "hoodie" ? "" : item.image?.asset?.url || "";
+          localKey === "hoodie" || localKey === "computer"
+            ? ""
+            : item.image?.asset?.url || "";
         const src = customImageUrl || LOCAL_ASSETS[localKey];
         if (!src) return null;
 
@@ -621,7 +623,9 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         alt={
           item.presetKey === "hoodie"
             ? "Black PATHETIC rhinestone T-shirt"
-            : stegaClean(item.image?.alt) || stegaClean(item.title) || ""
+            : item.presetKey === "computer"
+              ? "Sticker-covered MacBook"
+              : stegaClean(item.image?.alt) || stegaClean(item.title) || ""
         }
         draggable={false}
         className="absolute inset-0 h-full w-full select-none object-contain"

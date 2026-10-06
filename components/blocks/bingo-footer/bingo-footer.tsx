@@ -223,8 +223,8 @@ export default function BingoFooter(props: BingoFooterBlock) {
         } as CSSProperties
       }
     >
-      <div className="mx-auto grid max-w-[100rem] grid-cols-2 items-center gap-4 lg:grid-cols-[minmax(11rem,1fr)_minmax(0,3.4fr)_minmax(11rem,1fr)] lg:gap-[3vw]">
-        <div className="order-2 mx-auto w-full max-w-[15rem] lg:order-1 lg:max-w-[17rem]">
+      <div className="mx-auto grid max-w-[100rem] grid-cols-2 items-center gap-x-0 gap-y-4 lg:grid-cols-[minmax(11rem,1fr)_minmax(0,3.4fr)_minmax(11rem,1fr)] lg:gap-[3vw]">
+        <div className="order-2 ml-auto mr-0 w-full max-w-[15rem] lg:order-1 lg:mx-auto lg:max-w-[17rem]">
           <BingoGrid
             cells={props.leftCells ?? []}
             openContact={openContact}
@@ -236,7 +236,7 @@ export default function BingoFooter(props: BingoFooterBlock) {
           <LogoAnimated className="h-full max-h-[19rem] w-full text-current" />
         </div>
 
-        <div className="order-3 mx-auto w-full max-w-[15rem] lg:max-w-[17rem]">
+        <div className="order-3 ml-0 mr-auto w-full max-w-[15rem] max-lg:[&>div]:border-l-0 lg:mx-auto lg:max-w-[17rem]">
           <BingoGrid
             cells={props.rightCells ?? []}
             openContact={openContact}

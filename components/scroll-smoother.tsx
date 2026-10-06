@@ -41,6 +41,7 @@ export default function SmoothScroller({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isFullscreenScene = pathname === "/jobs";
 
   useViewportVars();
 
@@ -308,12 +309,16 @@ export default function SmoothScroller({
     // Touch and reduced-motion modes use a genuinely native scroll container.
     // Killing normalizeScroll is important here too: it otherwise continues to
     // intercept touch input even after ScrollSmoother has been removed.
-    if (prefersReduced || touchDevice) {
+    if (prefersReduced || touchDevice || isFullscreenScene) {
       try {
         ScrollTrigger.normalizeScroll(false);
       } catch {}
 
       restoreNativeScroller();
+      if (isFullscreenScene) {
+        wrapper.style.height = "100dvh";
+        wrapper.style.overflow = "hidden";
+      }
       const savedForPath =
         pendingHistoryScrollRef.current?.pathname === pathname
           ? pendingHistoryScrollRef.current.y
@@ -616,6 +621,7 @@ export default function SmoothScroller({
     };
   }, [
     pathname,
+    isFullscreenScene,
     isDesktop,
     isTouch,
     prefersReducedMotion,
@@ -626,8 +632,10 @@ export default function SmoothScroller({
 
   // Keep DOM structure stable; toggle styles only. Touch/reduced modes scroll
   // the document itself, while fine-pointer desktop uses this as the smoother.
-  const nativeScroll = suppressForLoader || isTouch || prefersReducedMotion;
-  const wrapperStyle: React.CSSProperties = nativeScroll
+  const nativeScroll = suppressForLoader || isTouch || prefersReducedMotion || isFullscreenScene;
+  const wrapperStyle: React.CSSProperties = isFullscreenScene
+    ? { height: "100dvh", overflow: "hidden" }
+    : nativeScroll
     ? { height: "auto", overflow: "visible", overflowX: "clip" }
     : { height: "var(--app-height, 100vh)" };
 
@@ -635,8 +643,10 @@ export default function SmoothScroller({
     ? "relative [overflow-x:clip] [overflow-y:visible] [overflow-anchor:none]"
     : "relative overflow-hidden overflow-x-hidden [overflow-anchor:none]";
 
-  const contentClass = nativeScroll
-    ? "min-h-[100vh] [overflow-anchor:none]"
+  const contentClass = isFullscreenScene
+    ? "h-full min-h-0 [overflow-anchor:none]"
+    : nativeScroll
+    ? "min-h-[100svh] [overflow-anchor:none]"
     : "min-h-[var(--app-height,100vh)] will-change-transform [transform:translate3d(0,0,0)] [overflow-anchor:none]";
 
   return (

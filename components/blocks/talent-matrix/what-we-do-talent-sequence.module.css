@@ -11,8 +11,8 @@
 }
 
 .talent {
-  height: 100svh;
-  min-height: 640px;
+  height: var(--section-full-height);
+  min-height: 0;
 }
 
 @media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {

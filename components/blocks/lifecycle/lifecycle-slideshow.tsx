@@ -35,14 +35,14 @@ type LifecycleObjectHeaderEffect = {
 
 const SLIDE_STAGE_THRESHOLDS = [0, 0.34, 0.62] as const;
 
-function LifecycleTitleCharacters({ text }: { text: string }) {
+function LifecycleTitleCharacters({ text, linkInstagram = false }: { text: string; linkInstagram?: boolean }) {
   return (
     <>
-      <span aria-hidden="true">
+      <span aria-hidden={linkInstagram ? undefined : true}>
         {text.split(/(\s+)/).map((token, tokenIndex) => {
           if (/^\s+$/.test(token)) return token;
 
-          return (
+          const characters = (
             <span key={`${token}-${tokenIndex}`} className="inline-block">
               {Array.from(token).map((character, characterIndex) => (
                 <span
@@ -55,9 +55,21 @@ function LifecycleTitleCharacters({ text }: { text: string }) {
               ))}
             </span>
           );
+          return linkInstagram && /^@?pathetic[.,]?$/i.test(token) ? (
+            <a
+              key={`${token}-${tokenIndex}`}
+              href="https://www.instagram.com/pathetic/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="PATHETIC on Instagram"
+              className="pointer-events-auto inline-block underline decoration-[.04em] underline-offset-[.09em] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+            >
+              {characters}
+            </a>
+          ) : characters;
         })}
       </span>
-      <span className="sr-only">{text}</span>
+      {!linkInstagram && <span className="sr-only">{text}</span>}
     </>
   );
 }
@@ -66,20 +78,24 @@ function SlideCopy({
   topText,
   centerText,
   textStyle,
+  linkInstagram = false,
+  groupOnTouch = false,
 }: {
   topText?: string | null;
   centerText?: string | null;
   textStyle?: LifecycleBlock["displayTextStyle"] | null;
+  linkInstagram?: boolean;
+  groupOnTouch?: boolean;
 }) {
   const cleanTopText = topText ? stegaClean(topText) : "";
   const cleanCenterText = centerText ? stegaClean(centerText) : "";
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[90] flex flex-col items-center px-5 text-center">
+    <div className={cn("pointer-events-none absolute inset-0 z-[90] flex flex-col items-center px-5 text-center", groupOnTouch && "max-lg:justify-center max-lg:gap-5")}>
       {cleanTopText && (
         <p
           data-lifecycle-top-text
-          className="max-w-[90vw] pt-[13svh] text-xs font-bold uppercase italic tracking-[-0.02em] sm:text-sm lg:pt-[14svh] lg:text-base lg:opacity-0"
+          className={cn("max-w-[90vw] pt-[13svh] text-xs font-bold uppercase italic tracking-[-0.02em] sm:text-sm lg:pt-[14svh] lg:text-base lg:opacity-0", groupOnTouch && "max-lg:pt-0")}
         >
           {cleanTopText}
         </p>
@@ -88,7 +104,7 @@ function SlideCopy({
       {cleanCenterText && (
         <div
           data-lifecycle-center-text
-          className="absolute left-1/2 top-1/2 w-[min(96vw,1200px)] -translate-x-1/2 -translate-y-1/2"
+          className={cn("absolute left-1/2 top-1/2 w-[min(96vw,1200px)] -translate-x-1/2 -translate-y-1/2", groupOnTouch && "max-lg:static max-lg:translate-x-0 max-lg:translate-y-0")}
         >
           <TitleText
             variant="stretched"
@@ -105,7 +121,7 @@ function SlideCopy({
             outlinePosition="outside"
             fontWeight={textStyle?.fontWeight ?? undefined}
           >
-            <LifecycleTitleCharacters text={cleanCenterText} />
+            <LifecycleTitleCharacters text={cleanCenterText} linkInstagram={linkInstagram} />
           </TitleText>
         </div>
       )}
@@ -1129,7 +1145,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
 
         <article
           data-lifecycle-slide="meme"
-          className="relative z-10 min-h-[92svh] overflow-hidden lg:absolute lg:inset-0 lg:min-h-0"
+          className="mobile-section-cropped relative z-10 overflow-hidden lg:absolute lg:inset-0 lg:min-h-0"
         >
           <LifecycleMemeSwarm
             memes={memeSlide?.memes}
@@ -1140,13 +1156,14 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             topText={resolvedMemeSubtitle}
             centerText={memeSlide?.centerText}
             textStyle={displayTextStyle}
+            linkInstagram
           />
         </article>
 
         <article
           data-lifecycle-slide="orbit"
           data-lifecycle-fun-previous="true"
-          className="relative z-10 -mt-px min-h-[calc(92svh+1px)] overflow-hidden lg:invisible lg:absolute lg:inset-0 lg:mt-0 lg:min-h-0 lg:opacity-0"
+          className="mobile-section-cropped relative z-10 -mt-px overflow-hidden lg:invisible lg:absolute lg:inset-0 lg:mt-0 lg:min-h-0 lg:opacity-0"
         >
           <LifecycleOrbit
             centerImage={resolvedOrbitCenter}
@@ -1163,7 +1180,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
         <article
           ref={objectArticleRef}
           data-lifecycle-slide="object"
-          className="relative z-10 -mt-px min-h-[calc(92svh+1px)] overflow-hidden lg:invisible lg:absolute lg:inset-0 lg:mt-0 lg:min-h-0 lg:opacity-0"
+          className="mobile-section-cropped relative z-10 -mt-px overflow-hidden lg:invisible lg:absolute lg:inset-0 lg:mt-0 lg:min-h-0 lg:opacity-0"
         >
           <div
             data-lifecycle-fun-background
@@ -1201,6 +1218,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             topText={objectSlide?.topText}
             centerText={objectSlide?.centerText}
             textStyle={displayTextStyle}
+            groupOnTouch
           />
 
           <button

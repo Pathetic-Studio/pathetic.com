@@ -5,6 +5,7 @@ import { useEffect, useRef, type CSSProperties } from "react";
 import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import type { CredibilityEarth } from "./credibility-earth";
+import TitleText from "@/components/ui/title-text";
 import styles from "./credibility-orbit.module.css";
 
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
@@ -19,7 +20,7 @@ const BRANDS = [
   { name: "Synthesia", file: "synthesia.svg", angle: 0.72, width: 0.145 },
   { name: "Deel", file: "deel.svg", angle: Math.PI / 2, width: 0.085 },
   { name: "MUBI", file: "mubi.webp", angle: 2.3, width: 0.1 },
-  { name: "Reformation", file: "reformation.svg", angle: Math.PI, width: 0.17 },
+  { name: "Cash App", file: "cash-app.svg", angle: Math.PI, width: 0.14 },
 ] as const;
 
 const STARS = Array.from({ length: 35 }, (_, i) => ({
@@ -272,8 +273,8 @@ export default function CredibilityOrbitSection(props: CredibilityBlock) {
                 {
                   "--logo-width": `${brand.width * 100}cqw`,
                   "--logo-mobile-width": `${Math.max(0.15, brand.width * 1.4) * 100}cqw`,
-                  "--initial-x": `${Math.cos(brand.angle) * 38.5}cqw`,
-                  "--initial-y": `${Math.sin(brand.angle) * 29}cqh`,
+                  "--initial-x": `${(Math.cos(brand.angle) * 38.5).toFixed(4)}cqw`,
+                  "--initial-y": `${(Math.sin(brand.angle) * 29).toFixed(4)}cqh`,
                   zIndex: Math.sin(brand.angle) < -0.08 ? 1 : 4,
                 } as CSSProperties
               }
@@ -288,10 +289,27 @@ export default function CredibilityOrbitSection(props: CredibilityBlock) {
             </li>
           ))}
         </ul>
-        <h2 id={`credibility-title-${props._key}`} className={styles.headline}>
-          <span>We work with the biggest</span>
-          <span>brands in the world</span>
-        </h2>
+        <div id={`credibility-title-${props._key}`} className={styles.headline}>
+          <TitleText
+            as="h2"
+            variant="stretched"
+            size="what-we-do"
+            animation="none"
+            stretchScaleX={0.62}
+            overallScale={1}
+            maxChars={0}
+            textColor="#ffffff"
+            textOutline
+            outlineColor="#000000"
+            outlineWidth={1.5}
+            outlinePosition="outside"
+            fontWeight="bold"
+          >
+            We work with the biggest
+            <br />
+            brands in the world
+          </TitleText>
+        </div>
       </div>
     </section>
   );
