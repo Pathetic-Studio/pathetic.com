@@ -9,9 +9,20 @@
   --site-nav-height: 82px;
   --section-full-height: 100svh;
   --section-cropped-height: calc(var(--section-full-height) - var(--site-nav-height));
+  --mobile-section-gap: 3rem;
+}
+
+.mobile-section-gap {
+  display: none;
 }
 
 @media (max-width: 1023px) {
+  .mobile-section-gap {
+    display: block;
+    height: var(--mobile-section-gap);
+    background: #fff;
+  }
+
   .mobile-section-cropped {
     height: var(--section-cropped-height);
     min-height: 0;

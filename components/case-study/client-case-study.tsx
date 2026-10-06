@@ -182,7 +182,6 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                               : undefined
                         }
                       />
-                      <figcaption>Watch</figcaption>
                     </figure>
                   )}
                   {study.slug === "air" && (

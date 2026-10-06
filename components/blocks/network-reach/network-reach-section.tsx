@@ -11,7 +11,6 @@ import styles from "./network-friends.module.css";
 import EyeFollow from "@/components/effects/eye-follow";
 import TitleText from "@/components/ui/title-text";
 import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
-import { splitTextAtWordRatio } from "@/components/blocks/shared/text-lines";
 import {
   SECTION_HEADER_BODY_CLASS,
   DISPLAY_OUTLINE_WIDTHS,
@@ -168,7 +167,6 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
   // Keep this revision local to the feature branch; no Sanity mutation needed.
   const cleanDescription =
     "We distribute our work through @PATHETIC, our Instagram community that reaches 50 million people every month.";
-  const descriptionLines = splitTextAtWordRatio(cleanDescription, 0.57);
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -380,35 +378,15 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
                 data-network-intro-body
                 className={`mt-5 sm:mt-6 ${SECTION_HEADER_BODY_CLASS}`}
               >
-                {descriptionLines.map((line, index) => {
-                  const previousCharacters = descriptionLines
-                    .slice(0, index)
-                    .reduce(
-                      (total, previousLine) => total + previousLine.length,
-                      0,
-                    );
-                  return (
-                    <span key={`${line}-${index}`} className="lg:block">
-                      {introVisible ? (
-                        <TypeOnText
-                          trigger="immediate"
-                          text={line}
-                          speed={TYPE_ON_SPEEDS.rapid}
-                          delay={
-                            0.42 +
-                            previousCharacters * (0.04 / TYPE_ON_SPEEDS.rapid)
-                          }
-                          start="top 90%"
-                        />
-                      ) : (
-                        line
-                      )}
-                      {index < descriptionLines.length - 1 && (
-                        <span className="lg:hidden"> </span>
-                      )}
-                    </span>
-                  );
-                })}
+                {introVisible ? (
+                  <TypeOnText
+                    trigger="immediate"
+                    text={cleanDescription}
+                    speed={TYPE_ON_SPEEDS.rapid}
+                    delay={0.42}
+                    className="text-balance"
+                  />
+                ) : cleanDescription}
               </p>
             )}
           </div>
@@ -442,12 +420,12 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
               outlinePosition="outside"
               stretchScaleX={0.72}
               overallScale={1.04}
-              className="!w-auto sm:[&_h2]:whitespace-nowrap [&_h2]:leading-[.78] [&_h2]:tracking-[-.055em]"
+              className="!w-auto sm:[&_h2]:whitespace-nowrap [&_h2]:leading-[1.04] [&_h2]:tracking-[-.055em] lg:[&_h2]:leading-[.78]"
             >
               {stegaClean(props.friendsTitle) || "AND WE BRING FRIENDS"}
             </TitleText>
             {props.friendsDescription && (
-              <p className={`mt-4 sm:mt-6 ${SECTION_HEADER_BODY_CLASS}`}>
+              <p data-network-friends-body className={`mt-4 max-sm:!w-[min(76vw,28rem)] max-sm:!leading-[1.2] sm:mt-6 ${SECTION_HEADER_BODY_CLASS}`}>
                 {stegaClean(props.friendsDescription)}
               </p>
             )}

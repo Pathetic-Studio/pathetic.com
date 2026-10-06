@@ -1,4 +1,6 @@
 import gsap from "gsap";
+import ScrollSmoother from "gsap/ScrollSmoother";
+import ScrollTrigger from "gsap/ScrollTrigger";
 
 type Flight = {
   slug: string;
@@ -236,9 +238,33 @@ export function enterCaseStudy(page: HTMLElement, next: () => void) {
     target.style.visibility = "hidden";
   });
   let timeline: gsap.core.Timeline | undefined;
-  const frame = requestAnimationFrame(() => {
+  let frame = 0;
+  let stableFrames = 0;
+  let lastBounds: DOMRect | undefined;
+  const started = performance.now();
+  const alignScroll = () => {
     if (flight !== current) return;
+    const smoother = ScrollSmoother.get();
+    if (smoother) {
+      if (Math.abs(smoother.scrollTop()) > 0.5) smoother.scrollTop(0);
+    } else if (window.scrollY > 0.5) window.scrollTo(0, 0);
+  };
+  // A route rebuilds ScrollSmoother after React mounts the new page. A single
+  // RAF can still measure it through the departing page's scroll transform.
+  const settle = () => {
+    if (flight !== current) return;
+    alignScroll();
     const bounds = panel.getBoundingClientRect();
+    const unchanged =
+      lastBounds &&
+      Math.abs(bounds.top - lastBounds.top) < 0.5 &&
+      Math.abs(bounds.height - lastBounds.height) < 0.5;
+    stableFrames = unchanged ? stableFrames + 1 : 0;
+    lastBounds = bounds;
+    if (stableFrames < 3 && performance.now() - started < 400) {
+      frame = requestAnimationFrame(settle);
+      return;
+    }
     // Preserve each body's real size and rotation while the sheet moves.
     pairs.forEach(({ object }) => {
       const origin = object.getBoundingClientRect();
@@ -251,6 +277,7 @@ export function enterCaseStudy(page: HTMLElement, next: () => void) {
     });
     timeline = gsap.timeline({
       onComplete: () => {
+        ScrollTrigger.removeEventListener("refresh", alignScroll);
         finish();
         next();
       },
@@ -266,14 +293,36 @@ export function enterCaseStudy(page: HTMLElement, next: () => void) {
       0,
     );
     pairs.forEach(({ object, target }) => {
+      const origin = {
+        left: Number(gsap.getProperty(object, "left")),
+        top: Number(gsap.getProperty(object, "top")),
+        width: Number(gsap.getProperty(object, "width")),
+        height: Number(gsap.getProperty(object, "height")),
+      };
+      const rotation = Number(gsap.getProperty(object, "rotation")) || 0;
+      // Keep the destination live through the flight: late font, physics or
+      // scroller measurements must not leave a clone aimed at a stale rect.
+      const progress = { value: 0 };
       timeline!.to(
-        object,
+        progress,
         {
-          ...rectStyle(target.getBoundingClientRect()),
-          rotation: 0,
+          value: 1,
           duration: 0.52,
           ease: "power3.inOut",
-          overwrite: "auto",
+          onUpdate: () => {
+            alignScroll();
+            const destination = rectStyle(target.getBoundingClientRect());
+            const mix = (from: number, to: number) =>
+              from + (to - from) * progress.value;
+            gsap.set(object, {
+              left: mix(origin.left, destination.left),
+              top: mix(origin.top, destination.top),
+              width: mix(origin.width, destination.width),
+              height: mix(origin.height, destination.height),
+              rotation: rotation * (1 - progress.value),
+              autoRound: false,
+            });
+          },
         },
         0,
       );
@@ -297,9 +346,14 @@ export function enterCaseStudy(page: HTMLElement, next: () => void) {
       [],
       0.52,
     );
+  };
+  ScrollTrigger.addEventListener("refresh", alignScroll);
+  frame = requestAnimationFrame(() => {
+    frame = requestAnimationFrame(settle);
   });
   return () => {
     cancelAnimationFrame(frame);
+    ScrollTrigger.removeEventListener("refresh", alignScroll);
     timeline?.kill();
     if (flight === current) finish();
   };

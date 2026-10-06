@@ -448,6 +448,7 @@ export default function WhatWeDoTalentSequence({
         <div ref={whatSceneRef} data-sequence-what className={styles.what}>
           <WhatWeDoGridView block={whatWeDo} />
         </div>
+        <div className="mobile-section-gap" aria-hidden="true" />
         <div ref={talentSceneRef} id={talentId} data-sequence-talent className={styles.talent}>
           <TalentMatrixView
             block={talent}

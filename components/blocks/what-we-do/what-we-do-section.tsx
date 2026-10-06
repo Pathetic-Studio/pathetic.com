@@ -456,9 +456,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         item.project?.image?.asset?.url;
       return (
         Boolean(hasMedia) &&
-        item._key !== "whatWeDoDoorDash" &&
         !itemName.includes("flower") &&
-        !/(bless|mute|sandbar|dictation|cash.?app|square|meme.?booth|door.?dash|^air$)/i.test(
+        !/(bless|mute|sandbar|dictation|cash.?app|square|meme.?booth|^air$)/i.test(
           itemName,
         )
       );
@@ -1407,6 +1406,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               zIndex: 20 + index,
             };
             const title = item.title;
+            const comingSoon =
+              item._key === "whatWeDoDoorDash" || item._key === "whatWeDoAdidas";
             const href = item.href;
             const isRevealActive = activeRevealKey === item._key;
             const scrollSpeed = 0.15 + (index % 5) * 0.04;
@@ -1482,6 +1483,16 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                             className="!whitespace-nowrap"
                           />
                         )}
+                        {comingSoon && (
+                          <span
+                            className={cn(
+                              "mt-1 block text-center text-xs font-medium normal-case leading-normal text-neutral-500 transition-opacity md:text-sm",
+                              !touchLayout && "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
+                            )}
+                          >
+                            Coming soon
+                          </span>
+                        )}
                       </span>
                     )}
                   </div>
@@ -1490,6 +1501,23 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
             );
             const projectClassName =
               "group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-tablet-x)] md:top-[var(--item-tablet-y)] md:w-[var(--item-tablet-width)] lg:left-[var(--item-x)] lg:top-[var(--item-y)] lg:w-[var(--item-width)]";
+
+            if (comingSoon) {
+              return (
+                <button
+                  key={item._key}
+                  type="button"
+                  aria-disabled="true"
+                  aria-label={`${title}: Coming soon`}
+                  data-what-we-do-project
+                  data-typeon-hover={touchLayout ? undefined : "true"}
+                  className={projectClassName}
+                  style={style}
+                >
+                  {projectContent}
+                </button>
+              );
+            }
 
             if (item.interactionMode === "link" && href) {
               return (

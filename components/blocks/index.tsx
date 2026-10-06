@@ -99,6 +99,25 @@ export default function Blocks({ blocks }: { blocks: Block[] }) {
     const nextBlock = blocks[index + 1];
 
     if (
+      index > 0 &&
+      [
+        "what-we-do-grid-section",
+        "talent-matrix-section",
+        "network-reach-section",
+        "belief-section",
+        "what-we-are-section",
+      ].includes(block._type)
+    ) {
+      rendered.push(
+        <div
+          key={`${block._key}-mobile-gap`}
+          className="mobile-section-gap"
+          aria-hidden="true"
+        />,
+      );
+    }
+
+    if (
       block?._type === "what-we-do-grid-section" &&
       nextBlock?._type === "talent-matrix-section"
     ) {

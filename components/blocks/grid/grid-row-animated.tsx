@@ -367,7 +367,7 @@ export default function GridRowAnimated(props: GridRowAnimated) {
                     singleLine={isBeliefSection && !isMobile}
                     className={
                       isBeliefSection
-                        ? "!w-full [&_h2]:whitespace-pre-line [&_h2]:leading-[.84] [&_h2]:tracking-[-.01em] sm:[&_h2]:leading-[.76]"
+                        ? "!w-full [&_h2]:whitespace-pre-line [&_h2]:leading-[1.02] [&_h2]:tracking-[-.01em] sm:[&_h2]:leading-[.76]"
                         : undefined
                     }
                   >

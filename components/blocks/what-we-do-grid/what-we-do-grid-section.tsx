@@ -223,8 +223,8 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
         const blendMode = (stegaClean(layer.blendMode) || "normal") as CSSProperties["mixBlendMode"];
         const style: CSSProperties = {
           zIndex: index,
-          opacity: kind === "ground" ? 1 : opacity,
-          mixBlendMode: kind === "ground" ? "normal" : blendMode,
+          opacity: kind === "ground" || kind === "city" ? 1 : opacity,
+          mixBlendMode: kind === "ground" || kind === "city" ? "normal" : blendMode,
           transform: `translate3d(${x}%, ${y}%, 0) scale(${startScale})`,
         };
 
@@ -258,14 +258,28 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
               layer.image?.asset?.url ? (
                 <div className="absolute inset-x-4 bottom-[39%] top-4 overflow-hidden md:inset-x-8 md:top-8">
                   <div className="absolute bottom-0 left-1/2 w-[92%] -translate-x-1/2 sm:w-[78%] lg:w-1/2">
+                    {/* Preserve the city's alpha silhouette as an opaque white
+                        backing, so fading the photo never reveals the checker. */}
+                    <Image
+                      src={layer.image.asset.url}
+                      alt=""
+                      width={layer.image.asset.metadata?.dimensions?.width || 1316}
+                      height={layer.image.asset.metadata?.dimensions?.height || 710}
+                      sizes="120vw"
+                      className="absolute inset-0 h-auto w-full object-contain object-bottom brightness-0 invert"
+                      style={{ objectPosition: stegaClean(layer.objectPosition) || "50% 100%" }}
+                    />
                     <Image
                       src={layer.image.asset.url}
                       alt={stegaClean(layer.image.alt) || ""}
                       width={layer.image.asset.metadata?.dimensions?.width || 1316}
                       height={layer.image.asset.metadata?.dimensions?.height || 710}
                       sizes="120vw"
-                      className="h-auto w-full object-contain object-bottom"
-                      style={{ objectPosition: stegaClean(layer.objectPosition) || "50% 100%" }}
+                      className="relative h-auto w-full object-contain object-bottom"
+                      style={{
+                        objectPosition: stegaClean(layer.objectPosition) || "50% 100%",
+                        opacity: Math.min(opacity, 0.62),
+                      }}
                     />
                   </div>
                 </div>
