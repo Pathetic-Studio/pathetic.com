@@ -2223,6 +2223,7 @@ export function JobsOfficeScene({
     const selectedLastPosition = new THREE.Vector3();
     const cameraDirection = new THREE.Vector3();
     const starProjection = new THREE.Vector3();
+    const mobileStarHome = new THREE.Vector3();
     const jobLabelProjection = new THREE.Vector3();
     const detailAnchor = new THREE.Vector3();
     const detailProjection = new THREE.Vector3();
@@ -2266,6 +2267,10 @@ export function JobsOfficeScene({
         releasedBody.body.mass = releasedBody.mass;
         releasedBody.body.updateMassProperties();
         releasedBody.body.velocity.scale(1.18, releasedBody.body.velocity);
+        if (releasedBody.jobKey && mountElement.clientWidth < 768) {
+          const speed = releasedBody.body.velocity.length();
+          if (speed > 12) releasedBody.body.velocity.scale(12 / speed, releasedBody.body.velocity);
+        }
         releasedBody.body.angularVelocity.scale(1.35, releasedBody.body.angularVelocity);
         releasedBody.body.wakeUp();
       }
@@ -2337,6 +2342,11 @@ export function JobsOfficeScene({
       if (!hit) return;
 
       const toy = hit.object.userData.toyBody as ToyBody;
+      const grabbedStar = jobStars.find((jobStar) => jobStar.toy === toy);
+      if (grabbedStar) {
+        grabbedStar.recovering = false;
+        grabbedStar.offscreenFor = 0;
+      }
       selectedBody = toy;
       selectedPointerId = event.pointerId;
       selectedMoved = false;
@@ -2468,6 +2478,7 @@ export function JobsOfficeScene({
     renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('pointerup', releasePointer);
     renderer.domElement.addEventListener('pointercancel', releasePointer);
+    renderer.domElement.addEventListener('lostpointercapture', releasePointer);
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
 
     let viewportWidth = mountElement.clientWidth;
@@ -2511,7 +2522,18 @@ export function JobsOfficeScene({
       jobStars.forEach((jobStar) => {
         const body = jobStar.toy.body;
         if (body.type !== CANNON.Body.DYNAMIC) return;
-        const home = jobStar.homePosition;
+        const isCompact = viewportWidth < 768;
+        let home = jobStar.homePosition;
+        if (isCompact) {
+          // A world-space home can itself be offscreen in portrait or after
+          // orbiting the camera. Keep its depth, but bring the return point
+          // inside the view with room for the whole star, nav and job label.
+          mobileStarHome.copy(home).project(camera);
+          mobileStarHome.x = clamp(mobileStarHome.x, -0.45, 0.45);
+          mobileStarHome.y = clamp(mobileStarHome.y, -0.4, 0.5);
+          mobileStarHome.unproject(camera);
+          home = mobileStarHome;
+        }
         const dx = body.position.x - home.x;
         const dy = body.position.y - home.y;
         const dz = body.position.z - home.z;
@@ -2523,10 +2545,11 @@ export function JobsOfficeScene({
           || body.position.y > FLOOR_Y + OFFICE_ROOM_HEIGHT - 0.48;
         const outsideViewport = starProjection.z < -1
           || starProjection.z > 1
-          || Math.abs(starProjection.x) > 1.22
-          || Math.abs(starProjection.y) > 1.22;
+          || Math.abs(starProjection.x) > (isCompact ? 0.68 : 1.05)
+          || starProjection.y > (isCompact ? 0.74 : 1.05)
+          || starProjection.y < (isCompact ? -0.78 : -1.05);
 
-        if (outsideRoom || (outsideViewport && distanceFromHomeSq > 1)) {
+        if (outsideRoom || (outsideViewport && (isCompact || distanceFromHomeSq > 1))) {
           jobStar.offscreenFor += delta;
         } else {
           jobStar.offscreenFor = Math.max(0, jobStar.offscreenFor - delta * 2);
@@ -2537,7 +2560,17 @@ export function JobsOfficeScene({
         body.force.y += body.mass * -GRAVITY;
         if (jobStar.recovering) {
           const spring = 12;
-          const damping = 3.4;
+          const damping = isCompact ? 5.8 : 3.4;
+          // A collision with furniture can block the spring's return path.
+          // Ease a stranded star clear instead of leaving it hidden.
+          if (jobStar.offscreenFor > 2) {
+            const rescueEase = 1 - Math.exp(-delta * 5);
+            body.position.x += (home.x - body.position.x) * rescueEase;
+            body.position.y += (hoverY - body.position.y) * rescueEase;
+            body.position.z += (home.z - body.position.z) * rescueEase;
+            body.velocity.scale(Math.exp(-delta * 8), body.velocity);
+            body.aabbNeedsUpdate = true;
+          }
           body.force.x += body.mass * ((home.x - body.position.x) * spring - body.velocity.x * damping);
           body.force.y += body.mass * ((hoverY - body.position.y) * spring - body.velocity.y * damping);
           body.force.z += body.mass * ((home.z - body.position.z) * spring - body.velocity.z * damping);
@@ -2647,6 +2680,7 @@ export function JobsOfficeScene({
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('pointerup', releasePointer);
       renderer.domElement.removeEventListener('pointercancel', releasePointer);
+      renderer.domElement.removeEventListener('lostpointercapture', releasePointer);
       renderer.domElement.removeEventListener('wheel', onWheel);
       delete mountElement.dataset.officeWalls;
       delete mountElement.dataset.officeWindows;

@@ -1,7 +1,8 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
+  Children,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -32,6 +33,19 @@ import WorkContentViewer, {
 } from "./work-content-viewer";
 
 gsap.registerPlugin(ScrollTrigger);
+
+function WorkColumns({ children }: { children: ReactNode }) {
+  const items = Children.toArray(children);
+  return (
+    <div className={layoutStyles.items}>
+      {[0, 1].map((column) => (
+        <div key={column} className={layoutStyles.column}>
+          {items.filter((_, index) => index % 2 === column)}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type WhatWeDoBlock = Extract<PageBlock, { _type: "what-we-do-section" }>;
@@ -613,39 +627,57 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       gsap.set(scrollLagLayers, { y: 0 });
 
       if (!reduceMotion) {
-        if (enableDesktopFloat)
-          scrollLagLayers.forEach((layer) => {
-            const speed = Number(layer.dataset.scrollSpeed || 0.14);
-            const rate = Number(layer.dataset.scrollRate);
-            const lag = Number(layer.dataset.scrollLag || 0.9);
-            const usesScrollRate = Number.isFinite(rate);
-            const rateTravel = () =>
-              (root.offsetHeight + window.innerHeight) * (1 - rate);
+        scrollLagLayers.forEach((layer, index) => {
+          // Keep mobile travel local to each item, so tall videos cannot
+          // drift into the next row as the whole collage scrolls past.
+          if (!enableDesktopFloat) {
+            const item = layer.closest<HTMLElement>("[data-what-we-do-project]");
+            if (!item) return;
+            const travel = 12 + (index % 3) * 5;
+            gsap.fromTo(layer, { y: travel }, {
+              y: -travel,
+              ease: "none",
+              scrollTrigger: {
+                trigger: item,
+                start: "top bottom",
+                end: "bottom top",
+                scrub: 0.65,
+                invalidateOnRefresh: true,
+              },
+            });
+            return;
+          }
+          const speed = Number(layer.dataset.scrollSpeed || 0.14);
+          const rate = Number(layer.dataset.scrollRate);
+          const lag = Number(layer.dataset.scrollLag || 0.9);
+          const usesScrollRate = Number.isFinite(rate);
+          const rateTravel = () =>
+            (root.offsetHeight + window.innerHeight) * (1 - rate);
 
-            gsap.fromTo(
-              layer,
-              {
-                y: () =>
-                  usesScrollRate
-                    ? rateTravel() * -0.5
-                    : window.innerHeight * speed * 0.45,
+          gsap.fromTo(
+            layer,
+            {
+              y: () =>
+                usesScrollRate
+                  ? rateTravel() * -0.5
+                  : window.innerHeight * speed * 0.45,
+            },
+            {
+              y: () =>
+                usesScrollRate
+                  ? rateTravel() * 0.5
+                  : window.innerHeight * speed * -0.65,
+              ease: "none",
+              scrollTrigger: {
+                trigger: root,
+                start: "top bottom",
+                end: "bottom top",
+                scrub: lag,
+                invalidateOnRefresh: true,
               },
-              {
-                y: () =>
-                  usesScrollRate
-                    ? rateTravel() * 0.5
-                    : window.innerHeight * speed * -0.65,
-                ease: "none",
-                scrollTrigger: {
-                  trigger: root,
-                  start: "top bottom",
-                  end: "bottom top",
-                  scrub: lag,
-                  invalidateOnRefresh: true,
-                },
-              },
-            );
-          });
+            },
+          );
+        });
 
         ScrollTrigger.create({
           trigger: root,
@@ -663,24 +695,25 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           },
         });
 
-        if (enableDesktopFloat)
-          floatingLayers.forEach((layer, index) => {
-            const amount = Number(layer.dataset.floatAmount || 12);
-            const duration = Number(layer.dataset.floatDuration || 5);
-            const direction = index % 2 === 0 ? 1 : -1;
-            floatTweens.push(
-              gsap.to(layer, {
-                paused: true,
-                x: direction * amount * 0.42,
-                y: direction * amount,
-                duration,
-                repeat: -1,
-                yoyo: true,
-                ease: "sine.inOut",
-                delay: index * -0.37,
-              }),
-            );
-          });
+        floatingLayers.forEach((layer, index) => {
+          const amount = enableDesktopFloat
+            ? Number(layer.dataset.floatAmount || 12)
+            : 8 + (index % 3) * 2;
+          const duration = Number(layer.dataset.floatDuration || 5);
+          const direction = index % 2 === 0 ? 1 : -1;
+          floatTweens.push(
+            gsap.to(layer, {
+              paused: true,
+              x: direction * amount * 0.42,
+              y: direction * amount,
+              duration,
+              repeat: -1,
+              yoyo: true,
+              ease: "sine.inOut",
+              delay: index * -0.37,
+            }),
+          );
+        });
       }
     }, root);
 
@@ -1390,7 +1423,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         </div>
 
         <div className={`${layoutStyles.field} absolute inset-0 z-20`}>
-          <div className={layoutStyles.items}>
+          <WorkColumns>
           {validItems.map((item, index) => {
             const fallback =
               DEFAULT_POSITIONS[index % DEFAULT_POSITIONS.length];
@@ -1647,7 +1680,11 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                         className="h-auto w-full transition-transform duration-300 group-hover:scale-105"
                       />
                     </button>
-                    <span className={`${layoutStyles.label} pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 md:text-base`}>
+                    <span className={cn(
+                      layoutStyles.label,
+                      "pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase transition-opacity md:text-base",
+                      !touchLayout && "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+                    )}>
                       {sizzleLabel}
                     </span>
                   </div>
@@ -1655,7 +1692,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               </div>
             </div>
           )}
-          </div>
+          </WorkColumns>
           <Link
             href="/case-study"
             scroll={false}

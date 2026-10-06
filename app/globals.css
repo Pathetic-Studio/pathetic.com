@@ -4,11 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Stable section framing, independent of the mobile browser toolbar opening. */
+/* Cropped scenes stay stable; full scenes fill the viewport as the mobile
+   browser toolbar retracts. The Matrix must not remain at the smaller height. */
 :root {
   --site-nav-height: 82px;
-  --section-full-height: 100svh;
-  --section-cropped-height: calc(var(--section-full-height) - var(--site-nav-height));
+  --section-full-height: 100dvh;
+  --section-cropped-height: calc(100svh - var(--site-nav-height));
   --mobile-section-gap: 3rem;
 }
 

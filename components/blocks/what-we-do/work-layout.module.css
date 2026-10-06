@@ -1,4 +1,5 @@
-.items {
+.items,
+.column {
   display: contents;
 }
 
@@ -21,12 +22,26 @@
     padding: 0 1rem 2rem;
   }
 
-  /* Real flow reserves the full video and label height, even as the preview
-     switches from title card to playback. Offsets keep the collage irregular. */
+  /* Independent columns reserve the full video and label height. A delayed
+     second column and varied gaps leave room for the float/parallax motion. */
   .items {
-    display: block;
-    columns: 2;
-    column-gap: clamp(1.5rem, 6vw, 3rem);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1.5rem, 6vw, 3rem);
+    padding-bottom: 2rem;
+  }
+
+  .column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: clamp(4.5rem, 20vw, 6.5rem);
+    min-width: 0;
+  }
+
+  .column:nth-child(2) {
+    padding-top: clamp(5rem, 24vw, 8rem);
+    gap: clamp(5.5rem, 26vw, 8rem);
   }
 
   .item {
@@ -35,21 +50,21 @@
     inset: auto;
     width: 88%;
     translate: none;
-    margin: 0 0 2.5rem 2%;
-    padding-top: 1rem;
-    break-inside: avoid;
+    flex: none;
+    margin: 0 0 0 2%;
+    padding: 0;
   }
 
   .item:nth-child(3n + 2) {
     width: 76%;
     margin-left: 18%;
-    padding-top: 2.75rem;
+    margin-top: 1rem;
   }
 
   .item:nth-child(3n) {
     width: 94%;
     margin-left: 0;
-    padding-top: 2rem;
+    margin-top: 2rem;
   }
 
   .label {
