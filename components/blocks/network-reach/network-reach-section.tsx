@@ -135,7 +135,12 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
     return (props.eyes ?? []).map((eye, index) => {
       const [xMobile, yMobile, sizeMobile] =
         positions[index % positions.length];
-      return { ...eye, xMobile, yMobile, sizeMobile };
+      return {
+        ...eye,
+        // Give the eye beside ADVANTAGE some room on the desktop composition.
+        x: index === 5 ? Math.min(90, (eye.x ?? 72) + 6) : eye.x,
+        xMobile, yMobile, sizeMobile,
+      };
     });
   }, [props.eyes]);
   useEffect(() => {

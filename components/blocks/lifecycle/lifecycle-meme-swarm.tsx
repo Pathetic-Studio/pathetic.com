@@ -661,12 +661,6 @@ export default function LifecycleMemeSwarm({
     }
   }, [activeMeme, compositionBox, displayedMeme, layoutVersion]);
 
-  const activeGroup = activeMeme?.groupIndex ?? null;
-  const activeLabel =
-    activeGroup === null
-      ? ""
-      : memes?.[activeGroup]?.title || MEME_TEMPLATES[activeGroup].label;
-
   return (
     <div ref={rootRef} className="absolute inset-0">
       {layers.map((item) => (
@@ -818,11 +812,6 @@ export default function LifecycleMemeSwarm({
         />
       )}
 
-      {activeLabel && (
-        <div className="pointer-events-none absolute bottom-5 left-5 z-[70] text-[10px] font-semibold uppercase tracking-[0.14em] opacity-50 lg:bottom-8 lg:left-8 lg:text-xs">
-          {activeLabel}
-        </div>
-      )}
     </div>
   );
 }

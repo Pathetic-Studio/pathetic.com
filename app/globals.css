@@ -16,6 +16,23 @@
   display: none;
 }
 
+/* Jobs fills the visible viewport, including while Safari's toolbar is open.
+   Do not inherit the body's 100vh minimum or main's implicit auto scroller. */
+html:has([data-fullscreen-page="jobs"]),
+html:has([data-fullscreen-page="jobs"]) body {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #050505;
+}
+
+body:has([data-fullscreen-page="jobs"]) :is(main, #smooth-content, #page-transition-root, #page-content-root) {
+  height: 100%;
+  min-height: 0;
+  overflow: clip;
+}
+
 @media (max-width: 1023px) {
   .mobile-section-gap {
     display: block;

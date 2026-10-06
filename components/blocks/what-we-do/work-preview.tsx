@@ -104,7 +104,7 @@ export default function WorkPreview({
   return (
     <div
       ref={rootRef}
-      className="relative h-full w-full"
+      className="relative isolate h-full w-full overflow-hidden [contain:paint]"
       data-work-preview={title}
       data-preview-phase={playing ? "video" : "card"}
       data-preview-loaded={loaded}

@@ -419,21 +419,32 @@
     margin-top: 40px;
   }
   .projectHeading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
     padding: 0;
+    text-align: left;
+  }
+  .projectHeading .eyebrow {
+    grid-column: 1;
   }
   .projectTitle {
-    font-size: 48px;
-    margin: 18px auto 20px;
+    grid-column: 1;
+    font-size: clamp(32px, 7vw, 48px);
+    margin: 14px 0 0;
   }
   .result {
     position: relative;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: start;
     top: auto;
     right: auto;
-    width: 164px;
-    margin: 8px auto 0;
+    width: clamp(86px, 22vw, 140px);
+    margin: 8px 0 0;
   }
   .result span {
-    font-size: 22px;
+    font-size: clamp(14px, 3.5vw, 20px);
   }
   .projectBody {
     grid-template-columns: 1fr;

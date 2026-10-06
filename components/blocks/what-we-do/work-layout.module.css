@@ -1,0 +1,79 @@
+.items {
+  display: contents;
+}
+
+@media (max-width: 767px) {
+  .section,
+  .layout {
+    min-height: 0;
+  }
+
+  .heading {
+    position: relative;
+    inset: auto;
+    padding-top: 3rem;
+    padding-bottom: 2rem;
+  }
+
+  .field {
+    position: relative;
+    inset: auto;
+    padding: 0 1rem 2rem;
+  }
+
+  /* Real flow reserves the full video and label height, even as the preview
+     switches from title card to playback. Offsets keep the collage irregular. */
+  .items {
+    display: block;
+    columns: 2;
+    column-gap: clamp(1.5rem, 6vw, 3rem);
+  }
+
+  .item {
+    display: block;
+    position: relative;
+    inset: auto;
+    width: 88%;
+    translate: none;
+    margin: 0 0 2.5rem 2%;
+    padding-top: 1rem;
+    break-inside: avoid;
+  }
+
+  .item:nth-child(3n + 2) {
+    width: 76%;
+    margin-left: 18%;
+    padding-top: 2.75rem;
+  }
+
+  .item:nth-child(3n) {
+    width: 94%;
+    margin-left: 0;
+    padding-top: 2rem;
+  }
+
+  .label {
+    display: block;
+    position: relative;
+    inset: auto;
+    width: max-content;
+    min-width: 0;
+    max-width: 100%;
+    margin: .65rem auto 0;
+    translate: none;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+    opacity: 1;
+  }
+
+  .more {
+    display: flex;
+    position: relative;
+    inset: auto;
+    width: max-content;
+    max-width: 100%;
+    margin: 1rem auto 0;
+    translate: none;
+  }
+}

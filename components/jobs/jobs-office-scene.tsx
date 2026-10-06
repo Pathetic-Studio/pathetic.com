@@ -372,29 +372,36 @@ function createGrassBladeGeometry(): THREE.BufferGeometry {
   return geometry;
 }
 
-function createHeyTexture(disposables: Disposable[]): THREE.CanvasTexture {
+function createMonitorTexture(disposables: Disposable[]): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 64;
+  canvas.width = 512;
+  canvas.height = 256;
   const context = canvas.getContext('2d');
   if (context) {
-    context.fillStyle = '#001eff';
-    context.fillRect(0, 0, 128, 64);
-    context.fillStyle = '#00f7ff';
-    context.font = 'bold 32px Arial';
-    context.save();
-    context.translate(128, 0);
-    context.scale(-1, 1);
-    context.fillText('hey.', 33, 41);
-    context.restore();
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.LinearFilter;
   texture.center.set(0.5, 0.5);
   texture.rotation = Math.PI;
-  texture.needsUpdate = true;
+  const logo = new Image();
+  logo.onload = () => {
+    if (!context) return;
+    context.save();
+    // Preserve the monitor model's mirrored UV orientation.
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+    const width = 352;
+    const height = width * logo.naturalHeight / logo.naturalWidth;
+    context.drawImage(logo, (512 - width) / 2, (256 - height) / 2, width, height);
+    context.restore();
+    texture.needsUpdate = true;
+  };
+  logo.src = '/images/network/profile-logo.svg';
+  texture.addEventListener('dispose', () => { logo.onload = null; });
   disposables.push(texture);
   return texture;
 }
@@ -685,7 +692,7 @@ export function JobsOfficeScene({
     const duckBeakMaterial = new THREE.MeshPhongMaterial({ color: 0xf57f1f, specular: 0xffffff, shininess: 28, flatShading: true });
     const duckEyeMaterial = new THREE.MeshBasicMaterial({ color: 0x1a1700 });
     const screenMaterial = new THREE.MeshBasicMaterial({
-      map: createHeyTexture(disposables),
+      map: createMonitorTexture(disposables),
       side: THREE.DoubleSide,
       toneMapped: false,
     });

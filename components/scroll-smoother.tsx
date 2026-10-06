@@ -285,9 +285,9 @@ export default function SmoothScroller({
       // ScrollSmoother may have been created during the first client layout
       // pass, before touch capability state settles. Explicitly restore the
       // document as the scroller so every section can use window ScrollTrigger.
-      wrapper.style.position = "relative";
-      wrapper.style.inset = "auto";
-      wrapper.style.width = "auto";
+      wrapper.style.position = isFullscreenScene ? "fixed" : "relative";
+      wrapper.style.inset = isFullscreenScene ? "0" : "auto";
+      wrapper.style.width = isFullscreenScene ? "100%" : "auto";
       wrapper.style.height = "auto";
       wrapper.style.overflow = "visible";
       wrapper.style.overflowX = "clip";
@@ -634,7 +634,7 @@ export default function SmoothScroller({
   // the document itself, while fine-pointer desktop uses this as the smoother.
   const nativeScroll = suppressForLoader || isTouch || prefersReducedMotion || isFullscreenScene;
   const wrapperStyle: React.CSSProperties = isFullscreenScene
-    ? { height: "100dvh", overflow: "hidden" }
+    ? { position: "fixed", inset: 0, width: "100%", height: "100dvh", overflow: "hidden" }
     : nativeScroll
     ? { height: "auto", overflow: "visible", overflowX: "clip" }
     : { height: "var(--app-height, 100vh)" };

@@ -26,6 +26,7 @@ import {
   WORK_TITLE_CARDS,
 } from "@/lib/work-assets";
 import WorkPreview from "./work-preview";
+import layoutStyles from "./work-layout.module.css";
 import WorkContentViewer, {
   type WorkViewerContent,
 } from "./work-content-viewer";
@@ -1356,6 +1357,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       data-typeon-trigger="true"
       className={cn(
         "relative isolate z-[3] h-auto min-h-[72rem] overflow-visible sm:min-h-[72rem] lg:h-[100svh] lg:min-h-[100svh]",
+        layoutStyles.section,
         getSectionSurfaceClass(cleanColor),
         padding?.top ? "pt-16 xl:pt-20" : undefined,
         padding?.bottom ? "pb-16 xl:pb-20" : undefined,
@@ -1363,8 +1365,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     >
       <BackgroundPanel background={background} className="!border-0" />
 
-      <div className="relative mx-auto min-h-[72rem] max-w-[1800px] sm:min-h-[72rem] lg:h-full lg:min-h-0">
-        <div className="pointer-events-none absolute inset-x-0 top-[7%] z-20 flex justify-center px-4 sm:top-[9%] lg:top-[16%]">
+      <div className={`${layoutStyles.layout} relative mx-auto min-h-[72rem] max-w-[1800px] sm:min-h-[72rem] lg:h-full lg:min-h-0`}>
+        <div className={`${layoutStyles.heading} pointer-events-none absolute inset-x-0 top-[7%] z-20 flex justify-center px-4 sm:top-[9%] lg:top-[16%]`}>
           <div
             data-what-we-do-scroll-lag
             data-scroll-rate="0.96"
@@ -1387,7 +1389,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           </div>
         </div>
 
-        <div className="absolute inset-0 z-20">
+        <div className={`${layoutStyles.field} absolute inset-0 z-20`}>
+          <div className={layoutStyles.items}>
           {validItems.map((item, index) => {
             const fallback =
               DEFAULT_POSITIONS[index % DEFAULT_POSITIONS.length];
@@ -1472,7 +1475,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                         )}
                       </div>
                     ) : (
-                      <span className="pointer-events-none absolute left-1/2 top-full mt-2 w-max min-w-max -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase md:text-base">
+                      <span className={`${layoutStyles.label} pointer-events-none absolute left-1/2 top-full mt-2 w-max min-w-max -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase md:text-base`}>
                         {touchLayout ? (
                           title
                         ) : (
@@ -1500,7 +1503,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               </div>
             );
             const projectClassName =
-              "group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-tablet-x)] md:top-[var(--item-tablet-y)] md:w-[var(--item-tablet-width)] lg:left-[var(--item-x)] lg:top-[var(--item-y)] lg:w-[var(--item-width)]";
+              `${layoutStyles.item} group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-tablet-x)] md:top-[var(--item-tablet-y)] md:w-[var(--item-tablet-width)] lg:left-[var(--item-x)] lg:top-[var(--item-y)] lg:w-[var(--item-width)]`;
 
             if (comingSoon) {
               return (
@@ -1604,7 +1607,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           {showSizzleReel && (
             <div
               data-what-we-do-project
-              className="group absolute left-[72%] top-[79%] z-40 w-[25%] -translate-x-1/2 -translate-y-1/2 md:left-[76%] md:top-[80%] md:w-[15%] lg:left-[50%] lg:top-[72%] lg:w-[13%]"
+              className={`${layoutStyles.item} group absolute left-[72%] top-[79%] z-40 w-[25%] -translate-x-1/2 -translate-y-1/2 md:left-[76%] md:top-[80%] md:w-[15%] lg:left-[50%] lg:top-[72%] lg:w-[13%]`}
             >
               <div
                 data-what-we-do-scroll-lag
@@ -1644,7 +1647,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                         className="h-auto w-full transition-transform duration-300 group-hover:scale-105"
                       />
                     </button>
-                    <span className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 md:text-base">
+                    <span className={`${layoutStyles.label} pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-sm font-bold uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 md:text-base`}>
                       {sizzleLabel}
                     </span>
                   </div>
@@ -1652,11 +1655,13 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               </div>
             </div>
           )}
+          </div>
           <Link
             href="/case-study"
             scroll={false}
             className={cn(
               buttonVariants({ variant: "outline", size: "lg" }),
+              layoutStyles.more,
               "absolute bottom-[4%] left-1/2 z-40 -translate-x-1/2 whitespace-nowrap lg:left-[6%] lg:translate-x-0",
             )}
           >

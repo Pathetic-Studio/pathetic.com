@@ -23,7 +23,7 @@ const OPEN_JOBS: JobsSceneJob[] = [
 
 export default function JobsPage({ data: _data }: { data: JobsPageData }) {
   return (
-    <div className="h-[100dvh] overflow-hidden bg-black">
+    <div data-fullscreen-page="jobs" className="h-[100dvh] overflow-hidden bg-black">
       <JobsOfficeScene jobs={OPEN_JOBS} />
     </div>
   );

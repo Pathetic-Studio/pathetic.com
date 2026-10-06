@@ -62,7 +62,7 @@ function LifecycleTitleCharacters({ text, linkInstagram = false }: { text: strin
               target="_blank"
               rel="noopener noreferrer"
               aria-label="PATHETIC on Instagram"
-              className="pointer-events-auto inline-block underline decoration-[.04em] underline-offset-[.09em] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+              className="pointer-events-auto inline-block border-b-[.06em] border-current pb-[.02em] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
             >
               {characters}
             </a>

@@ -550,6 +550,7 @@ export default function EyeFollow({
                             className="relative w-full h-full overflow-hidden"
                             style={{
                                 borderRadius: size * 0.5,
+                                backgroundColor: "#fff",
                                 boxShadow:
                                     "0 8px 18px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.18) inset",
                             }}
