@@ -41,7 +41,10 @@ export default function LifecycleOrbit({
       x: gsap.quickSetter(item, "x", "px"),
       y: gsap.quickSetter(item, "y", "px"),
       z: gsap.quickSetter(item, "z", "px"),
-      scale: gsap.quickSetter(item, "scale"),
+      // quickSetter needs individual transform properties: the `scale` alias
+      // expands to an invalid DOM attribute (scaleX,scaleY) in WebKit.
+      scaleX: gsap.quickSetter(item, "scaleX"),
+      scaleY: gsap.quickSetter(item, "scaleY"),
       opacity: gsap.quickSetter(item, "opacity"),
     }));
 
@@ -71,7 +74,9 @@ export default function LifecycleOrbit({
         set.x(Math.cos(angle) * radiusX);
         set.y(depth * radiusY);
         set.z(depth * 180);
-        set.scale(0.68 + depthProgress * 0.55);
+        const scale = 0.68 + depthProgress * 0.55;
+        set.scaleX(scale);
+        set.scaleY(scale);
         set.opacity(0.52 + depthProgress * 0.48);
         item.style.zIndex = String(Math.round(8 + depthProgress * 32));
       });
