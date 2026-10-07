@@ -224,6 +224,17 @@ function NavigationLinks() {
       if (href) prefetch(href);
     };
     const onClick = (event: MouseEvent) => {
+      // This document capture handler runs before the basket's own listeners.
+      // Suppress a drag release here so it cannot start route navigation first.
+      const basketDrag = (event.target as Element).closest<HTMLElement>('[data-basket-dragged="true"]');
+      if (basketDrag) {
+        delete basketDrag.dataset.basketDragged;
+        if (event.detail > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+      }
       const dragged = (event.target as Element).closest<HTMLElement>('[data-work-dragged="true"]');
       if (dragged) {
         delete dragged.dataset.workDragged;

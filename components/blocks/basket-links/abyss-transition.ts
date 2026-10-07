@@ -8,6 +8,46 @@ type Pose = {
   rotation: number;
 };
 
+/** Paint a small, fixed-resolution cloud once, then let the compositor grow it.
+ * Broad overlapping falloffs make the edge uneven without animated blur/noise
+ * filters or a viewport-sized canvas allocation on mobile. */
+function paintDarkness(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const size = canvas.width;
+  ctx.clearRect(0, 0, size, size);
+  const haze = (
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    strength: number,
+  ) => {
+    ctx.save();
+    ctx.translate(x * size, y * size);
+    ctx.scale(radiusX * size, radiusY * size);
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    for (const [stop, opacity] of [
+      [0, 1],
+      [0.4, 1],
+      [0.5, 0.94],
+      [0.62, 0.7],
+      [0.76, 0.32],
+      [0.9, 0.06],
+      [1, 0],
+    ]) {
+      gradient.addColorStop(stop, `rgba(0,0,0,${opacity * strength})`);
+    }
+    ctx.fillStyle = gradient;
+    ctx.fillRect(-1, -1, 2, 2);
+    ctx.restore();
+  };
+  haze(0.5, 0.5, 0.48, 0.48, 1);
+  haze(0.38, 0.53, 0.35, 0.4, 0.88);
+  haze(0.62, 0.42, 0.34, 0.31, 0.94);
+  haze(0.54, 0.63, 0.35, 0.33, 0.82);
+}
+
 /** One timeline owns both the travelling artwork and the expanding darkness. */
 export function createAbyssTransition({
   root,
@@ -19,7 +59,7 @@ export function createAbyssTransition({
 }: {
   root: HTMLElement;
   panel: HTMLElement;
-  ink: HTMLElement;
+  ink: HTMLCanvasElement;
   source: HTMLElement | null | undefined;
   getSourcePose: (element: HTMLElement) => Pose;
   onClose: () => void;
@@ -74,10 +114,11 @@ export function createAbyssTransition({
     const r = target.getBoundingClientRect();
     const x = r.left + r.width / 2;
     const y = r.top + r.height / 2;
-    // The soft edge stays beyond every viewport corner at full expansion.
+    // Put every viewport corner inside the fully opaque core. The wide, hazy
+    // edge remains visible during growth but clears the screen at full size.
     const radius =
       Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) /
-        0.82 +
+        0.38 +
       24;
     gsap.set(ink, {
       left: x - radius,
@@ -94,6 +135,7 @@ export function createAbyssTransition({
     };
   };
 
+  paintDarkness(ink);
   gsap.set(copy, { autoAlpha: 0 });
   gsap.set(target, { autoAlpha: 0 });
   gsap.set(panel, { opacity: 1 });
@@ -119,7 +161,11 @@ export function createAbyssTransition({
       gsap.set(target, { autoAlpha: 1 });
       removeClone();
     })
-    .to(ink, { scale: 1, duration: reduced ? 0.12 : 0.9, ease: "power2.inOut" })
+    .to(ink, {
+      scale: 1,
+      duration: reduced ? 0.12 : 1.05,
+      ease: "power2.inOut",
+    })
     .to(
       copy,
       { autoAlpha: 1, duration: reduced ? 0 : 0.18, ease: "power1.out" },

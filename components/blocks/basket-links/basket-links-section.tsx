@@ -13,6 +13,7 @@ import type { Body as MatterBody } from "matter-js";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import gsap from "gsap";
 import { stegaClean } from "next-sanity";
+import Link from "next/link";
 import BasketLinksPopup, { type BasketPopupType } from "./basket-links-popup";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger);
@@ -495,12 +496,14 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (drag || (event.pointerType === "mouse" && event.button !== 0)) return;
       const element = (event.target as Element | null)?.closest<HTMLElement>("[data-basket-body]");
       if (!element || !stage.contains(element)) return;
       const index = Number(element.dataset.basketIndex);
       const body = bodies[index];
       if (!body) return;
+      // A fresh press is always eligible to click, even just after a throw.
+      delete element.dataset.basketDragged;
       const point = getStagePoint(event);
       drag = {
         pointerId: event.pointerId,
@@ -536,6 +539,8 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       drag.lastY = point.y;
       drag.lastTime = now;
       drag.moved ||= Math.hypot(point.x - drag.startX, point.y - drag.startY) > 6;
+      if (!drag.moved) return;
+      drag.element.dataset.basketDragged = "true";
 
       const halfWidth = drag.element.offsetWidth / 2;
       const halfHeight = drag.element.offsetHeight / 2;
@@ -544,33 +549,34 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         y: clamp(point.y - drag.offsetY, bounds.top + halfHeight, bounds.bottom - halfHeight),
       });
       renderBodies();
-      if (drag.moved) event.preventDefault();
+      event.preventDefault();
     };
 
     const finishDrag = (event: PointerEvent) => {
       if (!drag || drag.pointerId !== event.pointerId) return;
-      const body = bodies[drag.index];
-      const element = drag.element;
-      const moved = drag.moved;
+      const released = drag;
+      drag = null;
+      const body = bodies[released.index];
+      const element = released.element;
+      const cancelled = event.type !== "pointerup";
+      const throwing = released.moved && !cancelled && performance.now() - released.lastTime < 100;
+      const velocityX = throwing ? clamp(released.velocityX, -16, 16) : 0;
+      const velocityY = throwing ? clamp(released.velocityY, -16, 16) : 0;
       if (body) {
         Body.setStatic(body, false);
-        Body.setVelocity(body, {
-          x: clamp(drag.velocityX, -16, 16),
-          y: clamp(drag.velocityY, -16, 16),
-        });
-        Body.setAngularVelocity(body, clamp(drag.velocityX * 0.004, -0.08, 0.08));
+        Body.setVelocity(body, { x: velocityX, y: velocityY });
+        Body.setAngularVelocity(body, clamp(velocityX * 0.004, -0.08, 0.08));
       }
       element.dataset.dragging = "false";
-      if (moved) element.dataset.draggedUntil = String(performance.now() + 300);
+      if (released.moved || cancelled) element.dataset.basketDragged = "true";
       if (element.hasPointerCapture?.(event.pointerId)) element.releasePointerCapture(event.pointerId);
-      drag = null;
     };
 
     const onClickCapture = (event: MouseEvent) => {
       const element = (event.target as Element | null)?.closest<HTMLElement>("[data-basket-body]");
-      if (!element) return;
-      const draggedUntil = Number(element.dataset.draggedUntil || 0);
-      if (performance.now() < draggedUntil) {
+      if (element?.dataset.basketDragged !== "true") return;
+      delete element.dataset.basketDragged;
+      if (event.detail > 0) {
         event.preventDefault();
         event.stopPropagation();
       }
@@ -580,6 +586,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
     stage.addEventListener("pointermove", onPointerMove, { passive: false });
     stage.addEventListener("pointerup", finishDrag);
     stage.addEventListener("pointercancel", finishDrag);
+    stage.addEventListener("lostpointercapture", finishDrag);
     stage.addEventListener("click", onClickCapture, true);
 
     return () => {
@@ -594,6 +601,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       stage.removeEventListener("pointermove", onPointerMove);
       stage.removeEventListener("pointerup", finishDrag);
       stage.removeEventListener("pointercancel", finishDrag);
+      stage.removeEventListener("lostpointercapture", finishDrag);
       stage.removeEventListener("click", onClickCapture, true);
       World.clear(engine.world, false);
       Engine.clear(engine);
@@ -685,6 +693,24 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
               "--basket-mobile-size": `${mobileSize}%`,
             } as CSSProperties,
           };
+          const href = item.presetKey === "computer"
+            ? "/jobs"
+            : item.presetKey === "hoodie"
+              ? "https://pathetic.fashion/"
+              : null;
+          if (href) {
+            return (
+              <Link
+                key={item._key}
+                {...commonProps}
+                href={href}
+                draggable={false}
+                aria-label={stegaClean(item.title) || "Open link"}
+              >
+                {itemContent(item)}
+              </Link>
+            );
+          }
           return (
             <button
               key={item._key}

@@ -568,23 +568,29 @@ html[data-lifecycle-environment] [data-lifecycle-environment-section] {
 /* width of the whole scrollbar */
 ::-webkit-scrollbar {
   width: 12px;
+  height: 12px;
 }
 
 /* make the real track transparent; we’ll draw the track with borders */
 ::-webkit-scrollbar-track {
   background: transparent;
-  border: 2px solid #000;
+  border: 1px solid #000;
   /* track outline */
   border-radius: 0;
   /* not rounded */
   background-clip: padding-box;
 }
 
-/* optional: control the “small margin” around the outlined track */
+/* Keep the outlined track flush with both ends of the viewport. */
 ::-webkit-scrollbar-track-piece {
   background: transparent;
-  margin: 4px;
-  /* outer margin from page edge */
+  margin: 0;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* thumb */
@@ -594,7 +600,7 @@ html[data-lifecycle-environment] [data-lifecycle-environment-section] {
   border-radius: 0;
   /* not rounded */
   border: 2px solid transparent;
-  /* inner padding inside outline */
+  /* equal inset on all four sides */
   background-clip: padding-box;
   /* keeps black inset from outline */
 }
@@ -604,12 +610,13 @@ html[data-lifecycle-environment] [data-lifecycle-environment-section] {
   background: #000;
 }
 
-/* ===== Firefox ===== */
-/* Firefox can’t do outline+inset padding like WebKit; you only get colors + thickness */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #000 transparent;
-  /* thumb | track */
+/* Standard scrollbar properties override the square WebKit thumb in Chrome
+   and Safari. Keep the native fallback for browsers without those selectors. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #000 transparent;
+  }
 }
 
 html {

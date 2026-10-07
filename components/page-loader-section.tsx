@@ -580,10 +580,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
                   maxChars={34}
                   animation="none"
                   animationSpeed={1.2}
-                  textOutline
-                  outlineColor="#ffffff"
-                  outlineWidth={1.5}
-                  outlinePosition="outside"
                   fontWeight="bold"
                   className="[&_h2]:tracking-[-.035em]"
                 >
@@ -615,10 +611,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
                     animation="typeOn"
                     animationSpeed={1.2}
                     typeOnTrigger="immediate"
-                    textOutline
-                    outlineColor="#ffffff"
-                    outlineWidth={1.5}
-                    outlinePosition="outside"
                     fontWeight="bold"
                     className="[&_h2]:tracking-[-.035em]"
                   >

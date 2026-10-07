@@ -9,7 +9,7 @@ import type { NAVIGATION_QUERYResult } from "@/sanity.types";
 
 // Shared by desktop and mobile, without changing the published navigation document.
 const PRIMARY_LINKS = [
-  { _key: "services", _type: "link", title: "Our Services", linkType: "anchor-link", anchorId: "what-we-do-grid", href: "/#what-we-do-grid", buttonVariant: "menu" },
+  { _key: "services", _type: "link", title: "Our Services", linkType: "anchor-link", anchorId: "what-we-do", href: "/#what-we-do", buttonVariant: "menu" },
   { _key: "work", _type: "link", title: "Our Work", linkType: "internal", href: "/work", buttonVariant: "menu" },
   { _key: "jobs", _type: "link", title: "Jobs", linkType: "internal", href: "/jobs", buttonVariant: "menu" },
   { _key: "contact", _type: "link", title: "Contact Us", linkType: "contact", buttonVariant: "menu" },

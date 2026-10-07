@@ -73,7 +73,7 @@ export default function WhatWeDoTalentSequence({
   const headerThemeSource = `matrix:${stegaClean(whatWeDo._key) || whatWeDo._key}:${stegaClean(talent._key) || talent._key}`;
   const sequenceBackground =
     stegaClean(whatWeDo.backgroundColor?.hex) || "#e7e7e2";
-  const whatWeDoId = stegaClean(whatWeDo.anchor?.anchorId) || `_what-we-do-grid-${whatWeDo._key}`;
+  const whatWeDoId = "what-we-do";
   const talentId = stegaClean(talent.anchor?.anchorId) || "talent-matrix";
 
   useLayoutEffect(() => {

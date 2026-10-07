@@ -937,10 +937,8 @@ export function WhatWeDoGridView({
 }
 
 export default function WhatWeDoGridSection(block: WhatWeDoGridBlock) {
-  const id = stegaClean(block.anchor?.anchorId) || `_what-we-do-grid-${block._key}`;
-
   return (
-    <section id={id} className="relative overflow-hidden lg:min-h-[100svh]">
+    <section id="what-we-do" className="relative overflow-hidden lg:min-h-[100svh]">
       <WhatWeDoGridView block={block} />
     </section>
   );

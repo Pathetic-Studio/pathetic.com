@@ -263,6 +263,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
 
   const cleanColor = (stegaClean(colorVariant) || "background") as ColorVariant;
   const cleanAnchor = stegaClean(anchor?.anchorId) || undefined;
+  // The original CMS anchor predates the Services section's public name.
+  const workAnchor = cleanAnchor === "what-we-do" ? "work" : cleanAnchor || "work";
   const sectionSettings = props as WhatWeDoBlock & {
     sizzleReel?: SizzleReelSettings | null;
   };
@@ -1197,7 +1199,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
   return (
     <section
       ref={rootRef}
-      id={cleanAnchor || "work"}
+      id={workAnchor}
       data-typeon-trigger="true"
       className={cn(
         "relative isolate z-[3] h-auto min-h-[72rem] overflow-visible sm:min-h-[72rem] lg:h-[100svh] lg:min-h-[100svh]",

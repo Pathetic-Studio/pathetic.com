@@ -172,7 +172,7 @@ export default function BasketLinksPopup({ active, onClose, sourceElement, shopH
   const rootRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const backdropRef = useRef<HTMLButtonElement | null>(null);
-  const takeoverRef = useRef<HTMLDivElement | null>(null);
+  const takeoverRef = useRef<HTMLCanvasElement | null>(null);
   const abyssTransitionRef = useRef<ReturnType<typeof createAbyssTransition> | null>(null);
   const transitionCloneRef = useRef<HTMLElement | null>(null);
   const transitionTargetRef = useRef<HTMLElement | null>(null);
@@ -542,11 +542,13 @@ export default function BasketLinksPopup({ active, onClose, sourceElement, shopH
     <div ref={rootRef} className="fixed inset-0 z-[10020] grid place-items-center overflow-hidden p-4" role="dialog" aria-modal="true" aria-label={`${active} popup`}>
       {active === "abyss" && (
         <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-          <div
+          <canvas
             ref={takeoverRef}
             data-abyss-ink
-            className="absolute rounded-full"
-            style={{ transform: "scale(0)", background: "radial-gradient(circle, #000 0 84%, rgba(0,0,0,.96) 87%, transparent 100%)" }}
+            width={512}
+            height={512}
+            className="absolute will-change-transform"
+            style={{ transform: "scale(0)" }}
           />
         </div>
       )}

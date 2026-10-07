@@ -188,7 +188,7 @@ export const auditFindings: AuditFinding[] = [
     "id": "services-swipe",
     "title": "Services: make the horizontal touch interaction easier to discover",
     "kind": "Interaction",
-    "href": "/#what-we-do-grid",
+    "href": "/#what-we-do",
     "note": "Horizontal scrolling reaches the remaining service cards at 320 and 768 px. The first view only shows part of the next card, with no explicit swipe cue or position indicator.",
     "question": "Is the partial next card enough, or should we add a small swipe hint or simple dots?",
     "shots": [

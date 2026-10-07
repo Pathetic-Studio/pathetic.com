@@ -101,7 +101,7 @@ const FOOTER_FALLBACKS: Record<
 > = {
   NEWSLETTER: { action: "newsletter" },
   "PRIVACY POLICY": { action: "link", href: "/privacy" },
-  WORK: { action: "link", href: "/#what-we-do" },
+  WORK: { action: "link", href: "/#work" },
   "TALENT MATRIX": { action: "link", href: "/#talent-matrix" },
   INSTA: {
     action: "link",
@@ -222,8 +222,8 @@ function BingoGrid({
     const href =
       normalizedLabel === "JOBS"
         ? "/jobs"
-        : configuredHref === "/#work"
-          ? "/#what-we-do"
+        : normalizedLabel === "WORK" && (configuredHref === "/#work" || configuredHref === "/#what-we-do")
+          ? "/#work"
           : configuredHref === "/#shop"
             ? "/#basket-links"
             : configuredHref || fallback?.href || "";

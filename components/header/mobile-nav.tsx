@@ -601,9 +601,9 @@ export default function MobileNav({
             style={{ lineHeight: 0 }}
           >
             {icon === "menu" ? (
-              <Menu className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
+              <Menu strokeLinecap="butt" strokeLinejoin="miter" className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
             ) : (
-              <X className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
+              <X strokeLinecap="butt" strokeLinejoin="miter" className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
             )}
           </span>
         </Button>
