@@ -338,7 +338,7 @@ export function getCaseStudyTiles(): CaseStudyTile[] {
     caption: [
       ...new Set(study.campaigns.map((campaign) => campaign.format)),
     ].join(" / "),
-    href: `/case-study/${study.slug}`,
+    href: `/work/${study.slug}`,
     image: study.cover,
     object: study.object,
     additionalObjects: study.additionalObjects,

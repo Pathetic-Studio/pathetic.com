@@ -14,10 +14,13 @@ import { createHatPhysics, type HatPhysics, type HatPose } from "./hat-physics";
 
 type Drag = {
   role: RoleId;
+  previousRole: RoleId | null;
   pointerId: number;
   fromHead: boolean;
   startX: number;
   startY: number;
+  pointerX: number;
+  pointerY: number;
   grabX: number;
   grabY: number;
   moved: boolean;
@@ -27,31 +30,26 @@ type Drag = {
 const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
-export function useHatWardrobe(
-  sectionRef: RefObject<HTMLElement | null>,
-  settleFigure: () => void,
-  mobileRole: RoleId | null = null,
-) {
+export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
   const [preview, setPreview] = useState<RoleId | null>(null);
   const [focused, setFocused] = useState<RoleId | null>(null);
   const [locked, setLocked] = useState<RoleId | null>(null);
   const [dragging, setDragging] = useState<RoleId | null>(null);
   const [worn, setWornState] = useState<RoleId | null>(null);
-  const mobile = mobileRole !== null;
-  const active =
-    mobileRole ?? (dragging ? null : (locked ?? preview ?? focused));
+  const dragRef = useRef<Drag | null>(null);
+  // Keep the existing outfit on while a replacement is being dragged. The
+  // drop commits the replacement once, regardless of the occupied head.
+  const active = dragging
+    ? (dragRef.current?.previousRole ?? null)
+    : (locked ?? preview ?? focused);
   const activeRef = useRef(active);
   activeRef.current = active;
   const wornRef = useRef<RoleId | null>(null);
   const focusWornRef = useRef<RoleId | null>(null);
-  const dragRef = useRef<Drag | null>(null);
   const physics = useRef<HatPhysics | null>(null);
   const moves = useRef(new Map<RoleId, gsap.core.Tween>());
   const destination = useRef(new Map<RoleId, "head" | "free">());
-  const returnPose = useRef(new Map<RoleId, HatPose>());
   const reduced = useRef(false);
-  const settleRef = useRef(settleFigure);
-  settleRef.current = settleFigure;
   const setWorn = useCallback((role: RoleId | null) => {
     wornRef.current = role;
     setWornState(role);
@@ -91,7 +89,12 @@ export function useHatWardrobe(
       const api = physics.current,
         section = sectionRef.current;
       if (!api || !section) return;
-      for (const role of ROLES) {
+      // Release the old hat before the incoming hat starts its flight.
+      for (const role of [...ROLES].sort(
+        (a, b) =>
+          Number(a.id === activeRef.current) -
+          Number(b.id === activeRef.current),
+      )) {
         if (dragRef.current?.role === role.id) continue;
         const el = proxy(role.id);
         if (!el) continue;
@@ -101,7 +104,6 @@ export function useHatWardrobe(
         destination.current.set(role.id, target);
         // Untouched hats remain in the Matter world, wherever they have landed.
         if (target === "free" && previous === undefined) continue;
-        const wasMoving = moves.current.has(role.id);
         moves.current.get(role.id)?.kill();
         moves.current.delete(role.id);
         if (instant && target === "head" && wornRef.current === role.id) {
@@ -109,8 +111,6 @@ export function useHatWardrobe(
           if (p) api.place(role.id, p);
           continue;
         }
-        if (target === "head" && !wasMoving && el.dataset.hatPhysics === "free")
-          returnPose.current.set(role.id, api.get(role.id));
         api.hold(role.id);
         if (wornRef.current === role.id) {
           const p = headPoint(role.id);
@@ -124,10 +124,18 @@ export function useHatWardrobe(
             el.focus({ preventScroll: true });
           setWorn(null);
         }
-        const end =
-          target === "head"
-            ? headPoint(role.id)
-            : returnPose.current.get(role.id);
+        if (target === "free") {
+          // Detach here, not at a remembered starting position. The hat stays
+          // in the world and can be knocked away by the next one flying in.
+          const direction =
+            ROLES.findIndex((item) => item.id === role.id) % 2 ? 1 : -1;
+          api.release(
+            role.id,
+            activeRef.current ? { x: 0, y: -0.6 } : { x: direction * 3, y: -3 },
+          );
+          continue;
+        }
+        const end = headPoint(role.id);
         if (!end) {
           api.release(role.id);
           continue;
@@ -138,7 +146,7 @@ export function useHatWardrobe(
         el.style.visibility = "visible";
         const complete = () => {
           moves.current.delete(role.id);
-          api.place(role.id, { ...end, angle: 0 }, target === "free");
+          api.place(role.id, { ...end, angle: 0 });
           if (
             target === "head" &&
             activeRef.current === role.id &&
@@ -148,7 +156,7 @@ export function useHatWardrobe(
             setWorn(role.id);
             el.style.opacity = "0";
             el.style.visibility = "hidden";
-          } else if (target === "free") api.release(role.id);
+          }
         };
         if (instant || reduced.current) complete();
         else
@@ -160,7 +168,7 @@ export function useHatWardrobe(
               scale: end.scale,
               duration: 0.38,
               ease: "power2.inOut",
-              onUpdate: () => api.place(role.id, pose),
+              onUpdate: () => api.place(role.id, pose, false, true),
               onComplete: complete,
             }),
           );
@@ -177,11 +185,9 @@ export function useHatWardrobe(
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     reduced.current = motion.matches;
     setWorn(null);
-    // The touch carousel owns selection; only desktop needs a physics world.
-    if (!mobile)
-      physics.current = createHatPhysics(section, () =>
-        reconcileRef.current(true),
-      );
+    physics.current = createHatPhysics(section, () =>
+      reconcileRef.current(true),
+    );
     reconcileRef.current(true);
     const change = () => {
       reduced.current = motion.matches;
@@ -196,7 +202,7 @@ export function useHatWardrobe(
       physics.current?.dispose();
       physics.current = null;
     };
-  }, [sectionRef, mobile, setWorn]);
+  }, [sectionRef, setWorn]);
 
   useLayoutEffect(() => {
     if (!worn || focusWornRef.current !== worn) return;
@@ -242,7 +248,6 @@ export function useHatWardrobe(
     if (event.button !== 0 || !api || !el || dragRef.current) return;
     event.preventDefault();
     event.stopPropagation();
-    settleRef.current();
     moves.current.get(role)?.kill();
     moves.current.delete(role);
     api.hold(role);
@@ -255,10 +260,13 @@ export function useHatWardrobe(
     const r = el.getBoundingClientRect();
     dragRef.current = {
       role,
+      previousRole: fromHead ? null : activeRef.current,
       fromHead,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
       grabX: event.clientX - (r.left + r.width / 2),
       grabY: event.clientY - (r.top + r.height / 2),
       moved: false,
@@ -267,19 +275,38 @@ export function useHatWardrobe(
     };
     destination.current.set(role, "free");
     event.currentTarget.setPointerCapture(event.pointerId);
-    clear();
+    if (fromHead) clear();
     setDragging(role);
   };
-  const nearHead = (x: number, y: number) => {
-    const r = sectionRef.current
+  const nearHead = (
+    role: RoleId,
+    pointer?: { clientX: number; clientY: number },
+  ) => {
+    const target = sectionRef.current
       ?.querySelector<HTMLElement>("[data-hat-dropzone]")
       ?.getBoundingClientRect();
+    const hat = proxy(role)?.getBoundingClientRect();
+    if (!target || !hat) return false;
+    // Accept either the pointer or the hat itself. A brim/edge grab can leave
+    // most of the image outside the glow while the user's pointer is on it.
+    const inside = (x: number, y: number) =>
+      x >= target.left &&
+      x <= target.right &&
+      y >= target.top &&
+      y <= target.bottom;
+    if (pointer && inside(pointer.clientX, pointer.clientY)) return true;
+    if (inside(hat.left + hat.width / 2, hat.top + hat.height / 2)) return true;
+    const overlapX = Math.max(
+      0,
+      Math.min(hat.right, target.right) - Math.max(hat.left, target.left),
+    );
+    const overlapY = Math.max(
+      0,
+      Math.min(hat.bottom, target.bottom) - Math.max(hat.top, target.top),
+    );
     return (
-      !!r &&
-      x > r.left - 12 &&
-      x < r.right + 12 &&
-      y > r.top - 12 &&
-      y < r.bottom + 12
+      overlapX * overlapY >=
+      Math.min(hat.width * hat.height, target.width * target.height) * 0.2
     );
   };
   const move = (event: PointerEvent<HTMLButtonElement>) => {
@@ -303,6 +330,7 @@ export function useHatWardrobe(
         angle: 0,
       },
       true,
+      true,
     );
     const after = api.get(drag.role),
       dt = Math.max(8, now - drag.time);
@@ -311,9 +339,9 @@ export function useHatWardrobe(
       y: clamp(((after.y - before.y) * 16.67) / dt, -18, 18),
     };
     drag.time = now;
-    section.dataset.hatNearHead = String(
-      nearHead(event.clientX, event.clientY),
-    );
+    drag.pointerX = event.clientX;
+    drag.pointerY = event.clientY;
+    section.dataset.hatNearHead = String(nearHead(drag.role, event));
   };
   const finish = (
     event: PointerEvent<HTMLButtonElement>,
@@ -324,9 +352,15 @@ export function useHatWardrobe(
       api = physics.current;
     if (!drag || drag.pointerId !== event.pointerId || !section || !api) return;
     event.stopPropagation();
-    const snap =
+    // Pointer-up can arrive ahead of the final move event on a fast release.
+    if (
       !cancelled &&
-      (drag.moved ? nearHead(event.clientX, event.clientY) : !drag.fromHead);
+      Math.hypot(event.clientX - drag.pointerX, event.clientY - drag.pointerY) >
+        0.5
+    )
+      move(event);
+    const snap =
+      !cancelled && (drag.moved ? nearHead(drag.role, event) : !drag.fromHead);
     dragRef.current = null;
     delete section.dataset.hatNearHead;
     const el = proxy(drag.role);
@@ -334,11 +368,15 @@ export function useHatWardrobe(
     if (!snap)
       api.release(
         drag.role,
-        !cancelled && performance.now() - drag.time < 100
-          ? drag.velocity
-          : undefined,
+        !cancelled && drag.fromHead && !drag.moved
+          ? { x: 3, y: -3 }
+          : !cancelled && performance.now() - drag.time < 100
+            ? drag.velocity
+            : undefined,
       );
-    setLocked(snap ? drag.role : null);
+    setPreview(null);
+    setFocused(null);
+    setLocked(snap ? drag.role : drag.previousRole);
     setDragging(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -381,12 +419,18 @@ export function useHatWardrobe(
   return {
     active,
     locked,
-    worn: mobileRole ?? worn,
+    worn,
     dragging,
     setPreview,
     setFocused,
     clear,
     bindings,
+    select: (role: RoleId) => {
+      if (dragRef.current) return;
+      setPreview(null);
+      setFocused(null);
+      setLocked(role);
+    },
     toggle: (role: RoleId) =>
       setLocked((current) => (current === role ? null : role)),
   };

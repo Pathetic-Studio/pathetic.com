@@ -226,6 +226,9 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const oncePerSession = !!data.oncePerSession;
   const usePatheticIntroPreset = data.usePatheticIntroPreset !== false;
   const { tagLine, body, links, feature } = data;
+  const visibleLinks = links?.filter(
+    (link) => !/^learn\s+more$/i.test(stegaClean(link.title || "").trim()),
+  );
   const title = usePatheticIntroPreset ? PATHETIC_INTRO_TITLE : data.title;
 
   const shouldRender = pathname === "/" && enabled;
@@ -631,9 +634,9 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
               </div>
             )}
 
-            {links && links.length > 0 && (
+            {visibleLinks && visibleLinks.length > 0 && (
               <div className="z-10 mt-10 flex flex-wrap gap-4 justify-center">
-                {links.map((link) => (
+                {visibleLinks.map((link) => (
                   <Button
                     key={link._key ?? link.title ?? ""}
                     data-loader-btn

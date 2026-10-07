@@ -668,6 +668,13 @@ export default function LifecycleThreeScene({
         );
         bloomComposer.setSize(width, height);
         camera.aspect = width / height;
+        // Raise the stacked composition without moving the canvas edge: the
+        // lightning/background must still cover the complete section.
+        if (window.innerWidth < 1024) {
+          camera.setViewOffset(width, height, 0, height * 0.055, width, height);
+        } else {
+          camera.clearViewOffset();
+        }
         camera.updateProjectionMatrix();
         const nextResponsiveScale = getResponsiveModelScale();
         targetCanvas.dataset.modelResponsiveScale =

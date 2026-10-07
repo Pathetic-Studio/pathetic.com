@@ -5,6 +5,7 @@ import Link from "next/link";
 import { stegaClean } from "next-sanity";
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type CSSProperties,
@@ -21,6 +22,7 @@ import {
 import { splitTextAtWordRatio } from "@/components/blocks/shared/text-lines";
 import FlyingPigeonScene from "@/components/blocks/what-we-do-grid/flying-pigeon-scene";
 import PizzaRatScene from "@/components/blocks/what-we-do-grid/pizza-rat-scene";
+import CarouselDots from "@/components/ui/carousel-dots";
 
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 export type WhatWeDoGridBlock = Extract<
@@ -114,7 +116,7 @@ const REFERENCE_SCENE_OBJECTS = [
     src: "/images/what-we-do/trash-pile.png",
     alt: "",
     className:
-      "bottom-[4%] right-[-38%] w-[clamp(16rem,28vw,28rem)] sm:right-[-25%] lg:right-[-16%] lg:!z-[55]",
+      "bottom-[max(10%,3.5rem)] right-[-38%] w-[clamp(16rem,28vw,28rem)] sm:right-[-25%] lg:bottom-[4%] lg:right-[-16%] lg:!z-[55]",
     depth: 0.72,
     endScale: 1.15,
     zIndex: 23,
@@ -126,6 +128,7 @@ const REFERENCE_SCENE_OBJECTS = [
 function ProceduralCity({ color }: { color: string }) {
   return (
     <svg
+      data-what-skyline
       viewBox="0 0 1600 520"
       preserveAspectRatio="xMidYMax slice"
       className="absolute inset-x-4 bottom-[39%] h-[44%] md:inset-x-8"
@@ -169,7 +172,7 @@ function ProceduralCity({ color }: { color: string }) {
 
 function ProceduralGround({ from, to }: { from: string; to: string }) {
   return (
-    <div className="absolute inset-x-4 top-[61%] h-[36%] md:inset-x-8">
+    <div data-what-road className="absolute inset-x-4 top-[61%] h-[36%] md:inset-x-8">
       <div className="absolute inset-x-0 top-0 h-[14%] border-y border-black/40 bg-[#d8ddda] shadow-[0_7px_0_rgba(255,255,255,.72)]" />
       <div
         className="absolute inset-x-0 bottom-0 top-[14%]"
@@ -205,6 +208,7 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
           />
           <div
             data-what-layer
+            data-what-road
             data-depth="0.72"
             data-end-scale="1.16"
             className="absolute inset-x-[-8%] bottom-[-10%] h-[47%] origin-bottom bg-[linear-gradient(180deg,#858c88_0%,#565c58_10%,#343936_100%)] after:absolute after:inset-x-0 after:top-[19%] after:h-[3px] after:bg-white/70 will-change-transform"
@@ -245,6 +249,7 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
           >
             {kind === "checker" && (
               <div
+                data-what-skyline
                 className="absolute inset-x-4 bottom-[39%] top-4 md:inset-x-8 md:top-8"
                 style={{
                   backgroundColor: colorValue(layer.fromColor, "#ffffff"),
@@ -256,7 +261,7 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
             )}
             {kind === "city" && (
               layer.image?.asset?.url ? (
-                <div className="absolute inset-x-4 bottom-[39%] top-4 overflow-hidden md:inset-x-8 md:top-8">
+                <div data-what-skyline className="absolute inset-x-4 bottom-[39%] top-4 overflow-hidden md:inset-x-8 md:top-8">
                   <div className="absolute bottom-0 left-1/2 w-[92%] -translate-x-1/2 sm:w-[78%] lg:w-1/2">
                     {/* Preserve the city's alpha silhouette as an opaque white
                         backing, so fading the photo never reveals the checker. */}
@@ -290,6 +295,7 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
             {kind === "ground" && (
               layer.image?.asset?.url ? (
                 <div
+                  data-what-road
                   className="absolute inset-x-4 top-[61%] h-[36%] border-y border-black/45 bg-[#565b58] bg-cover bg-center bg-no-repeat md:inset-x-8"
                   style={{
                     backgroundImage: `url(${urlFor(layer.image).width(1800).quality(86).format("webp").url()})`,
@@ -340,7 +346,7 @@ function LayeredBackground({ block }: { block: WhatWeDoGridBlock }) {
         </div>
       ))}
 
-      <div className="absolute inset-x-4 bottom-[39%] top-4 z-20 bg-[linear-gradient(180deg,rgba(255,255,255,.12),transparent_58%)] md:inset-x-8 md:top-8" />
+      <div data-what-skyline className="absolute inset-x-4 bottom-[39%] top-4 z-20 bg-[linear-gradient(180deg,rgba(255,255,255,.12),transparent_58%)] md:inset-x-8 md:top-8" />
     </div>
   );
 }
@@ -528,7 +534,7 @@ function ServiceCard({
 
       <div
         data-what-service-copy
-        className="relative z-10 mx-0 -mt-[2px] flex w-[min(72vw,19rem)] max-w-none flex-col items-start sm:w-[min(39vw,20rem)] lg:w-auto lg:max-w-[19rem]"
+        className="relative z-10 mx-0 -mt-[2px] flex w-[min(61vw,16rem)] max-w-none flex-col items-start sm:w-[min(32vw,18rem)] lg:w-auto lg:max-w-[19rem]"
       >
         <h3
           className={`inline-block w-fit max-w-none whitespace-nowrap px-3 py-1 text-white ${TEXT_STYLES.link}`}
@@ -539,7 +545,7 @@ function ServiceCard({
         {cleanServiceDescription && (
           touchActive ? (
             <div
-              className={`w-full min-w-0 origin-top-left animate-[what-touch-copy-in_220ms_cubic-bezier(.22,1,.36,1)_both] whitespace-normal break-normal px-3 py-2 [hyphens:none] [overflow-wrap:normal] [text-wrap:pretty] ${TEXT_STYLES.body}`}
+              className={`w-full min-w-0 origin-top-left animate-[what-touch-copy-in_130ms_cubic-bezier(.22,1,.36,1)_both] whitespace-normal break-normal px-3 py-2 [hyphens:none] [overflow-wrap:normal] [text-wrap:pretty] ${TEXT_STYLES.body}`}
               style={{ backgroundColor: accent, color: textColor }}
             >
               {cleanServiceDescription}
@@ -585,11 +591,12 @@ export function WhatWeDoGridView({
   className?: string;
 }) {
   const accent = colorValue(block.accentColor, "#ff00d9");
+  const carouselId = useId();
   const background = colorValue(block.backgroundColor, "#e7e7e2");
   const services = (block.services || []).slice(0, 4);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const carouselRef = useRef<HTMLDivElement | null>(null);
-  const scrollEndTimerRef = useRef(0);
+  const scrollActiveFrameRef = useRef(0);
   const pointerDragRef = useRef({
     active: false,
     moved: false,
@@ -599,6 +606,7 @@ export function WhatWeDoGridView({
   });
   const suppressDragClickRef = useRef(false);
   const [touchActiveIndexes, setTouchActiveIndexes] = useState<number[]>([0]);
+  const [selectedDot, setSelectedDot] = useState(0);
   const [touchLayout, setTouchLayout] = useState(false);
   const cleanDescription = stegaClean(block.description) || "";
   const descriptionLines = splitTextAtWordRatio(cleanDescription, 0.6);
@@ -629,6 +637,13 @@ export function WhatWeDoGridView({
         closestIndex = index;
       }
     });
+    setSelectedDot(
+      carousel.scrollLeft <= 2
+        ? 0
+        : carousel.scrollLeft >= carousel.scrollWidth - carousel.clientWidth - 2
+          ? cards.length - 1
+          : closestIndex,
+    );
     if (window.innerWidth >= 640) {
       const visibleIndexes = cards.flatMap((card, index) => {
         const bounds = card.getBoundingClientRect();
@@ -641,11 +656,10 @@ export function WhatWeDoGridView({
           ? [index]
           : [];
       });
-      setTouchActiveIndexes(
-        visibleIndexes.length ? visibleIndexes : [closestIndex],
-      );
+      const next = visibleIndexes.length ? visibleIndexes : [closestIndex];
+      setTouchActiveIndexes(current => current.join() === next.join() ? current : next);
     } else {
-      setTouchActiveIndexes([closestIndex]);
+      setTouchActiveIndexes(current => current.length === 1 && current[0] === closestIndex ? current : [closestIndex]);
     }
   };
 
@@ -661,22 +675,20 @@ export function WhatWeDoGridView({
     return () => {
       window.removeEventListener("resize", updateLayout);
       cancelAnimationFrame(layoutFrame);
-      window.clearTimeout(scrollEndTimerRef.current);
+      cancelAnimationFrame(scrollActiveFrameRef.current);
     };
   }, []);
 
   const updateTouchActiveCard = () => {
-    // Keep the current layer active for the whole gesture. Changing z-index
-    // while momentum scroll is running made the pants appear to flip between
-    // the foreground and background on mobile.
-    window.clearTimeout(scrollEndTimerRef.current);
-    scrollEndTimerRef.current = window.setTimeout(
-      commitNearestTouchCard,
-      140,
-    );
+    if (scrollActiveFrameRef.current) return;
+    scrollActiveFrameRef.current = requestAnimationFrame(() => {
+      scrollActiveFrameRef.current = 0;
+      commitNearestTouchCard();
+    });
   };
 
   const activateTouchCard = (index: number) => {
+    setSelectedDot(index);
     setTouchActiveIndexes((current) =>
       window.innerWidth >= 640
         ? Array.from(new Set([...current, index])).sort((a, b) => a - b)
@@ -691,7 +703,7 @@ export function WhatWeDoGridView({
         left:
           card.offsetLeft -
           (carousel.clientWidth - card.offsetWidth) / 2,
-        behavior: "smooth",
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
       });
     }
   };
@@ -812,6 +824,8 @@ export function WhatWeDoGridView({
 
       <div
         ref={carouselRef}
+        data-what-service-carousel
+        id={carouselId}
         onScroll={updateTouchActiveCard}
         onPointerDown={beginPointerDrag}
         onPointerMove={movePointerDrag}
@@ -824,13 +838,13 @@ export function WhatWeDoGridView({
           }
         }}
         onDragStart={(event) => event.preventDefault()}
-        className="relative z-[60] mt-6 flex cursor-grab snap-x snap-mandatory scroll-px-[14vw] gap-[4vw] overflow-x-scroll overflow-y-hidden px-[14vw] pb-20 pt-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] lg:absolute lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:mt-0 lg:bottom-[4%] lg:top-[40%] lg:z-auto lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
+        className="relative z-[60] mt-6 flex cursor-grab snap-x snap-mandatory scroll-px-[14vw] gap-[4vw] overflow-x-scroll overflow-y-hidden px-[14vw] pb-20 pt-2 active:cursor-grabbing sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] lg:absolute lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:mt-0 lg:bottom-[4%] lg:top-[40%] lg:z-auto lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
       >
         {services.map((service, index) => (
           <div
             key={service._key}
             data-what-service-slide
-            className="h-full w-[72vw] shrink-0 snap-start [scroll-snap-stop:always] sm:w-[39vw] lg:w-auto"
+            className="h-full w-[72vw] shrink-0 snap-center [scroll-snap-stop:always] sm:w-[39vw] lg:w-auto"
           >
             <ServiceCard
               service={service}
@@ -843,6 +857,17 @@ export function WhatWeDoGridView({
             />
           </div>
         ))}
+      </div>
+
+      <div className="relative z-[65] shrink-0 bg-white pb-3 lg:hidden">
+        <CarouselDots
+          label="What we do slides"
+          labels={services.map((service, index) => stegaClean(service.title) || `service ${index + 1}`)}
+          activeIndex={selectedDot}
+          onSelect={activateTouchCard}
+          controls={carouselId}
+          color={accent}
+        />
       </div>
 
       <style jsx global>{`
@@ -859,18 +884,35 @@ export function WhatWeDoGridView({
 
         @media (max-width: 1023px) {
           [data-what-grid] {
+            --what-road-top: 58%;
+            --what-road-bottom: max(10%, 3.5rem);
             display: flex;
             flex-direction: column;
+          }
+          [data-what-skyline] {
+            bottom: calc(100% - var(--what-road-top));
+          }
+          [data-what-road] {
+            top: var(--what-road-top);
+            bottom: var(--what-road-bottom);
+            height: auto;
           }
           [data-what-heading] {
             flex-shrink: 0;
             padding-top: clamp(1.75rem, 5svh, 3.5rem);
           }
-          [data-what-heading] + div {
+          [data-what-service-carousel] {
             flex: 1;
             min-height: 0;
             margin-top: clamp(.75rem, 3svh, 1.5rem);
             padding-bottom: 1.5rem;
+            scrollbar-width: none;
+            scrollbar-gutter: auto;
+          }
+          [data-what-service-carousel]::-webkit-scrollbar {
+            display: none;
+            width: 0;
+            height: 0;
           }
           [data-what-service-image] {
             transform: none !important;

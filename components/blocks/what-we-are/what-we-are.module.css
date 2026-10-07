@@ -120,14 +120,14 @@
   padding: 0;
   background: transparent;
   perspective: 1300px;
-  cursor: grab;
+  cursor: default;
   touch-action: pan-y;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
 .figureButton:active {
-  cursor: grabbing;
+  cursor: default;
 }
 
 .float,
@@ -223,22 +223,9 @@
   cursor: grabbing;
 }
 .flyingHat:focus-visible,
-.wornHat:focus-visible,
-.spinSurface:focus-visible {
+.wornHat:focus-visible {
   outline: 2px solid #111;
   outline-offset: 5px;
-}
-.spinSurface {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: grab;
-  touch-action: pan-y;
 }
 .drawing {
   position: relative;
@@ -262,17 +249,14 @@
 }
 .headDropzone {
   position: absolute;
-  left: 39%;
-  top: 15%;
-  width: 22%;
-  height: 22%;
+  left: 34%;
+  top: 10%;
+  width: 32%;
+  height: 32%;
   border-radius: 50%;
   z-index: 0;
   opacity: 0;
-  transform: scale(1.15);
-  transition:
-    opacity 180ms ease,
-    transform 180ms ease;
+  transition: opacity 180ms ease;
   pointer-events: none;
 }
 .headDropzone::before {
@@ -288,12 +272,16 @@
     transparent 76%
   );
   filter: blur(10px);
+  transform: scale(1.15);
+  transition: transform 180ms ease;
 }
 .section[data-hat-dragging] .headDropzone {
   opacity: 0.8;
 }
 .section[data-hat-near-head="true"] .headDropzone {
   opacity: 1;
+}
+.section[data-hat-near-head="true"] .headDropzone::before {
   transform: scale(1.4);
 }
 .outfit {
@@ -398,34 +386,54 @@
 
 @media (max-width: 900px) {
   .section {
-    padding: 3.5rem 1.5rem 2rem;
+    height: var(--section-cropped-height);
+    padding: clamp(3.75rem, 12vw, 6rem) 1.5rem 1.5rem;
+  }
+  .layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
   .title {
     width: 100%;
-    margin-bottom: 1rem;
+    flex: none;
+    margin-bottom: clamp(0.375rem, 1svh, 0.75rem);
   }
   .stage {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
     max-width: 540px;
     margin-inline: auto;
     aspect-ratio: auto;
   }
-  .corner[data-role],
-  .hatDock,
-  .hatFlights {
+  .corner[data-role] {
     display: none;
   }
   .figureButton {
     position: relative;
+    container-type: size;
+    flex: 1;
+    min-height: 0;
     left: auto;
     top: auto;
-    width: min(100%, 440px);
-    margin: 0 auto 0.5rem;
+    width: 100%;
+    aspect-ratio: auto;
+    margin: 0 auto 0.25rem;
   }
-  .wornHat[data-visible="true"] {
-    pointer-events: none;
+  .float {
+    inset: auto;
+    left: 50%;
+    top: 50%;
+    width: min(100cqw, 100cqh, 440px);
+    height: min(100cqw, 100cqh, 440px);
+    translate: -50% -50%;
   }
   .mobileWardrobe {
     display: block;
+    flex: none;
   }
   .outfitRail {
     position: relative;
@@ -468,7 +476,7 @@
     padding: 0.5rem 0.75rem;
     font-size: 1rem;
     text-align: center;
-    cursor: inherit;
+    cursor: pointer;
   }
   .outfitCard[data-selected="true"] .label {
     background: #111;
@@ -479,26 +487,6 @@
     max-width: 25rem;
     font-size: 1rem;
     line-height: 1.25;
-  }
-  .outfitPagination {
-    display: flex;
-    justify-content: center;
-    margin-top: 0.5rem;
-  }
-  .outfitPagination button {
-    display: grid;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-  }
-  .outfitPagination span {
-    width: 7px;
-    height: 7px;
-    border: 1px solid #111;
-    border-radius: 50%;
-  }
-  .outfitPagination [aria-pressed="true"] span {
-    background: #111;
   }
 }
 
@@ -521,7 +509,7 @@
     font-size: clamp(4rem, 20vw, 4.75rem);
   }
 
-  .hatDock {
+  .hatDock[data-hat-dock="media"] {
     top: -1.6rem;
     width: 17%;
   }
@@ -539,5 +527,68 @@
     top: -0.6rem;
     width: 19%;
     left: 82%;
+  }
+}
+
+.crank {
+  position: absolute;
+  right: clamp(24px, 4vw, 68px);
+  bottom: 28px;
+  z-index: 10;
+  width: clamp(104px, 10vw, 156px);
+  aspect-ratio: 1;
+  overflow: visible;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.crank:active {
+  cursor: grabbing;
+}
+.crank:focus-visible {
+  outline: 2px solid #624520;
+  outline-offset: 5px;
+}
+.crank img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 49% 49%;
+  pointer-events: none;
+}
+.dizzy {
+  position: absolute;
+  left: 29%;
+  top: 11%;
+  width: 42%;
+  height: auto;
+  opacity: 0;
+  scale: 0.5;
+  z-index: 12;
+  pointer-events: none;
+  transition:
+    opacity 0.25s,
+    scale 0.35s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+.section[data-figure-dizzy="true"] .dizzy {
+  opacity: 1;
+  scale: 1;
+}
+.section[data-figure-spinning="true"] .float {
+  animation-play-state: paused;
+}
+@media (max-width: 900px) {
+  .crank {
+    bottom: 24px;
+    right: 24px;
+    width: 110px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dizzy {
+    display: none;
+  }
+  .crank {
+    opacity: 0.65;
   }
 }

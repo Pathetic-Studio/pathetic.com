@@ -58,7 +58,7 @@ export const auditFindings: AuditFinding[] = [
     "id": "neighborhood-heading",
     "title": "Square & Cash App: “NEIGHBORHOOD” clips on small phones",
     "kind": "Layout",
-    "href": "/case-study/square-cash-app#keep-it-in-the-neighborhood",
+    "href": "/work/square-cash-app#keep-it-in-the-neighborhood",
     "note": "At 320 px, the last word of the project heading extends beyond its white panel and off the right edge of the screen. The heading needs a smaller narrow-screen size or a deliberate line-break treatment.",
     "shots": [
       {
@@ -116,9 +116,9 @@ export const auditFindings: AuditFinding[] = [
     "id": "missing-case-media",
     "title": "Ramp and Square & Cash App still need project media",
     "kind": "Content",
-    "href": "/case-study/ramp",
+    "href": "/work/ramp",
     "note": "Both project panels currently contain only the heading, result, and body copy. Their client objects are present, but there is no campaign video or supporting imagery in either project panel.",
-    "question": "Supply a hero film or still and one or two supporting images for each project. Square & Cash App is at /case-study/square-cash-app.",
+    "question": "Supply a hero film or still and one or two supporting images for each project. Square & Cash App is at /work/square-cash-app.",
     "shots": [
       {
         "width": 320,

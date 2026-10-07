@@ -156,7 +156,6 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
   } | null>(null);
   const popupSourceRef = useRef<HTMLElement | null>(null);
   const [activePopup, setActivePopup] = useState<BasketPopupType | null>(null);
-  const [popupOrigin, setPopupOrigin] = useState<{ x: number; y: number } | null>(null);
 
   const items = useMemo<ResolvedBasketItem[]>(() => {
     const source = props.items?.length ? props.items : FALLBACK_ITEMS;
@@ -225,7 +224,6 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       Body.setStatic(body, true);
       body.collisionFilter.mask = 0;
     }
-    setPopupOrigin({ x: event.clientX, y: event.clientY });
     setActivePopup(type);
   }, []);
 
@@ -608,7 +606,6 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
   const basketSrc = props.basketImage?.asset?.url || "/images/basket-links/basket.png";
   const backgroundColor = stegaClean(props.backgroundColor?.hex) || "#FFFFFF";
   const title = stegaClean(props.title) || "THE PATHETIC BASKET";
-  const hint = stegaClean(props.hint) || "(PSSSST — YOU HAVE TO CLICK ON IT)";
 
   const itemContent = (item: ResolvedBasketItem) => (
     <span
@@ -662,7 +659,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       <h2 className="sr-only">{title}</h2>
       <div
         ref={stageRef}
-        className={`relative aspect-[2/3] w-[min(92vw,58svh)] touch-pan-y select-none transition-[filter] sm:aspect-[1151/768] sm:w-[min(96vw,112svh,78rem)] ${activePopup === "abyss" ? "duration-[3000ms] ease-in brightness-0" : "duration-700 ease-out"}`}
+        className="relative aspect-[2/3] w-[min(92vw,58svh)] touch-pan-y select-none sm:aspect-[1151/768] sm:w-[min(96vw,112svh,78rem)]"
       >
         <span className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[66.666%] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-90 sm:inset-0 sm:h-full sm:w-full sm:translate-x-0 sm:translate-y-0 sm:rotate-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -701,13 +698,9 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
           );
         })}
       </div>
-      <p className="mt-4 text-center text-[clamp(.72rem,1.05vw,.95rem)] font-bold italic uppercase tracking-[-.03em]">
-        {hint}
-      </p>
       <BasketLinksPopup
         active={activePopup}
         onClose={closePopup}
-        origin={popupOrigin}
         sourceElement={popupSourceRef.current}
         shopHref="https://pathetic.fashion/"
       />

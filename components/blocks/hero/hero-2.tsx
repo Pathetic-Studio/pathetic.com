@@ -51,6 +51,9 @@ export default function Hero2({
   const eyeFollowEnabled = feature?.type === "eyeFollow";
   const imageExplodeEnabled = feature?.type === "imageExplode";
 
+  const visibleLinks = links?.filter(
+    (link) => !/^learn more$/i.test(stegaClean(link.title || "").trim()),
+  );
   const sectionId = `_hero2-${_key}`;
 
   const mobileHeight = sectionHeightMobile ?? "auto";
@@ -146,9 +149,9 @@ export default function Hero2({
             </div>
           )}
 
-          {links && links.length > 0 && (
+          {visibleLinks && visibleLinks.length > 0 && (
             <div className="mt-10 flex flex-wrap gap-4 justify-center animate-fade-up [animation-delay:400ms] opacity-0">
-              {links.map((link) => (
+              {visibleLinks.map((link) => (
                 <Button
                   key={link.title}
                   variant={stegaClean(link?.buttonVariant)}

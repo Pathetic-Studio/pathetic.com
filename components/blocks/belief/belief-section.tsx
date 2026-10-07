@@ -268,6 +268,24 @@ export default function BeliefSection(props: BeliefBlock) {
     <div ref={rootRef} className="relative isolate overflow-visible">
       {cloudsEnabled && (
         <>
+          {/* The stacked content is much taller than the desktop composition.
+              Repeat natural-aspect cloud banks all the way down that sky. */}
+          <div data-belief-mobile-clouds aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2] overflow-hidden lg:hidden">
+            {Array.from({ length: 16 }, (_, index) => (
+              <div
+                key={index}
+                className="absolute aspect-[428/278] w-[135%]"
+                style={{
+                  top: `${10 + index * 5.7}%`,
+                  left: index % 2 ? "22%" : "-52%",
+                  opacity: index % 3 === 0 ? 0.85 : 0.65,
+                  transform: index % 2 ? "scaleX(-1)" : undefined,
+                }}
+              >
+                <Image src={cloudSrc} alt="" fill sizes="(max-width: 1023px) 135vw, 1px" className="object-contain" />
+              </div>
+            ))}
+          </div>
           <div
             data-belief-sky-glow
             aria-hidden="true"

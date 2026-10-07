@@ -106,6 +106,7 @@ export default function Blocks({ blocks }: { blocks: Block[] }) {
         "network-reach-section",
         "belief-section",
         "what-we-are-section",
+        "project-cta-section",
       ].includes(block._type)
     ) {
       rendered.push(

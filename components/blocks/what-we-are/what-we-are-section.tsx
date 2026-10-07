@@ -1,13 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
-import gsap from "gsap";
+import { useEffect, useId, useRef, useState } from "react";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import styles from "./what-we-are.module.css";
 import TitleText from "@/components/ui/title-text";
 import { ROLES, wardrobeAsset, type OutfitPiece } from "./wardrobe-data";
 import { useHatWardrobe } from "./use-hat-wardrobe";
+import CarouselDots from "@/components/ui/carousel-dots";
 
 export type WhatWeAreSectionBlock = {
   _type: "what-we-are-section";
@@ -23,30 +23,10 @@ export default function WhatWeAre() {
   const [mobile, setMobile] = useState(false);
   const [selected, setSelected] = useState(0);
   const figureRef = useRef<HTMLDivElement>(null);
-  const spinRef = useRef<() => void>(() => {});
-  const motionRef = useRef<{
-    turn: (x: number, y: number) => void;
-    settle: () => void;
-    stop: () => void;
-  } | null>(null);
-  const dragRef = useRef<{
-    pointerId: number;
-    x: number;
-    y: number;
-    rotation: number;
-    moved: boolean;
-  } | null>(null);
-  const suppressClickRef = useRef(false);
-  const wardrobe = useHatWardrobe(
-    sectionRef,
-    () => {
-      motionRef.current?.stop();
-      if (figureRef.current)
-        gsap.set(figureRef.current, { rotationX: 0, rotationY: 0 });
-    },
-    mobile ? ROLES[selected].id : null,
-  );
+  const wardrobe = useHatWardrobe(sectionRef);
   const { active, worn, locked } = wardrobe;
+  const selectedRef = useRef(0);
+  const railTarget = useRef<number | null>(null);
 
   useEffect(() => {
     const query = matchMedia("(max-width: 900px)");
@@ -56,155 +36,53 @@ export default function WhatWeAre() {
     return () => query.removeEventListener("change", update);
   }, []);
 
-  const selectSlide = (index: number) => {
+  const scrollToSlide = (index: number, smooth = true) => {
     const rail = carouselRef.current;
     const card = rail?.children[index] as HTMLElement | undefined;
     if (!rail || !card) return;
+    railTarget.current = index;
     rail.scrollTo({
       left: card.offsetLeft - (rail.clientWidth - card.offsetWidth) / 2,
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
+      behavior:
+        !smooth || matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
     });
   };
+
+  const selectSlide = (index: number) => {
+    selectedRef.current = index;
+    setSelected(index);
+    wardrobe.select(ROLES[index].id);
+    scrollToSlide(index);
+  };
+
+  // Dragging a hat on also selects its copy card. That programmatic scroll
+  // must not select intermediate outfits while travelling across the rail.
+  useEffect(() => {
+    if (!mobile || !active) return;
+    const index = ROLES.findIndex((role) => role.id === active);
+    if (selectedRef.current === index) return;
+    selectedRef.current = index;
+    setSelected(index);
+    scrollToSlide(index, false);
+  }, [active, mobile]);
+
+  useEffect(() => {
+    if (mobile && !active) wardrobe.select(ROLES[selectedRef.current].id);
+  }, [mobile]);
 
   useEffect(() => {
     const section = sectionRef.current;
     const figure = figureRef.current;
     if (!section || !figure) return;
 
-    let turnTween: gsap.core.Tween | null = null;
-    const media = gsap.matchMedia();
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        section.dataset.inView = String(entry.isIntersecting);
-        if (!entry.isIntersecting) {
-          motionRef.current?.stop();
-          gsap.set(figure, { rotationX: 0, rotationY: 0 });
-        }
-      },
-      { threshold: 0 },
-    );
-    observer.observe(section);
-
-    media.add("(prefers-reduced-motion: no-preference)", () => {
-      const turnX = gsap.quickTo(figure, "rotationX", {
-        duration: 0.65,
-        ease: "power3.out",
-      });
-      const turnY = gsap.quickTo(figure, "rotationY", {
-        duration: 0.65,
-        ease: "power3.out",
-      });
-      let spinning = false;
-
-      motionRef.current = {
-        turn: (x, y) => {
-          if (spinning) return;
-          const currentY = Number(gsap.getProperty(figure, "rotationY"));
-          // After a full drag turn, hover should take the short path to its
-          // small tilt instead of unwinding an entire revolution.
-          const nextY = dragRef.current
-            ? y
-            : y + Math.round((currentY - y) / 360) * 360;
-          turnX(x, Number(gsap.getProperty(figure, "rotationX")));
-          turnY(nextY, currentY);
-        },
-        settle: () => {
-          if (spinning) return;
-          const currentY = Number(gsap.getProperty(figure, "rotationY"));
-          turnX(0, Number(gsap.getProperty(figure, "rotationX")));
-          turnY(Math.round(currentY / 360) * 360, currentY);
-        },
-        stop: () => {
-          turnTween?.kill();
-          turnX.tween.pause();
-          turnY.tween.pause();
-          spinning = false;
-        },
-      };
-
-      spinRef.current = () => {
-        motionRef.current?.stop();
-        spinning = true;
-        const current = Number(gsap.getProperty(figure, "rotationY"));
-        turnTween = gsap.to(figure, {
-          rotationX: 0,
-          rotationY: Math.floor(current / 360) * 360 + 360,
-          duration: 1.6,
-          ease: "power2.inOut",
-          onComplete: () => {
-            gsap.set(figure, { rotationY: 0 });
-            spinning = false;
-          },
-        });
-      };
-
-      return () => {
-        motionRef.current?.stop();
-        motionRef.current = null;
-        spinRef.current = () => {};
-        gsap.set(figure, { rotationX: 0, rotationY: 0 });
-      };
+    const observer = new IntersectionObserver(([entry]) => {
+      section.dataset.inView = String(entry.isIntersecting);
     });
-
-    return () => {
-      observer.disconnect();
-      turnTween?.kill();
-      media.revert();
-    };
+    observer.observe(section);
+    return () => observer.disconnect();
   }, []);
-
-  const startDrag = (event: PointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0 || !motionRef.current) return;
-    motionRef.current.stop();
-    suppressClickRef.current = false;
-    dragRef.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      rotation: Number(gsap.getProperty(figureRef.current, "rotationY")),
-      moved: false,
-    };
-  };
-
-  const moveFigure = (event: PointerEvent<HTMLButtonElement>) => {
-    const motion = motionRef.current;
-    if (!motion) return;
-    const drag = dragRef.current;
-    if (drag && drag.pointerId === event.pointerId) {
-      const dx = event.clientX - drag.x;
-      const dy = event.clientY - drag.y;
-      if (!drag.moved && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy)) {
-        drag.moved = true;
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
-      if (drag.moved) {
-        motion.turn(
-          Math.max(-12, Math.min(12, -dy * 0.06)),
-          drag.rotation + dx * 0.6,
-        );
-      }
-      return;
-    }
-    if (event.pointerType !== "mouse") return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    motion.turn(
-      (0.5 - (event.clientY - bounds.top) / bounds.height) * 14,
-      ((event.clientX - bounds.left) / bounds.width - 0.5) * 24,
-    );
-  };
-
-  const finishDrag = (event: PointerEvent<HTMLButtonElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClickRef.current = drag.moved;
-    dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    motionRef.current?.settle();
-  };
 
   return (
     <section
@@ -219,8 +97,6 @@ export default function WhatWeAre() {
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
         wardrobe.clear();
-        motionRef.current?.stop();
-        motionRef.current?.settle();
       }}
     >
       <BackgroundPanel
@@ -297,30 +173,6 @@ export default function WhatWeAre() {
           <div className={styles.figureButton}>
             <div className={styles.float}>
               <div ref={figureRef} className={styles.figure} data-hat-figure>
-                <button
-                  type="button"
-                  className={styles.spinSurface}
-                  aria-label="Spin the Vitruvian figure"
-                  aria-describedby={`${id}-instructions`}
-                  onPointerDown={startDrag}
-                  onPointerMove={moveFigure}
-                  onPointerUp={finishDrag}
-                  onPointerCancel={finishDrag}
-                  onLostPointerCapture={finishDrag}
-                  onPointerLeave={() => {
-                    if (!dragRef.current?.moved) {
-                      dragRef.current = null;
-                      motionRef.current?.settle();
-                    }
-                  }}
-                  onClick={(event) => {
-                    if (suppressClickRef.current && event.detail !== 0) {
-                      suppressClickRef.current = false;
-                      return;
-                    }
-                    spinRef.current();
-                  }}
-                />
                 <Image
                   src={`${ASSETS}/vitruvian-man.png`}
                   loading="eager"
@@ -391,8 +243,8 @@ export default function WhatWeAre() {
                       data-visible={worn === role.id}
                       aria-label={`Remove ${role.hatName.toLowerCase()} and outfit`}
                       aria-pressed={locked === role.id}
-                      tabIndex={!mobile && worn === role.id ? 0 : -1}
-                      aria-hidden={mobile || worn !== role.id}
+                      tabIndex={worn === role.id ? 0 : -1}
+                      aria-hidden={worn !== role.id}
                       {...wardrobe.bindings(role.id, true)}
                     >
                       <Image
@@ -417,10 +269,15 @@ export default function WhatWeAre() {
           >
             <div
               ref={carouselRef}
+              id={`${id}-outfit-rail`}
               className={styles.outfitRail}
               data-outfit-rail
+              data-hat-obstacle
               tabIndex={0}
               aria-label="Swipe to change outfit"
+              onPointerDown={() => {
+                railTarget.current = null;
+              }}
               onKeyDown={(event) => {
                 if (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
                   return;
@@ -436,6 +293,7 @@ export default function WhatWeAre() {
                 );
               }}
               onScroll={(event) => {
+                if (wardrobe.dragging) return;
                 const rail = event.currentTarget;
                 const center = rail.scrollLeft + rail.clientWidth / 2;
                 let nearest = 0;
@@ -450,7 +308,15 @@ export default function WhatWeAre() {
                     distance = delta;
                   }
                 });
-                setSelected(nearest);
+                if (railTarget.current !== null) {
+                  if (nearest !== railTarget.current) return;
+                  railTarget.current = null;
+                }
+                if (selectedRef.current !== nearest) {
+                  selectedRef.current = nearest;
+                  setSelected(nearest);
+                  wardrobe.select(ROLES[nearest].id);
+                }
               }}
             >
               {ROLES.map((role, index) => (
@@ -463,35 +329,37 @@ export default function WhatWeAre() {
                   aria-roledescription="slide"
                   aria-label={`${index + 1} of ${ROLES.length}: ${role.label}`}
                 >
-                  <h3 className={styles.label}>{role.label}</h3>
+                  <h3>
+                    <button
+                      type="button"
+                      className={styles.label}
+                      onClick={() => selectSlide(index)}
+                    >
+                      {role.label}
+                    </button>
+                  </h3>
                   <p>{role.copy}</p>
                 </div>
               ))}
             </div>
-            <div className={styles.outfitPagination}>
-              {ROLES.map((role, index) => (
-                <button
-                  key={role.id}
-                  type="button"
-                  aria-label={`Show outfit: ${role.label}`}
-                  aria-pressed={selected === index}
-                  onClick={() => selectSlide(index)}
-                >
-                  <span />
-                </button>
-              ))}
-            </div>
+            <CarouselDots
+              label="What we are slides"
+              labels={ROLES.map((role) => role.label)}
+              activeIndex={selected}
+              onSelect={selectSlide}
+              controls={`${id}-outfit-rail`}
+              className="mt-2"
+            />
           </div>
           <span id={`${id}-instructions`} className="sr-only">
             {mobile ? (
-              "Swipe the cards or use the outfit buttons to change clothes. Drag the figure sideways or click it to spin."
+              "Swipe the cards or use the dots to change clothes. Drag any hat onto the head to wear or replace it; drag it off to remove it. Throw the loose hats around the panel."
             ) : (
               <>
                 Hover a label to preview its outfit. Drag a hat onto the head to
                 keep the outfit on; drag it off to remove it. You can also click
-                a hat or press Enter to put it on or take it off. Drag the
-                figure sideways or click it to spin. Throw a loose hat around
-                the panel, or use the arrow keys to push it.
+                a hat or press Enter to put it on or take it off. Throw a loose
+                hat around the panel, or use the arrow keys to push it.
               </>
             )}
           </span>

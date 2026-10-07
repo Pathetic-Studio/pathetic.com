@@ -62,7 +62,7 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
         data-case-surface={study.ink === "#ffffff" ? "dark" : "light"}
       >
         <header className={styles.hero}>
-          <Link className={styles.back} href="/case-study">
+          <Link className={styles.back} href="/work">
             ← View all projects
           </Link>
           <CaseStudyObject
@@ -236,7 +236,7 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
         style={{ background: next.accent, color: next.ink || "#171717" }}
       >
         <Link
-          href={`/case-study/${next.slug}`}
+          href={`/work/${next.slug}`}
           className={styles.nextLink}
           data-case-next={next.slug}
           data-case-accent={next.accent}

@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties, MouseEvent } from "react";
+import { useState, type CSSProperties, type MouseEvent } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { stegaClean } from "next-sanity";
 import LogoAnimated from "@/components/logo-animated";
@@ -8,6 +9,7 @@ import {
   useContactModal,
   useNewsletterModal,
 } from "@/components/contact/contact-modal-context";
+import styles from "./bingo-footer.module.css";
 
 type BingoLink = {
   linkType?: string | null;
@@ -30,6 +32,68 @@ const REFERENCE_LINE_BREAKS: Record<string, string> = {
   "PRIVACY POLICY": "PRIVACY\nPOLICY",
   "TALENT MATRIX": "TALENT\nMATRIX",
 };
+
+// Keep each reveal in an empty square, separate from the link's hit area.
+const FOOTER_OBJECTS: Record<string, { src: string; position: number }> = {
+  NEWSLETTER: { src: "/images/basket-links/pigeon.png", position: 0 },
+  "PRIVACY POLICY": {
+    src: "/images/page-loader/yellow-sunglasses.webp",
+    position: 5,
+  },
+  WORK: { src: "/images/what-we-do/sizzle-butter-pan.webp", position: 6 },
+  "TALENT MATRIX": {
+    src: "/images/network/friends/kael_fangs.webp",
+    position: 8,
+  },
+  INSTA: { src: "/images/network/profile-logo.svg", position: 4 },
+  CONTACT: { src: "/images/basket-links/computer.png", position: 5 },
+  SHOP: {
+    src: "/images/lifecycle/slide-2/pathetic/rhinestone-tee.webp",
+    position: 7,
+  },
+  JOBS: { src: "/images/basket-links/sticker-macbook.webp", position: 10 },
+};
+
+function getCellLabel(cell: BingoCell) {
+  const configured = stegaClean(cell.label) || "";
+  const label = /^careers$/i.test(configured.trim()) ? "JOBS" : configured;
+  const normalized = label.trim().replace(/\s+/g, " ").toUpperCase();
+  return {
+    label,
+    normalizedLabel: normalized === "NEWS LETTER" ? "NEWSLETTER" : normalized,
+  };
+}
+
+function FooterObject({
+  src,
+  active,
+  label,
+}: {
+  src: string;
+  active: boolean;
+  label: string;
+}) {
+  const [ready, setReady] = useState(false);
+  return (
+    <div
+      aria-hidden="true"
+      className={styles.object}
+      data-bingo-object={label}
+      data-active={active}
+      data-ready={ready}
+    >
+      <Image
+        src={src}
+        alt=""
+        fill
+        sizes="100px"
+        className={styles.image}
+        draggable={false}
+        onLoad={() => setReady(true)}
+      />
+    </div>
+  );
+}
 
 const FOOTER_FALLBACKS: Record<
   string,
@@ -93,10 +157,18 @@ export type BingoFooterBlock = {
 
 function BingoGrid({
   cells,
+  side,
+  activeCell,
+  setHoveredCell,
+  setFocusedCell,
   openContact,
   openNewsletter,
 }: {
   cells: BingoCell[];
+  side: "left" | "right";
+  activeCell: string | null;
+  setHoveredCell: (id: string | null) => void;
+  setFocusedCell: (id: string | null) => void;
   openContact: () => void;
   openNewsletter: () => void;
 }) {
@@ -107,12 +179,34 @@ function BingoGrid({
     ]),
   );
 
+  const emptyPositions = Array.from({ length: 12 }, (_, index) => index).filter(
+    (index) =>
+      !cellsByPosition.has(`${(index % 3) + 1}-${Math.floor(index / 3) + 1}`),
+  );
+  const reveals = cells.flatMap((cell) => {
+    const { normalizedLabel } = getCellLabel(cell);
+    const object = FOOTER_OBJECTS[normalizedLabel];
+    if (!object || !emptyPositions.length) return [];
+    return [
+      {
+        ...object,
+        id: `${side}-${cell._key}`,
+        label: normalizedLabel,
+        position: emptyPositions.includes(object.position)
+          ? object.position
+          : emptyPositions[0],
+      },
+    ];
+  });
+
+  const clearInteraction = () => {
+    setHoveredCell(null);
+    setFocusedCell(null);
+  };
+
   const renderCellContent = (cell: BingoCell) => {
-    const configuredLabel = stegaClean(cell.label) || "";
-    const label = /^careers$/i.test(configuredLabel.trim())
-      ? "JOBS"
-      : configuredLabel;
-    const normalizedLabel = label.trim().replace(/\s+/g, " ").toUpperCase();
+    const { label, normalizedLabel } = getCellLabel(cell);
+    const id = `${side}-${cell._key}`;
     const fallback = FOOTER_FALLBACKS[normalizedLabel];
     const displayLabel = label.includes("\n")
       ? label
@@ -147,19 +241,45 @@ function BingoGrid({
           {displayLabel}
         </span>
       );
-    const className =
-      "flex h-full w-full items-center justify-center text-center transition-colors duration-150 hover:bg-[var(--bingo-ink)] hover:text-[var(--bingo-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px]";
+    const interactionProps = {
+      className: styles.control,
+      "data-bingo-link": normalizedLabel,
+      "data-active": activeCell === id,
+      onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
+        if (event.pointerType !== "touch") setHoveredCell(id);
+      },
+      onPointerLeave: () => setHoveredCell(null),
+      onPointerCancel: clearInteraction,
+      onFocus: (event: React.FocusEvent<HTMLElement>) => {
+        if (event.currentTarget.matches(":focus-visible")) setFocusedCell(id);
+      },
+      onBlur: () => setFocusedCell(null),
+    };
 
     if (action === "contact" || linkType === "contact") {
       return (
-        <button type="button" onClick={openContact} className={className}>
+        <button
+          type="button"
+          {...interactionProps}
+          onClick={() => {
+            clearInteraction();
+            openContact();
+          }}
+        >
           {content}
         </button>
       );
     }
     if (action === "newsletter") {
       return (
-        <button type="button" onClick={openNewsletter} className={className}>
+        <button
+          type="button"
+          {...interactionProps}
+          onClick={() => {
+            clearInteraction();
+            openNewsletter();
+          }}
+        >
           {content}
         </button>
       );
@@ -171,8 +291,11 @@ function BingoGrid({
           scroll={false}
           target={opensNewTab ? "_blank" : undefined}
           rel={opensNewTab ? "noopener noreferrer" : undefined}
-          onClick={(event) => handleFooterAnchor(event, href)}
-          className={className}
+          {...interactionProps}
+          onClick={(event) => {
+            clearInteraction();
+            handleFooterAnchor(event, href);
+          }}
         >
           {content}
         </Link>
@@ -186,7 +309,10 @@ function BingoGrid({
   };
 
   return (
-    <div className="grid aspect-[3/4] w-full grid-cols-3 grid-rows-4 border-l border-t border-current">
+    <div
+      data-bingo-grid={side}
+      className="grid aspect-[3/4] w-full grid-cols-3 grid-rows-4 border-l border-t border-current"
+    >
       {Array.from({ length: 12 }, (_, index) => {
         const column = (index % 3) + 1;
         const row = Math.floor(index / 3) + 1;
@@ -195,9 +321,19 @@ function BingoGrid({
           <div
             key={`${column}-${row}`}
             data-bingo-cell
-            className="min-h-0 min-w-0 border-b border-r border-current"
+            className="relative min-h-0 min-w-0 border-b border-r border-current"
           >
             {cell ? renderCellContent(cell) : null}
+            {reveals
+              .filter((reveal) => reveal.position === index)
+              .map((reveal) => (
+                <FooterObject
+                  key={reveal.id}
+                  src={reveal.src}
+                  label={reveal.label}
+                  active={activeCell === reveal.id}
+                />
+              ))}
           </div>
         );
       })}
@@ -208,11 +344,15 @@ function BingoGrid({
 export default function BingoFooter(props: BingoFooterBlock) {
   const { open: openContact } = useContactModal();
   const { open: openNewsletter } = useNewsletterModal();
+  const [hoveredCell, setHoveredCell] = useState<string | null>(null);
+  const [focusedCell, setFocusedCell] = useState<string | null>(null);
+  const activeCell = hoveredCell ?? focusedCell;
   const backgroundColor = stegaClean(props.backgroundColor?.hex) || "#FFFFFF";
   const textColor = stegaClean(props.textColor?.hex) || "#050505";
 
   return (
     <footer
+      data-bingo-footer
       className="relative isolate px-3 py-5 sm:px-5 lg:px-7"
       style={
         {
@@ -227,6 +367,10 @@ export default function BingoFooter(props: BingoFooterBlock) {
         <div className="order-2 ml-auto mr-0 w-full max-w-[15rem] lg:order-1 lg:mx-auto lg:max-w-[17rem]">
           <BingoGrid
             cells={props.leftCells ?? []}
+            side="left"
+            activeCell={activeCell}
+            setHoveredCell={setHoveredCell}
+            setFocusedCell={setFocusedCell}
             openContact={openContact}
             openNewsletter={openNewsletter}
           />
@@ -239,6 +383,10 @@ export default function BingoFooter(props: BingoFooterBlock) {
         <div className="order-3 ml-0 mr-auto w-full max-w-[15rem] max-lg:[&>div]:border-l-0 lg:mx-auto lg:max-w-[17rem]">
           <BingoGrid
             cells={props.rightCells ?? []}
+            side="right"
+            activeCell={activeCell}
+            setHoveredCell={setHoveredCell}
+            setFocusedCell={setFocusedCell}
             openContact={openContact}
             openNewsletter={openNewsletter}
           />

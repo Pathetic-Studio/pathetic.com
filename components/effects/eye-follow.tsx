@@ -95,6 +95,12 @@ export default function EyeFollow({
     const [eyeRolls, setEyeRolls] = useState<Record<string, number>>({});
     const [activeEyeRolls, setActiveEyeRolls] = useState<Record<string, boolean>>({});
     const [eyesVisible, setEyesVisible] = useState(!staggerOnEnter);
+    const [loadedLayers, setLoadedLayers] = useState<Record<string, number>>({});
+    const markLayerLoaded = (key: string, layer: number) => {
+        setLoadedLayers(current => (current[key] ?? 0) & layer ? current : {
+            ...current, [key]: (current[key] ?? 0) | layer,
+        });
+    };
 
     const mouseRef = useRef<MousePos>(null);
     const rectRef = useRef<Rect>(null);
@@ -537,6 +543,7 @@ export default function EyeFollow({
                     <div
                         key={key}
                         className="eye-entry absolute"
+                        data-ready={loadedLayers[key] === 3 && !!rect}
                         style={{
                             left: `${xPercent}%`,
                             top: `${yPercent}%`,
@@ -557,6 +564,9 @@ export default function EyeFollow({
                         >
                             <Image
                                 src="/eye/base.png"
+                                sizes={`${Math.ceil(size)}px`}
+                                loading="eager"
+                                onLoad={() => markLayerLoaded(key, 1)}
                                 alt="Eye base"
                                 fill
                                 priority={false}
@@ -597,6 +607,9 @@ export default function EyeFollow({
 
                             <Image
                                 src="/eye/highlight.png"
+                                sizes={`${Math.ceil(size)}px`}
+                                loading="eager"
+                                onLoad={() => markLayerLoaded(key, 2)}
                                 alt="Eye highlight"
                                 fill
                                 priority={false}
@@ -617,7 +630,7 @@ export default function EyeFollow({
                     transform: translate(-50%, -50%) scale(0.25);
                 }
 
-                .eyes-visible .eye-entry {
+                .eyes-visible .eye-entry[data-ready="true"] {
                     animation: eye-pop 560ms cubic-bezier(0.2, 1.5, 0.42, 1) both;
                 }
 
@@ -651,7 +664,7 @@ export default function EyeFollow({
                 }
 
                 @media (prefers-reduced-motion: reduce) {
-                    .eyes-visible .eye-entry,
+                    .eyes-visible .eye-entry[data-ready="true"],
                     .eye-roll {
                         animation-duration: 1ms;
                     }

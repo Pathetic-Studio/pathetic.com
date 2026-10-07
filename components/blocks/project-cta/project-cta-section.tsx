@@ -586,20 +586,20 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
     <section
       ref={rootRef}
       id={sectionId}
+      onPointerEnter={(event) => {
+        if (event.pointerType !== "touch") setProjectHover(true);
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType !== "touch") setProjectHover(false);
+      }}
+      onPointerMove={(event) => {
+        emitSparkle(event);
+        moveProjectCannons(event);
+      }}
       className="relative isolate bg-background p-3 sm:p-4 lg:p-6"
     >
       <div
         data-project-cta-panel
-        onPointerEnter={(event) => {
-          if (event.pointerType !== "touch") setProjectHover(true);
-        }}
-        onPointerLeave={(event) => {
-          if (event.pointerType !== "touch") setProjectHover(false);
-        }}
-        onPointerMove={(event) => {
-          emitSparkle(event);
-          moveProjectCannons(event);
-        }}
         className="relative min-h-[clamp(14rem,24vw,20rem)] overflow-hidden border border-current"
         style={{ backgroundColor: panelColor, borderColor: outlineColor }}
       >
@@ -676,17 +676,24 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
             </TitleText>
           </span>
           <span className="absolute left-1/2 top-1/2 z-40 hidden -translate-x-1/2 translate-y-[clamp(3.75rem,5.3vw,4.75rem)] lg:block">
-            <ContactFormTrigger
+            <span aria-hidden="true"
               data-project-cta-button
-              onFocus={() => setProjectHover(true)}
-              onBlur={() => setProjectHover(false)}
               className="inline-flex h-10 items-center justify-center border border-current bg-background px-6 font-sans text-sm font-semibold uppercase leading-none text-foreground will-change-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               {buttonLabel}
-            </ContactFormTrigger>
+            </span>
           </span>
         </div>
       </div>
+      <ContactFormTrigger
+        data-project-cta-section-trigger
+        className="absolute inset-0 z-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px]"
+        aria-label="Contact us to work together"
+        onFocus={() => setProjectHover(true)}
+        onBlur={() => setProjectHover(false)}
+      >
+        <span className="sr-only">Contact us to work together</span>
+      </ContactFormTrigger>
     </section>
   );
 }

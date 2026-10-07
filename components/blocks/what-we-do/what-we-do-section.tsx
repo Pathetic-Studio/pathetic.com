@@ -22,11 +22,11 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import { cn } from "@/lib/utils";
 import {
-  CASH_APP_OBJECT,
-  SQUARE_OBJECT,
-  WORK_TITLE_CARDS,
-} from "@/lib/work-assets";
-import WorkPreview from "./work-preview";
+  LOCAL_FLOATING_PROJECTS,
+  WORK_MEDIA_FRAMES,
+  type ResolvedFloatingProject,
+} from "@/lib/work-projects";
+import ProjectMedia from "./work-project-media";
 import layoutStyles from "./work-layout.module.css";
 import WorkContentViewer, {
   type WorkViewerContent,
@@ -51,38 +51,6 @@ type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type WhatWeDoBlock = Extract<PageBlock, { _type: "what-we-do-section" }>;
 type FloatingProject = NonNullable<WhatWeDoBlock["items"]>[number];
 
-type ResolvedFloatingProject = {
-  _key: string;
-  title: string;
-  href: string | null;
-  target?: boolean | null;
-  interactionMode: "link" | "reveal" | "fullscreen";
-  revealTitle?: string;
-  revealDescription?: string;
-  expandedMediaType?: "image" | "video";
-  expandedImageUrl?: string;
-  expandedImageAlt?: string;
-  expandedVideoUrl?: string;
-  expandedVideoPosterUrl?: string;
-  caseStudyHref?: string;
-  mediaType: "image" | "video";
-  imageUrl?: string;
-  imageAlt?: string;
-  videoUrl?: string;
-  videoPosterUrl?: string;
-  titleCardUrl?: string;
-  previewScale?: number;
-  mediaFit: "contain" | "cover";
-  positionX?: number | null;
-  positionY?: number | null;
-  width?: number | null;
-  mobilePositionX?: number | null;
-  mobilePositionY?: number | null;
-  mobileWidth?: number | null;
-  floatAmount?: number | null;
-  floatDuration?: number | null;
-  aspectRatio?: "landscape" | "portrait";
-};
 
 type SizzleReelSettings = {
   enabled?: boolean | null;
@@ -161,119 +129,7 @@ const GENERATED_BODY_SOCKET = { x: 35.45, y: 25.45 } as const;
 const GENERATED_BODY_EXIT_ANGLE = -Math.PI + 0.15;
 const GENERATED_HAND_CUFF_OUTWARD_ANGLE = (34 * Math.PI) / 180;
 const ARM_FILL = "#171717";
-const DEFAULT_CASE_STUDY_HREF = "/case-study";
-
-// Tight artwork bounds keep hover labels beside the object. Widths preserve
-// the visible size from the old, padded 4:3 / 9:16 frames.
-const WORK_MEDIA_FRAMES: Record<
-  string,
-  { src?: string; ratio: number; width: number }
-> = {
-  whatWeDoDoorDash: { src: "doordash", ratio: 599 / 935, width: 599 / 800 },
-  whatWeDoAdidas: { src: "adidas", ratio: 304 / 137, width: 304 / 329 },
-  "local-sandbar": { src: "sandbar", ratio: 990 / 1070, width: (0.75 * 990) / 1254 },
-  "local-square": { src: "square", ratio: 1030 / 1098, width: (0.75 * 1030) / 1254 },
-  "local-cash-app": { src: "cash-app", ratio: 724 / 1131, width: (0.75 * 724) / 1254 },
-  "local-bless-this-desk": { ratio: 9 / (16 * 0.72), width: 1 },
-};
-
-const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
-  {
-    _key: "local-sandbar",
-    title: "SANDBAR",
-    href: "/case-study/stream-by-sandbar",
-    interactionMode: "link",
-    mediaType: "image",
-    imageUrl: "/images/case-studies/objects/stream-ring-hires.webp",
-    imageAlt: "Sandbar smart ring",
-    mediaFit: "contain",
-    positionX: 57,
-    positionY: 46,
-    width: 14,
-    mobilePositionX: 71,
-    mobilePositionY: 31,
-    mobileWidth: 25,
-    floatAmount: 9,
-    floatDuration: 5.8,
-  },
-  {
-    _key: "local-yom",
-    title: "YOU’RE ON MUTE",
-    href: null,
-    interactionMode: "fullscreen",
-    mediaType: "video",
-    videoUrl: "/media/work/yom-preview.mp4",
-    titleCardUrl: WORK_TITLE_CARDS["youre-on-mute"],
-    videoPosterUrl: "/media/case-studies/deel/yom-poster.webp",
-    expandedMediaType: "video",
-    expandedVideoUrl: "/media/case-studies/deel/yom.mp4",
-    caseStudyHref: "/case-study/deel#youre-on-mute",
-    mediaFit: "cover",
-    positionX: 85,
-    positionY: 64,
-    width: 8.5,
-    mobilePositionX: 28,
-    mobilePositionY: 66,
-    mobileWidth: 24,
-    floatAmount: 7,
-    floatDuration: 6.4,
-    aspectRatio: "portrait",
-  },
-  {
-    _key: "local-bless-this-desk",
-    title: "BLESS THIS DESK",
-    href: null,
-    interactionMode: "fullscreen",
-    mediaType: "video",
-    videoUrl: "/media/work/bless-this-desk-preview.mp4",
-    titleCardUrl: "/images/what-we-do/trimmed/bless-this-desk.webp",
-    previewScale: 0.72,
-    videoPosterUrl: "/media/case-studies/deel/bless-this-desk-poster.webp",
-    expandedMediaType: "video",
-    expandedVideoUrl: "/media/case-studies/deel/bless-this-desk.mp4",
-    caseStudyHref: "/case-study/deel#bless-this-desk",
-    mediaFit: "cover",
-    positionX: 18,
-    positionY: 37,
-    width: 13,
-    mobilePositionX: 73,
-    mobilePositionY: 42,
-    mobileWidth: 23,
-    floatAmount: 8,
-    floatDuration: 5.7,
-    aspectRatio: "portrait",
-  },
-  {
-    _key: "local-square",
-    title: "SQUARE",
-    href: "/case-study/square-cash-app",
-    interactionMode: "link",
-    mediaType: "image",
-    imageUrl: SQUARE_OBJECT.src,
-    imageAlt: SQUARE_OBJECT.alt,
-    mediaFit: "contain",
-    positionX: 29,
-    positionY: 72,
-    width: 16.5,
-    floatAmount: 8,
-    floatDuration: 5.9,
-  },
-  {
-    _key: "local-cash-app",
-    title: "CASH APP",
-    href: "/case-study/square-cash-app",
-    interactionMode: "link",
-    mediaType: "image",
-    imageUrl: CASH_APP_OBJECT.src,
-    imageAlt: CASH_APP_OBJECT.alt,
-    mediaFit: "contain",
-    positionX: 70,
-    positionY: 72,
-    width: 15,
-    floatAmount: 9,
-    floatDuration: 6.3,
-  },
-];
+const DEFAULT_CASE_STUDY_HREF = "/work";
 
 const CURATED_ITEM_LAYOUT: Record<
   string,
@@ -362,58 +218,13 @@ function buildArmOutline(points: ArmPoint[]) {
 }
 
 function getProjectHref(project: FloatingProject["project"]) {
-  if (project?._type === "caseStudy") return "/case-study";
+  if (project?._type === "caseStudy") return "/work";
   const slug = stegaClean(project?.slug?.current);
   if (!slug) return null;
   if (project?._type === "post") return `/blog/${slug}`;
   return slug === "index" ? "/" : `/${slug}`;
 }
 
-function ProjectMedia({
-  item,
-  suspended,
-}: {
-  item: ResolvedFloatingProject;
-  suspended: boolean;
-}) {
-  const isCover = item.mediaFit === "cover";
-  if (item.mediaType === "video" && item.videoUrl) {
-    return (
-      <WorkPreview
-        src={item.videoUrl}
-        poster={item.videoPosterUrl}
-        titleCard={item.titleCardUrl}
-        videoScale={item.previewScale}
-        title={item.title}
-        suspended={suspended}
-        cover={isCover}
-      />
-    );
-  }
-
-  if (item.imageUrl) {
-    const trimmed = WORK_MEDIA_FRAMES[item._key]?.src;
-    return (
-      <Image
-        src={
-          trimmed ? `/images/what-we-do/trimmed/${trimmed}.webp` : item.imageUrl
-        }
-        alt={item.imageAlt || ""}
-        fill
-        style={
-          item._key === "whatWeDoRamp"
-            ? { transform: "rotate(-38deg) scale(.64)" }
-            : undefined
-        }
-        loading="eager"
-        sizes="(min-width: 1024px) 20vw, 40vw"
-        className={isCover ? "object-cover" : "object-contain"}
-      />
-    );
-  }
-
-  return <div className="h-full w-full border border-current/20" />;
-}
 
 export default function WhatWeDoSection(props: WhatWeDoBlock) {
   const { _key, anchor, padding, colorVariant, background, items, figure } =
@@ -487,7 +298,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       const destinationHref = stegaClean(item.destination?.href) || null;
       const referencedHref = getProjectHref(item.project);
       const href =
-        (item._key === "whatWeDoRamp" ? "/case-study/ramp" : null) ||
+        (item._key === "whatWeDoRamp" ? "/work/ramp" : null) ||
         destinationHref ||
         referencedHref ||
         (mediaType === "image" ? DEFAULT_CASE_STUDY_HREF : null);
@@ -1540,6 +1351,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                 layoutStyles.item,
                 item._key === "whatWeDoDoorDash" && layoutStyles.deliveryBag,
                 item._key === "local-yom" && layoutStyles.muteVideo,
+                item._key === "whatWeDoAdidas" && layoutStyles.adidas,
                 "group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-tablet-x)] md:top-[var(--item-tablet-y)] md:w-[var(--item-tablet-width)] lg:left-[var(--item-x)] lg:top-[var(--item-y)] lg:w-[var(--item-width)]",
               );
 
@@ -1699,8 +1511,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           )}
           </WorkColumns>
           <Link
-            href="/case-study"
-            scroll={false}
+            href="/work"
             className={cn(
               buttonVariants({ variant: "outline", size: "lg" }),
               layoutStyles.more,

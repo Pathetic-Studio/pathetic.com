@@ -105,8 +105,8 @@ export default function NetworkPhoneScene({
     };
   }, []);
 
-  // Interleave metrics and audience details around the phone, then keep the
-  // same reading order in the compact layout below it on small screens.
+  // Interleave metrics and audience details around the phone, with three
+  // above and three below in the compact layout.
   const orderedReach = [reachPoints[0], reachPoints[2], reachPoints[1]]
     .filter(Boolean)
     .map((point) => ({

@@ -44,9 +44,13 @@ function rectStyle(rect: DOMRect) {
 export function prepareCaseStudyTransition(link: HTMLAnchorElement) {
   const slug = link.dataset.caseStudyLink || link.dataset.caseNext;
   const nextPanel = link.closest<HTMLElement>("[data-case-next-panel]");
-  const sources = Array.from(
-    (nextPanel || link).querySelectorAll<HTMLElement>("[data-case-object]"),
-  );
+  const sourceRoot =
+    nextPanel || link.closest<HTMLElement>("[data-work-toy]") || link;
+  const sources = sourceRoot.matches("[data-case-object]")
+    ? [sourceRoot]
+    : Array.from(
+        sourceRoot.querySelectorAll<HTMLElement>("[data-case-object]"),
+      );
   const source = sources[0];
   if (
     !slug ||
@@ -97,10 +101,18 @@ export function prepareCaseStudyTransition(link: HTMLAnchorElement) {
     panel.append(copy);
   }
   const objects = sources.map((source) => {
-    const object = source.cloneNode(true) as HTMLElement;
+    // The collection's label and float animation stay on the departing page.
+    // Fly only the artwork, using its actual on-screen bounds in either mode.
+    const visual = source.matches("[data-work-toy]")
+      ? source.querySelector<HTMLElement>("[data-work-art]") || source
+      : source;
+    const object = visual.cloneNode(true) as HTMLElement;
+    if (visual !== source) object.dataset.workArtworkFlight = "";
+    if (source.dataset.caseObjectKey)
+      object.dataset.caseObjectKey = source.dataset.caseObjectKey;
     object.removeAttribute("data-case-object");
     // Freeze responsive sources at the already decoded image; no fetch in flight.
-    source.querySelectorAll("img").forEach((img, i) => {
+    visual.querySelectorAll("img").forEach((img, i) => {
       const clone = object.querySelectorAll("img")[i];
       clone.removeAttribute("srcset");
       clone.removeAttribute("sizes");
@@ -119,16 +131,16 @@ export function prepareCaseStudyTransition(link: HTMLAnchorElement) {
       boxShadow: "none",
       scale: "none",
     });
-    const sourceRect = source.getBoundingClientRect();
+    const sourceRect = visual.getBoundingClientRect();
     if (source.hasAttribute("data-case-physics-object")) {
       // getBoundingClientRect includes rotation. Preserve the moving body's
       // actual dimensions and angle instead of stretching that bounding box.
       const matrix = new DOMMatrixReadOnly(getComputedStyle(source).transform);
       gsap.set(object, {
-        left: sourceRect.left + (sourceRect.width - source.offsetWidth) / 2,
-        top: sourceRect.top + (sourceRect.height - source.offsetHeight) / 2,
-        width: source.offsetWidth,
-        height: source.offsetHeight,
+        left: sourceRect.left + (sourceRect.width - visual.offsetWidth) / 2,
+        top: sourceRect.top + (sourceRect.height - visual.offsetHeight) / 2,
+        width: visual.offsetWidth,
+        height: visual.offsetHeight,
         rotation: (Math.atan2(matrix.b, matrix.a) * 180) / Math.PI,
       });
     } else gsap.set(object, rectStyle(sourceRect));
@@ -155,8 +167,8 @@ export function leaveCaseStudy(page: HTMLElement, next: () => void) {
   const inset = Math.max(12, Math.min(32, innerWidth * 0.0155));
   const width = Math.min(1440, innerWidth - inset * 2);
   const top =
-    document.getElementById("site-header-root")?.getBoundingClientRect().bottom ??
-    (innerWidth < 1280 ? 72 : 96);
+    document.getElementById("site-header-root")?.getBoundingClientRect()
+      .bottom ?? (innerWidth < 1280 ? 72 : 96);
   if (current.panel.firstElementChild) {
     const lift = top - current.panel.getBoundingClientRect().top;
     // Keep the departing page visible until the rising sheet covers it. Its
@@ -293,6 +305,35 @@ export function enterCaseStudy(page: HTMLElement, next: () => void) {
       0,
     );
     pairs.forEach(({ object, target }) => {
+      if (
+        object.hasAttribute("data-work-artwork-flight") &&
+        target.firstElementChild
+      ) {
+        // Homepage artwork uses tightly cropped frames; the case-study bodies
+        // use full transparent images. Blend to the destination's exact artwork
+        // during the flight so neither its size nor crop jumps at hand-off.
+        const originalArt = Array.from(object.children);
+        const destinationArt = target.firstElementChild.cloneNode(
+          true,
+        ) as HTMLElement;
+        const targetImages = target.querySelectorAll("img");
+        destinationArt.querySelectorAll("img").forEach((image, index) => {
+          const loaded = targetImages[index];
+          image.removeAttribute("srcset");
+          image.removeAttribute("sizes");
+          image.src = loaded.currentSrc || loaded.src;
+        });
+        Object.assign(destinationArt.style, {
+          position: "absolute",
+          inset: "0",
+          width: "100%",
+          height: "100%",
+          opacity: "0",
+        });
+        object.append(destinationArt);
+        timeline!.to(originalArt, { opacity: 0, duration: 0.22 }, 0.16);
+        timeline!.to(destinationArt, { opacity: 1, duration: 0.22 }, 0.16);
+      }
       const origin = {
         left: Number(gsap.getProperty(object, "left")),
         top: Number(gsap.getProperty(object, "top")),

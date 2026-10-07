@@ -42,19 +42,15 @@ function LifecycleTitleCharacters({ text, linkInstagram = false }: { text: strin
         {text.split(/(\s+)/).map((token, tokenIndex) => {
           if (/^\s+$/.test(token)) return token;
 
-          const characters = (
-            <span key={`${token}-${tokenIndex}`} className="inline-block">
-              {Array.from(token).map((character, characterIndex) => (
-                <span
-                  key={`${character}-${characterIndex}`}
-                  data-lifecycle-title-char
-                  className="inline-block lg:opacity-0"
-                >
-                  {character}
-                </span>
-              ))}
+          const characters = Array.from(token).map((character, characterIndex) => (
+            <span
+              key={`${character}-${characterIndex}`}
+              data-lifecycle-title-char
+              className="inline-block lg:opacity-0"
+            >
+              {character}
             </span>
-          );
+          ));
           return linkInstagram && /^@?pathetic[.,]?$/i.test(token) ? (
             <a
               key={`${token}-${tokenIndex}`}
@@ -62,11 +58,18 @@ function LifecycleTitleCharacters({ text, linkInstagram = false }: { text: strin
               target="_blank"
               rel="noopener noreferrer"
               aria-label="PATHETIC on Instagram"
-              className="pointer-events-auto inline-block border-b-[.06em] border-current pb-[.02em] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+              className="pointer-events-auto inline-block no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
             >
-              {characters}
+              {token.startsWith("@") && characters[0]}
+              <span className="relative inline-block after:absolute after:inset-x-0 after:bottom-[.12em] after:h-[.045em] after:bg-current">
+                {characters.slice(token.startsWith("@") ? 1 : 0)}
+              </span>
             </a>
-          ) : characters;
+          ) : (
+            <span key={`${token}-${tokenIndex}`} className="inline-block">
+              {characters}
+            </span>
+          );
         })}
       </span>
       {!linkInstagram && <span className="sr-only">{text}</span>}
@@ -91,11 +94,11 @@ function SlideCopy({
   const cleanCenterText = centerText ? stegaClean(centerText) : "";
 
   return (
-    <div className={cn("pointer-events-none absolute inset-0 z-[90] flex flex-col items-center px-5 text-center", groupOnTouch && "max-lg:justify-center max-lg:gap-5")}>
+    <div className={cn("pointer-events-none absolute inset-0 z-[90] flex flex-col items-center px-5 text-center", groupOnTouch && "max-lg:justify-center max-lg:gap-5 max-lg:pb-[10svh]")}>
       {cleanTopText && (
         <p
           data-lifecycle-top-text
-          className={cn("max-w-[90vw] pt-[13svh] text-xs font-bold uppercase italic tracking-[-0.02em] sm:text-sm lg:pt-[14svh] lg:text-base lg:opacity-0", groupOnTouch && "max-lg:pt-0")}
+          className={cn("max-w-[90vw] pt-[13svh] text-sm font-bold uppercase italic tracking-[-0.02em] sm:text-base lg:pt-[14svh] lg:text-base lg:opacity-0", groupOnTouch && "max-lg:pt-0")}
         >
           {cleanTopText}
         </p>
@@ -113,7 +116,7 @@ function SlideCopy({
             align="center"
             maxChars={38}
             animation="none"
-            className="whitespace-pre-line [text-wrap:balance]"
+            className="whitespace-pre-line [text-wrap:balance] max-sm:[&_h2]:!text-[clamp(2.125rem,9.75vw,2.65rem)]"
             textColor={textStyle?.fillColor?.hex || undefined}
             textOutline
             outlineColor="#ffffff"
@@ -127,6 +130,40 @@ function SlideCopy({
       )}
     </div>
   );
+}
+
+/** Direction-aware cascades: start hiding while the first slide is still in view. */
+function createMemeCascade(trigger: HTMLElement, images: HTMLElement[], onExit: () => void, end: string | (() => string) = "bottom 18%") {
+  if (!images.length) return () => {};
+  let shown = false;
+  let tween: gsap.core.Tween | undefined;
+  gsap.set(images, { autoAlpha: 0, scale: .18 });
+  const show = (next: boolean) => {
+    if (shown === next) return;
+    shown = next;
+    tween?.kill();
+    tween = gsap.to(images, {
+      autoAlpha: next ? 1 : 0, scale: next ? 1 : .18, rotation: 0,
+      duration: next ? .34 : .24,
+      stagger: { amount: next ? .68 : .46, from: next ? "start" : "end" },
+      ease: next ? "back.out(1.75)" : "power2.in", overwrite: true,
+    });
+    if (!next) onExit();
+  };
+  const scroll = ScrollTrigger.create({
+    trigger, start: "top 82%", end,
+    onEnter: () => show(true), onEnterBack: () => show(true),
+    onLeave: () => show(false), onLeaveBack: () => show(false),
+    onUpdate: self => {
+      if (!self.isActive) return;
+      // Reverse sooner than the entrance boundary, so the upward cascade is
+      // visible rather than finishing after the images leave the viewport.
+      if (self.direction < 0 && trigger.getBoundingClientRect().top > innerHeight * .16) show(false);
+      else if (self.direction > 0) show(true);
+    },
+  });
+  if (scroll.isActive) show(true);
+  return () => { scroll.kill(); tween?.kill(); };
 }
 
 export default function LifecycleSlideshow(props: LifecycleBlock) {
@@ -260,9 +297,15 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             bridgeSource && pinTarget
               ? (bridgeSource.cloneNode(true) as HTMLElement)
               : null;
-          const departingMemeImages = bridgeSource
-            ? memeImages.filter((image) => image !== bridgeSource)
-            : memeImages;
+          const departingMemeImages = memeImages
+            .filter((image) => image !== bridgeSource)
+            .map((image) =>
+              image.querySelector<HTMLElement>("[data-lifecycle-meme-transition]")!,
+            );
+          gsap.set(root.querySelectorAll("[data-lifecycle-meme-transition]"), {
+            autoAlpha: 1,
+            scale: 1,
+          });
 
           if (bridgeClone && pinTarget) {
             bridgeClone.removeAttribute("data-lifecycle-meme-image");
@@ -272,7 +315,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             bridgeClone.tabIndex = -1;
             bridgeClone
               .querySelectorAll<HTMLElement>(
-                "[data-lifecycle-meme-float], [data-lifecycle-meme-hover]",
+                "[data-lifecycle-meme-float], [data-lifecycle-meme-hover], [data-lifecycle-meme-reveal], [data-lifecycle-meme-transition]",
               )
               .forEach((element) => element.removeAttribute("style"));
             Object.assign(bridgeClone.style, {
@@ -409,34 +452,13 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
               Number(a.dataset.restY ?? 0) - Number(b.dataset.restY ?? 0);
             if (Math.abs(yDifference) > 3) return yDifference;
             return Number(a.dataset.restX ?? 0) - Number(b.dataset.restX ?? 0);
-          });
-          const firstSlideEntrance = gsap.timeline({
-            scrollTrigger: {
-              trigger: root,
-              start: "top 76%",
-              toggleActions: "play none none reverse",
-            },
-          });
-
-          if (waveMemeImages.length) {
-            firstSlideEntrance.fromTo(
-              waveMemeImages,
-              { autoAlpha: 0, scale: 0.72, rotation: 0 },
-              {
-                autoAlpha: (_index, target) =>
-                  Number((target as HTMLElement).dataset.restOpacity ?? 1),
-                scale: (_index, target) =>
-                  Number((target as HTMLElement).dataset.restScale ?? 1),
-                rotation: 0,
-                duration: 0.32,
-                stagger: {
-                  amount: 0.62,
-                  from: "start",
-                },
-                ease: "back.out(1.7)",
-              },
-            );
-          }
+          }).map(image =>
+            image.querySelector<HTMLElement>("[data-lifecycle-meme-reveal]")!,
+          );
+          const disposeMemeCascade = createMemeCascade(root, waveMemeImages,
+            () => setMemeResetKey(current => current + 1),
+            () => `+=${window.innerHeight * (duration + 1)}`,
+          );
 
           const timeline = gsap.timeline({
             paused: true,
@@ -544,7 +566,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
                 bridgeStartAt,
               )
               .to(
-                bridgeSource,
+                bridgeSource.querySelector("[data-lifecycle-meme-transition]"),
                 {
                   autoAlpha: 0,
                   duration: 0.08,
@@ -859,6 +881,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           requestAnimationFrame(() => ScrollTrigger.refresh());
 
           return () => {
+            disposeMemeCascade();
             scrubTrigger.kill();
             stageTween?.kill();
             timeline.kill();
@@ -913,29 +936,13 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
               Number(a.dataset.restY ?? 0) - Number(b.dataset.restY ?? 0);
             if (Math.abs(yDifference) > 3) return yDifference;
             return Number(a.dataset.restX ?? 0) - Number(b.dataset.restX ?? 0);
-          });
+          }).map(image =>
+            image.querySelector<HTMLElement>("[data-lifecycle-meme-reveal]")!,
+          );
 
-          if (waveMemeImages.length && slides[0]) {
-            gsap.set(waveMemeImages, { autoAlpha: 0, scale: 0.18 });
-            gsap
-              .timeline({
-                scrollTrigger: {
-                  trigger: slides[0],
-                  start: "top 86%",
-                  toggleActions: "play none none reverse",
-                },
-              })
-              .to(waveMemeImages, {
-                autoAlpha: (_index, target) =>
-                  Number((target as HTMLElement).dataset.restOpacity ?? 1),
-                scale: (_index, target) =>
-                  Number((target as HTMLElement).dataset.restScale ?? 1),
-                duration: 0.34,
-                stagger: { amount: 0.72, from: "start" },
-                ease: "back.out(1.75)",
-                overwrite: "auto",
-              });
-          }
+          const disposeMemeCascade = slides[0]
+            ? createMemeCascade(slides[0], waveMemeImages, () => setMemeResetKey(current => current + 1))
+            : () => {};
 
           if (slides[1]) {
             if (orbitStage) gsap.set(orbitStage, { scale: 0.82 });
@@ -982,11 +989,8 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
 
           if (slides[2] && threeStage) {
             if (funButton) gsap.set(funButton, { autoAlpha: 0, scale: 0 });
-            gsap.set(threeStage, {
-              yPercent: 38,
-              scale: 0.68,
-              transformOrigin: "50% 50%",
-            });
+            // Stacked slides keep the glasses in place from first visibility.
+            gsap.set(threeStage, { clearProps: "transform,transformOrigin" });
             const objectEntrance = gsap
               .timeline({
                 scrollTrigger: {
@@ -1010,23 +1014,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
                     clearHeaderVisualTheme(headerThemeSource);
                   },
                 },
-              })
-              .call(
-                () => setObjectEntryKey((current) => current + 1),
-                [],
-                0,
-              )
-              .to(
-                threeStage,
-                {
-                  yPercent: 0,
-                  scale: 1,
-                  duration: 0.35,
-                  ease: "power4.out",
-                  force3D: true,
-                },
-                0,
-              );
+              });
 
             if (funButton) {
               objectEntrance.to(
@@ -1050,6 +1038,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             "[data-lifecycle-progress]",
           );
           if (progress) gsap.set(progress, { scaleX: 1 });
+          return disposeMemeCascade;
         },
       );
 
@@ -1059,7 +1048,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           root,
         );
         const readableItems = gsap.utils.toArray<HTMLElement>(
-          "[data-lifecycle-top-text], [data-lifecycle-title-char], [data-lifecycle-meme-image], [data-lifecycle-orbit-reveal]",
+          "[data-lifecycle-top-text], [data-lifecycle-title-char], [data-lifecycle-meme-image], [data-lifecycle-meme-reveal], [data-lifecycle-meme-transition], [data-lifecycle-orbit-reveal]",
           root,
         );
         if (slides.length) gsap.set(slides, { clearProps: "all" });

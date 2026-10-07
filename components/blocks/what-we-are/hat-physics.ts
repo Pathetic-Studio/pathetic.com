@@ -71,6 +71,7 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
           friction: 0.18,
           frictionAir: 0.025,
           density: 0.0014,
+          collisionFilter: { category: 0x0002 },
           chamfer: { radius: Math.min(width, height) * 0.13 },
         },
       );
@@ -130,6 +131,7 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
       label,
     });
   const updateFigure = () => {
+    if (section.dataset.figureSpinning === "true") return;
     const r = box(figure),
       old = figureBounds;
     if (
@@ -217,16 +219,21 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
       ...[
         title,
         ...section.querySelectorAll<HTMLElement>("[data-hat-obstacle]"),
-      ].map((el) => {
-        const r = box(el);
-        return staticRect(
-          (r.left + r.right) / 2,
-          (r.top + r.bottom) / 2,
-          r.right - r.left,
-          r.bottom - r.top,
-          el === title ? "wardrobe-title" : "wardrobe-label",
-        );
-      }),
+      ]
+        .filter(
+          (el) =>
+            el.getClientRects().length && el.clientWidth && el.clientHeight,
+        )
+        .map((el) => {
+          const r = box(el);
+          return staticRect(
+            (r.left + r.right) / 2,
+            (r.top + r.bottom) / 2,
+            r.right - r.left,
+            r.bottom - r.top,
+            el === title ? "wardrobe-title" : "wardrobe-label",
+          );
+        }),
     ];
     Composite.add(engine.world, obstacles);
     updateFigure();
@@ -265,6 +272,18 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
     const delta = Math.min(previous ? time - previous : 16.67, 32);
     previous = time;
     updateFigure();
+    // Released hats regain their free-object size where they actually are.
+    // Keep this in the physics loop so their position remains collision-driven.
+    states.forEach((state) => {
+      if (!state.free || Math.abs(state.scale - 1) < 0.0001) return;
+      const scale =
+        Math.abs(state.scale - 1) < 0.002
+          ? 1
+          : state.scale + (1 - state.scale) * (1 - Math.exp(-delta / 140));
+      Body.scale(state.body, scale / state.scale, scale / state.scale);
+      state.scale = scale;
+      Sleeping.set(state.body, false);
+    });
     // Two short steps keep quick throws from tunnelling through label boxes.
     Engine.update(engine, delta / 2);
     Engine.update(engine, delta / 2);
@@ -345,27 +364,37 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
       const s = states.get(role)!;
       s.free = false;
       Body.setStatic(s.body, true);
-      s.body.collisionFilter.mask = 0;
+      // A controlled hat passes over the drawing/text but still pushes hats.
+      s.body.collisionFilter.mask = 0x0002;
       paint(s);
     },
-    place(role: RoleId, pose: HatPose, constrain = false) {
+    place(role: RoleId, pose: HatPose, constrain = false, moving = false) {
       const s = states.get(role)!;
       if (Math.abs(s.scale - pose.scale) > 0.0001)
         Body.scale(s.body, pose.scale / s.scale, pose.scale / s.scale);
       s.scale = pose.scale;
+      const travel = {
+        x: pose.x - s.body.position.x,
+        y: pose.y - s.body.position.y,
+      };
       Body.setPosition(s.body, pose);
+      if (!s.free) Body.setVelocity(s.body, moving ? travel : { x: 0, y: 0 });
       Body.setAngle(s.body, pose.angle);
       if (constrain) contain(s);
       paint(s);
     },
-    release(role: RoleId, velocity = { x: 0, y: 0 }) {
+    release(role: RoleId, velocity = { x: 0, y: 0 }, angularVelocity = 0) {
       const s = states.get(role)!;
       s.free = true;
       Body.setStatic(s.body, false);
       s.body.collisionFilter.mask = 0xffffffff;
+      if (motion.matches && s.scale !== 1) {
+        Body.scale(s.body, 1 / s.scale, 1 / s.scale);
+        s.scale = 1;
+      }
       Body.setVelocity(s.body, motion.matches ? { x: 0, y: 0 } : velocity);
       // Rotation comes from collisions, never from a pickup/placement flourish.
-      Body.setAngularVelocity(s.body, 0);
+      Body.setAngularVelocity(s.body, motion.matches ? 0 : angularVelocity);
       Sleeping.set(s.body, false);
       contain(s);
       paint(s);

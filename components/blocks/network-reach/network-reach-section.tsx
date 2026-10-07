@@ -426,7 +426,8 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
               variant="stretched"
               size="network-friends"
               as="h2"
-              maxChars={30}
+              singleLine
+              maxChars={0}
               fontWeight="bold"
               textColor="#ffffff"
               textOutline
@@ -435,7 +436,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
               outlinePosition="outside"
               stretchScaleX={0.72}
               overallScale={1.04}
-              className="!w-auto sm:[&_h2]:whitespace-nowrap [&_h2]:leading-[1.04] [&_h2]:tracking-[-.055em] lg:[&_h2]:leading-[.78]"
+              className="!w-auto [&_h2]:whitespace-nowrap max-sm:[&_h2]:!text-[clamp(2rem,8.9vw,3rem)] [&_h2]:leading-[1.04] [&_h2]:tracking-[-.055em] lg:[&_h2]:leading-[.78]"
             >
               {stegaClean(props.friendsTitle) || "AND WE BRING FRIENDS"}
             </TitleText>

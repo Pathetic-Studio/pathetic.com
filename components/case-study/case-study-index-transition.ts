@@ -1,4 +1,6 @@
 import gsap from "gsap";
+import ScrollSmoother from "gsap/ScrollSmoother";
+import ScrollTrigger from "gsap/ScrollTrigger";
 
 let snapshot: HTMLDivElement | null = null;
 let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -132,21 +134,57 @@ export function enterCaseIndex(page: HTMLElement, next: () => void) {
     return null;
   }
   const oldPage = snapshot;
-  const timeline = gsap.timeline({
-    onComplete: () => {
-      clearCaseIndexTransition();
-      next();
-    },
+  let frame = 0;
+  let timeline: gsap.core.Timeline | undefined;
+  let previousHeight = -1,
+    stableFrames = 0;
+  const started = performance.now();
+  const align = () => {
+    const wrapper = document.getElementById("smooth-wrapper");
+    if (wrapper) wrapper.scrollTop = 0;
+    const smoother = ScrollSmoother.get();
+    if (smoother) {
+      if (Math.abs(smoother.scrollTop()) > 0.5) smoother.scrollTop(0);
+    } else if (Math.abs(window.scrollY) > 0.5) window.scrollTo(0, 0);
+  };
+  ScrollTrigger.addEventListener("refresh", align);
+  const settle = () => {
+    align();
+    const height = page.scrollHeight;
+    stableFrames = height === previousHeight ? stableFrames + 1 : 0;
+    previousHeight = height;
+    if (stableFrames < 3 && performance.now() - started < 450) {
+      frame = requestAnimationFrame(settle);
+      return;
+    }
+    timeline = gsap.timeline({
+      onUpdate: align,
+      onComplete: () => {
+        align();
+        ScrollTrigger.removeEventListener("refresh", align);
+        clearCaseIndexTransition();
+        next();
+      },
+    });
+    if (oldPage)
+      timeline.to(
+        oldPage,
+        { opacity: 0, duration: 0.18, ease: "power1.out" },
+        0,
+      );
+    timeline.to(
+      page,
+      { opacity: 1, duration: 0.24, ease: "power1.out" },
+      oldPage ? 0.1 : 0,
+    );
+  };
+  frame = requestAnimationFrame(() => {
+    frame = requestAnimationFrame(settle);
   });
-  if (oldPage)
-    timeline.to(oldPage, { opacity: 0, duration: 0.18, ease: "power1.out" }, 0);
-  timeline.to(
-    page,
-    { opacity: 1, duration: 0.24, ease: "power1.out" },
-    oldPage ? 0.1 : 0,
-  );
   return () => {
-    timeline.kill();
+    cancelAnimationFrame(frame);
+    timeline?.kill();
+    ScrollTrigger.removeEventListener("refresh", align);
     clearCaseIndexTransition();
   };
 }

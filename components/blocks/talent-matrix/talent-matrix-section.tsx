@@ -64,7 +64,7 @@ export function TalentMatrixView({
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,transparent_0%,rgba(0,12,3,.06)_38%,rgba(0,4,1,.42)_100%),linear-gradient(180deg,rgba(0,0,0,.06),transparent_50%,rgba(0,0,0,.2))]" />
 
-      <div data-talent-copy className="pointer-events-none absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center text-center sm:inset-x-4">
+      <div data-talent-copy className="[filter:drop-shadow(0_5px_15px_rgba(0,0,0,.9))] pointer-events-none absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center text-center sm:inset-x-4">
         <TitleText
           variant="stretched" as="p" size="matrix-eyebrow" animation="none"
           fontWeight="bold" textColor="#ffffff" stretchScaleX={0.66}
@@ -103,7 +103,7 @@ export function TalentMatrixView({
           </TitleText>
         </div>
         {cleanDescription && (
-          <p className={`pointer-events-auto mt-4 select-text text-white sm:mt-5 lg:mt-6 [text-shadow:0_2px_8px_#000] ${SECTION_HEADER_BODY_CLASS}`}>
+          <p className={`pointer-events-auto mt-4 select-text text-white max-sm:!w-[min(76vw,22rem)] sm:mt-5 lg:mt-6 [text-shadow:0_2px_8px_#000] ${SECTION_HEADER_BODY_CLASS}`}>
             {descriptionLines.map((line, index) => (
               <span key={`${line}-${index}`} className="lg:block">
                 {line}

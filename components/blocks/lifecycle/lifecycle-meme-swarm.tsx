@@ -253,19 +253,19 @@ export default function LifecycleMemeSwarm({
       }
       const placed: Array<{ x: number; y: number; radius: number }> = [];
       const compact = bounds.width < 1024;
-      const sidePadding = compact ? 18 : 0;
+      // Edge cutouts can bleed outside the frame; keep the text protected.
       root
         .querySelectorAll<HTMLElement>("[data-lifecycle-meme-image]")
         .forEach((item, index) => {
           const layer = layers[index] ?? { restX: 68, restY: 21 };
           const scale =
-            Number(item.dataset.restScale) * (bounds.width < 640 ? 0.7 : 1);
+            Number(item.dataset.restScale) * (bounds.width < 640 ? 0.6 : 1);
           // Include the hover growth and floating travel in the clearance.
           const halfWidth = Number(item.dataset.restWidth) * scale * 0.61 + 7;
           const halfHeight =
             Number(item.dataset.restHeight) * scale * 0.61 + 14;
           const clear = (x: number, y: number) =>
-            (!compact || (x - halfWidth >= sidePadding && x + halfWidth <= bounds.width - sidePadding
+            (!compact || (x >= -halfWidth * 0.3 && x <= bounds.width + halfWidth * 0.3
               && y - halfHeight >= 20 && y + halfHeight <= bounds.height - 24)) &&
             zones.every(
               (zone) =>
@@ -275,7 +275,7 @@ export default function LifecycleMemeSwarm({
                 y - halfHeight > zone.bottom,
             );
           const origin = {
-            x: (bounds.width * layer.restX) / 100,
+            x: (bounds.width * (compact ? 50 + (layer.restX - 50) * 1.16 : layer.restX)) / 100,
             y: (bounds.height * (compact ? 50 + (layer.restY - 50) * 1.28 : layer.restY)) / 100,
           };
           let best = origin;
@@ -285,8 +285,8 @@ export default function LifecycleMemeSwarm({
               candidate === 0
                 ? origin.x
                 : bounds.width *
-                  (0.035 +
-                    ((candidate * 0.61803398875 + index * 0.13) % 1) * 0.93);
+                  ((compact ? -0.025 : 0.035) +
+                    ((candidate * 0.61803398875 + index * 0.13) % 1) * (compact ? 1.05 : 0.93));
             const y =
               candidate === 0
                 ? origin.y
@@ -513,7 +513,7 @@ export default function LifecycleMemeSwarm({
     if (!root) return;
 
     const rootBounds = root.getBoundingClientRect();
-    const mobileRestScale = rootBounds.width < 640 ? 0.7 : 1;
+    const mobileRestScale = rootBounds.width < 640 ? 0.6 : 1;
     const items = gsap.utils.toArray<HTMLElement>(
       "[data-lifecycle-meme-image]",
       root,
@@ -585,7 +585,7 @@ export default function LifecycleMemeSwarm({
       };
 
       if (!hasInteractedRef.current) {
-        gsap.set(item, properties);
+        gsap.set(item, { ...properties, autoAlpha: restOpacity, scale: restScale });
         return;
       }
 
@@ -703,46 +703,50 @@ export default function LifecycleMemeSwarm({
             transform: "translate(-50%, -50%)",
           }}
         >
-          <span
-            data-lifecycle-meme-float
-            className="pointer-events-none absolute inset-0 will-change-transform"
-          >
-            <span
-              data-lifecycle-meme-hover
-              data-group-index={item.groupIndex}
-              data-global-index={item.globalIndex}
-              className="absolute inset-0 will-change-transform"
-            >
-              {item.layer.src && item.layer.sourceCrop ? (
-                <svg
-                  viewBox={item.layer.sourceCrop.viewBox}
-                  role="img"
-                  aria-label={item.layer.alt}
-                  className="h-full w-full"
+          <span data-lifecycle-meme-transition className="absolute inset-0">
+            <span data-lifecycle-meme-reveal className="absolute inset-0">
+              <span
+                data-lifecycle-meme-float
+                className="pointer-events-none absolute inset-0 will-change-transform"
+              >
+                <span
+                  data-lifecycle-meme-hover
+                  data-group-index={item.groupIndex}
+                  data-global-index={item.globalIndex}
+                  className="absolute inset-0 will-change-transform"
                 >
-                  <defs>
-                    <clipPath id={`meme-character-${item.globalIndex}`}>
-                      <path d={item.layer.sourceCrop.outline} />
-                    </clipPath>
-                  </defs>
-                  <image
-                    href={item.layer.src}
-                    width="1018"
-                    height="1146"
-                    clipPath={`url(#meme-character-${item.globalIndex})`}
-                  />
-                </svg>
-              ) : item.layer.src ? (
-                <Image
-                  src={item.layer.src}
-                  alt={item.layer.alt}
-                  fill
-                  sizes="(min-width: 1024px) 180px, 90px"
-                  className="object-contain"
-                />
-              ) : (
-                <span className="block h-full w-full bg-[#b7b7b7]" />
-              )}
+                  {item.layer.src && item.layer.sourceCrop ? (
+                    <svg
+                      viewBox={item.layer.sourceCrop.viewBox}
+                      role="img"
+                      aria-label={item.layer.alt}
+                      className="h-full w-full"
+                    >
+                      <defs>
+                        <clipPath id={`meme-character-${item.globalIndex}`}>
+                          <path d={item.layer.sourceCrop.outline} />
+                        </clipPath>
+                      </defs>
+                      <image
+                        href={item.layer.src}
+                        width="1018"
+                        height="1146"
+                        clipPath={`url(#meme-character-${item.globalIndex})`}
+                      />
+                    </svg>
+                  ) : item.layer.src ? (
+                    <Image
+                      src={item.layer.src}
+                      alt={item.layer.alt}
+                      fill
+                      sizes="(min-width: 1024px) 180px, 90px"
+                      className="object-contain"
+                    />
+                  ) : (
+                    <span className="block h-full w-full bg-[#b7b7b7]" />
+                  )}
+                </span>
+              </span>
             </span>
           </span>
         </button>
@@ -772,18 +776,22 @@ export default function LifecycleMemeSwarm({
             transform: "translate(-50%, -50%)",
           }}
         >
-          <span
-            data-lifecycle-meme-float
-            className="absolute inset-0 will-change-transform"
-          >
-            <span className="absolute inset-0">
-              <Image
-                src={bridgeImage.src}
-                alt={bridgeImage.alt || ""}
-                fill
-                sizes="(min-width: 1024px) 150px, 90px"
-                className="object-contain"
-              />
+          <span data-lifecycle-meme-transition className="absolute inset-0">
+            <span data-lifecycle-meme-reveal className="absolute inset-0">
+              <span
+                data-lifecycle-meme-float
+                className="absolute inset-0 will-change-transform"
+              >
+                <span className="absolute inset-0">
+                  <Image
+                    src={bridgeImage.src}
+                    alt={bridgeImage.alt || ""}
+                    fill
+                    sizes="(min-width: 1024px) 150px, 90px"
+                    className="object-contain"
+                  />
+                </span>
+              </span>
             </span>
           </span>
         </div>

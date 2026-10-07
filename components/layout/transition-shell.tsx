@@ -224,6 +224,13 @@ function NavigationLinks() {
       if (href) prefetch(href);
     };
     const onClick = (event: MouseEvent) => {
+      const dragged = (event.target as Element).closest<HTMLElement>('[data-work-dragged="true"]');
+      if (dragged) {
+        delete dragged.dataset.workDragged;
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       if (
         event.defaultPrevented ||
         event.button !== 0 ||
@@ -479,7 +486,7 @@ export default function TransitionShell({
 
         gsap.killTweensOf(el);
 
-        if (to && new URL(to, window.location.href).pathname === "/case-study")
+        if (to && new URL(to, window.location.href).pathname === "/work")
           return leaveForCaseIndex(el, next);
 
         const caseLeave = leaveCaseStudy(el, next);

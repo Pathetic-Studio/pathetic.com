@@ -6,6 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import gsap from "gsap";
 import ScrollSmoother from "gsap/ScrollSmoother";
+import { createAbyssTransition } from "./abyss-transition";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollSmoother);
 
@@ -14,7 +15,6 @@ export type BasketPopupType = "shop" | "newsletter" | "jobs" | "abyss";
 type BasketLinksPopupProps = {
   active: BasketPopupType | null;
   onClose: () => void;
-  origin?: { x: number; y: number } | null;
   sourceElement?: HTMLElement | null;
   shopHref?: string;
 };
@@ -113,17 +113,17 @@ function JobsPopup({ onClose }: { onClose: () => void }) {
 
 function AbyssPopup({ onClose }: { onClose: () => void }) {
   return (
-    <div data-basket-popup-surface className="relative mx-auto w-[min(84vw,29rem)] overflow-hidden rounded-[1.3rem] border border-white/10 bg-black px-7 py-6 text-center text-white shadow-[0_0_75px_35px_rgba(0,0,0,.92)]">
-      <CloseButton onClose={onClose} />
-      <h3 className="relative z-10 text-[clamp(2.1rem,8vw,4rem)] font-black uppercase leading-none tracking-[-.06em]">The Abyss</h3>
+    <div data-basket-popup-surface className="relative mx-auto w-[min(84vw,29rem)] px-7 py-6 text-center text-white">
+      <div data-abyss-copy><CloseButton onClose={onClose} /></div>
+      <h3 data-abyss-copy className="relative z-10 text-[clamp(2.1rem,8vw,4rem)] font-black uppercase leading-none tracking-[-.06em]">The Abyss</h3>
       <div data-basket-popup-hero className="relative mx-auto my-2 aspect-[1.8] w-[86%]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/basket-links/portal.png" alt="The Abyss" className="h-full w-full object-contain" style={{ transform: "rotate(-20deg) scale(.86)" }} />
-        <span className="absolute left-1/2 top-1/2 h-[8%] w-[103%] -translate-x-1/2 -translate-y-1/2 rotate-[38deg] bg-[#ff2424]" />
-        <span className="absolute left-1/2 top-1/2 h-[8%] w-[103%] -translate-x-1/2 -translate-y-1/2 -rotate-[42deg] bg-[#ff2424]" />
+        <span data-abyss-copy className="absolute left-1/2 top-1/2 h-[8%] w-[103%] -translate-x-1/2 -translate-y-1/2 rotate-[38deg] bg-[#ff2424]" />
+        <span data-abyss-copy className="absolute left-1/2 top-1/2 h-[8%] w-[103%] -translate-x-1/2 -translate-y-1/2 -rotate-[42deg] bg-[#ff2424]" />
       </div>
-      <p className="text-xl font-black italic uppercase leading-none">Currently unavailable</p>
-      <p className="mt-1 text-xs font-bold italic uppercase">(Try next winter)</p>
+      <p data-abyss-copy className="text-xl font-black italic uppercase leading-none">Currently unavailable</p>
+      <p data-abyss-copy className="mt-1 text-xs font-bold italic uppercase">(Try next winter)</p>
     </div>
   );
 }
@@ -168,11 +168,12 @@ function getBasketTransitionPose(element: HTMLElement): BasketTransitionPose {
 
 const THREE_RAD_TO_DEG = 180 / Math.PI;
 
-export default function BasketLinksPopup({ active, onClose, origin, sourceElement, shopHref }: BasketLinksPopupProps) {
+export default function BasketLinksPopup({ active, onClose, sourceElement, shopHref }: BasketLinksPopupProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const backdropRef = useRef<HTMLButtonElement | null>(null);
   const takeoverRef = useRef<HTMLDivElement | null>(null);
+  const abyssTransitionRef = useRef<ReturnType<typeof createAbyssTransition> | null>(null);
   const transitionCloneRef = useRef<HTMLElement | null>(null);
   const transitionTargetRef = useRef<HTMLElement | null>(null);
   const transitionBusyRef = useRef(false);
@@ -192,6 +193,10 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
   }, [sourceElement]);
 
   const runCloseTransition = useCallback(() => {
+    if (active === "abyss" && abyssTransitionRef.current) {
+      abyssTransitionRef.current.close();
+      return;
+    }
     const panel = panelRef.current;
     const backdrop = backdropRef.current;
     const target = transitionTargetRef.current;
@@ -385,6 +390,22 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
     const target = panel.querySelector<HTMLElement>("[data-basket-popup-hero]");
     transitionTargetRef.current = target;
     const surface = panel.querySelector<HTMLElement>("[data-basket-popup-surface]");
+    if (active === "abyss" && rootRef.current && takeoverRef.current) {
+      const transition = createAbyssTransition({
+        root: rootRef.current,
+        panel,
+        ink: takeoverRef.current,
+        source: sourceElement,
+        getSourcePose: getBasketTransitionPose,
+        onClose,
+      });
+      abyssTransitionRef.current = transition;
+      return () => {
+        transition.dispose();
+        abyssTransitionRef.current = null;
+        transitionTargetRef.current = null;
+      };
+    }
     const isNewsletter = active === "newsletter";
     if (isNewsletter) {
       target?.style.setProperty("opacity", "0");
@@ -513,45 +534,24 @@ export default function BasketLinksPopup({ active, onClose, origin, sourceElemen
       transitionTargetRef.current = null;
       revealSource();
     };
-  }, [active, removeTransitionClone, revealSource, sourceElement]);
-
-  useLayoutEffect(() => {
-    const takeover = takeoverRef.current;
-    if (active !== "abyss" || !takeover) return;
-    const blobs = takeover.querySelectorAll<HTMLElement>("[data-abyss-blob]");
-    const veil = takeover.querySelector<HTMLElement>("[data-abyss-veil]");
-    const context = gsap.context(() => {
-      gsap.fromTo(
-        blobs,
-        { scale: 0.025, opacity: 0.35, rotation: -18 },
-        { scale: 2.35, opacity: 1, rotation: 42, duration: 4.2, stagger: 0.2, ease: "power1.inOut" },
-      );
-      gsap.to(veil, { opacity: 0.96, duration: 3.7, delay: 0.45, ease: "power1.inOut" });
-    }, takeover);
-    return () => context.revert();
-  }, [active]);
+  }, [active, onClose, removeTransitionClone, revealSource, sourceElement]);
 
   if (!active || typeof document === "undefined") return null;
 
   return createPortal(
     <div ref={rootRef} className="fixed inset-0 z-[10020] grid place-items-center overflow-hidden p-4" role="dialog" aria-modal="true" aria-label={`${active} popup`}>
       {active === "abyss" && (
-        <div ref={takeoverRef} className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
           <div
-            data-abyss-blob
-            className="absolute size-[82vmax] rounded-[42%_58%_55%_45%/53%_38%_62%_47%] bg-black blur-[clamp(34px,5vw,78px)]"
-            style={{ left: origin?.x ?? window.innerWidth / 2, top: origin?.y ?? window.innerHeight / 2, marginLeft: "-41vmax", marginTop: "-41vmax" }}
+            ref={takeoverRef}
+            data-abyss-ink
+            className="absolute rounded-full"
+            style={{ transform: "scale(0)", background: "radial-gradient(circle, #000 0 84%, rgba(0,0,0,.96) 87%, transparent 100%)" }}
           />
-          <div
-            data-abyss-blob
-            className="absolute size-[68vmax] rounded-[59%_41%_38%_62%/44%_61%_39%_56%] bg-black blur-[clamp(45px,7vw,105px)]"
-            style={{ left: origin?.x ?? window.innerWidth / 2, top: origin?.y ?? window.innerHeight / 2, marginLeft: "-34vmax", marginTop: "-34vmax" }}
-          />
-          <div data-abyss-veil className="absolute inset-0 bg-black opacity-0" />
         </div>
       )}
       <button ref={backdropRef} type="button" onClick={closeWithTransition} className={`absolute inset-0 z-10 ${active === "abyss" ? "bg-transparent" : "bg-[#181818]/88 backdrop-blur-[2px]"}`} aria-label="Close popup backdrop" />
-      <div ref={panelRef} className="relative z-20 max-h-[92svh] max-w-[94vw]" onClick={(event) => event.stopPropagation()}>
+      <div ref={panelRef} className="relative z-20 max-h-[92svh] max-w-[94vw]" style={active === "abyss" ? { opacity: 0 } : undefined} onClick={(event) => event.stopPropagation()}>
         {active === "shop" && <ShopPopup href={shopHref} onClose={closeWithTransition} />}
         {active === "newsletter" && (
           <PigeonNewsletter
