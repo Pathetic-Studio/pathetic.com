@@ -4,12 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Cropped scenes stay stable; full scenes fill the viewport as the mobile
-   browser toolbar retracts. The Matrix must not remain at the smaller height. */
+/* Cropped scenes keep a stable height with 10% more breathing room; full scenes
+   fill the viewport as the mobile browser toolbar retracts. */
 :root {
   --site-nav-height: 82px;
   --section-full-height: 100dvh;
-  --section-cropped-height: calc(100svh - var(--site-nav-height));
+  --section-cropped-height: calc((100svh - var(--site-nav-height)) * 1.1);
   --mobile-section-gap: 3rem;
 }
 

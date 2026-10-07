@@ -65,7 +65,56 @@ export default function PizzaRatScene() {
     let currentMode: RatMode = "pulling";
     let travelDirection: -1 | 1 = -1;
     const pointer = { x: -1, y: -1, active: false };
+    const mobileLayout = window.matchMedia("(max-width: 1023px)");
+    const road = root
+      .closest("[data-what-grid]")
+      ?.querySelector<HTMLElement>("[data-what-road]");
+    let roadTrack: { top: number; bottom: number } | null = null;
     let checkPointerCollision = () => undefined;
+
+    const readRoadTrack = () => {
+      if (!mobileLayout.matches || !road) {
+        roadTrack = null;
+        return;
+      }
+      const sceneBounds = root.getBoundingClientRect();
+      const roadBounds = road.getBoundingClientRect();
+      const scale = root.clientHeight / Math.max(1, sceneBounds.height);
+      roadTrack = {
+        top: (roadBounds.top - sceneBounds.top) * scale,
+        bottom: (roadBounds.bottom - sceneBounds.top) * scale,
+      };
+    };
+
+    // The pulling sprite extends beyond its button by 14% at each end.
+    // Keep that entire sprite, including its pizza, on the shortened road.
+    const fitScaleToRoad = (scale: number) =>
+      roadTrack
+        ? Math.min(
+            scale,
+            Math.max(
+              0.1,
+              (roadTrack.bottom - roadTrack.top - 16) /
+                (rat.offsetWidth * 1.28),
+            ),
+          )
+        : scale;
+
+    const roadYRange = (scale: number) => {
+      const size = rat.offsetWidth;
+      return {
+        min: roadTrack!.top + 8 - size * (0.5 - 0.64 * scale),
+        max: roadTrack!.bottom - 8 - size * (0.5 + 0.64 * scale),
+      };
+    };
+
+    const clampYToRoad = (y: number, scale: number) => {
+      if (!roadTrack) return y;
+      const range = roadYRange(scale);
+      return Math.max(range.min, Math.min(range.max, y));
+    };
+
+    readRoadTrack();
 
     const updateMode = (nextMode: RatMode) => {
       currentMode = nextMode;
@@ -75,7 +124,8 @@ export default function PizzaRatScene() {
     const onPointerMove = (event: PointerEvent) => {
       pointer.x = event.clientX;
       pointer.y = event.clientY;
-      pointer.active = event.pointerType === "mouse" || event.pointerType === "pen";
+      pointer.active =
+        event.pointerType === "mouse" || event.pointerType === "pen";
       checkPointerCollision();
     };
 
@@ -138,11 +188,14 @@ export default function PizzaRatScene() {
       updateMode("nibbling");
       checkPointerCollision();
       clearNibble();
-      nibbleTimer = window.setTimeout(() => {
-        if (!ratActive || scared || disposed) return;
-        updateMode("pulling");
-        moveNextSegment();
-      }, randomBetween(450, 900));
+      nibbleTimer = window.setTimeout(
+        () => {
+          if (!ratActive || scared || disposed) return;
+          updateMode("pulling");
+          moveNextSegment();
+        },
+        randomBetween(450, 900),
+      );
     };
 
     const moveNextSegment = () => {
@@ -152,18 +205,14 @@ export default function PizzaRatScene() {
       const ratSize = rat.offsetWidth;
       const currentX = Number(gsap.getProperty(rat, "x")) || 0;
       const endX =
-        travelDirection === -1
-          ? -ratSize * 1.2
-          : width + ratSize * 1.2;
+        travelDirection === -1 ? -ratSize * 1.2 : width + ratSize * 1.2;
       const distance = width * randomBetween(0.24, 0.36);
       const targetX =
         travelDirection === -1
           ? Math.max(endX, currentX - distance)
           : Math.min(endX, currentX + distance);
       const reachedEnd =
-        travelDirection === -1
-          ? targetX <= endX + 1
-          : targetX >= endX - 1;
+        travelDirection === -1 ? targetX <= endX + 1 : targetX >= endX - 1;
 
       movementTween?.kill();
       movementTween = gsap.to(rat, {
@@ -191,18 +240,20 @@ export default function PizzaRatScene() {
       const width = root.clientWidth;
       const height = root.clientHeight;
       const ratSize = rat.offsetWidth;
-      const launchScale = randomBetween(0.84, 1.02);
+      readRoadTrack();
+      const launchScale = fitScaleToRoad(randomBetween(0.84, 1.02));
+      const lane = roadTrack ? roadYRange(launchScale) : null;
+      const launchY = lane
+        ? lane.min + (lane.max - lane.min) * randomBetween(0.55, 0.95)
+        : height * randomBetween(0.69, 0.79);
       ratActive = true;
       scared = false;
       travelDirection = Math.random() < 0.5 ? -1 : 1;
       updateMode("pulling");
 
       gsap.set(rat, {
-        x:
-          travelDirection === -1
-            ? width + ratSize * 0.2
-            : -ratSize * 1.2,
-        y: height * randomBetween(0.69, 0.79),
+        x: travelDirection === -1 ? width + ratSize * 0.2 : -ratSize * 1.2,
+        y: launchY,
         rotation: 0,
         scaleX: travelDirection === 1 ? -launchScale : launchScale,
         scaleY: launchScale,
@@ -228,9 +279,7 @@ export default function PizzaRatScene() {
       const currentScale =
         Math.abs(Number(gsap.getProperty(rat, "scaleY"))) || 1;
       const pizzaOffset =
-        currentMode === "pulling"
-          ? { x: 0.96, y: 0.74 }
-          : { x: 0.66, y: 0.65 };
+        currentMode === "pulling" ? { x: 0.96, y: 0.74 } : { x: 0.66, y: 0.65 };
       const pizzaXOffset =
         travelDirection === 1 ? 1 - pizzaOffset.x : pizzaOffset.x;
       const pizzaDrop: DroppedPizza = {
@@ -256,11 +305,14 @@ export default function PizzaRatScene() {
       });
       escapeTween?.kill();
       escapeTween = gsap.to(rat, {
-        x:
-          travelDirection === -1
-            ? -ratSize * 1.5
-            : width + ratSize * 0.5,
-        y: Math.max(height * 0.64, currentY - height * randomBetween(0.01, 0.045)),
+        x: travelDirection === -1 ? -ratSize * 1.5 : width + ratSize * 0.5,
+        y: clampYToRoad(
+          Math.max(
+            height * 0.64,
+            currentY - height * randomBetween(0.01, 0.045),
+          ),
+          fleeScale,
+        ),
         duration: randomBetween(1.05, 1.45),
         ease: "power2.in",
         onComplete: () => {
@@ -299,11 +351,29 @@ export default function PizzaRatScene() {
 
     observer.observe(root);
 
+    const resizeObserver = new ResizeObserver(() => {
+      readRoadTrack();
+      if (!roadTrack || (!ratActive && !scared)) return;
+      const currentScaleX = Number(gsap.getProperty(rat, "scaleX")) || 1;
+      const scale = fitScaleToRoad(Math.abs(currentScaleX));
+      const y = clampYToRoad(Number(gsap.getProperty(rat, "y")) || 0, scale);
+      gsap.set(rat, {
+        y,
+        scaleX: Math.sign(currentScaleX) * scale,
+        scaleY: scale,
+      });
+      if (escapeTween?.isActive()) escapeTween.resetTo("y", y);
+    });
+    resizeObserver.observe(root);
+    resizeObserver.observe(rat);
+    if (road) resizeObserver.observe(road);
+
     return () => {
       disposed = true;
       clearSchedule();
       clearNibble();
       observer.disconnect();
+      resizeObserver.disconnect();
       movementTween?.kill();
       escapeTween?.kill();
       window.removeEventListener("pointermove", onPointerMove);
@@ -325,6 +395,7 @@ export default function PizzaRatScene() {
   return (
     <div
       ref={rootRef}
+      data-what-rat-scene
       data-what-layer
       data-depth="0.86"
       data-end-scale="1.18"

@@ -265,20 +265,23 @@ export default function BeliefSection(props: BeliefBlock) {
   }, [cloudsEnabled, partDuration]);
 
   const beliefContent = (
-    <div ref={rootRef} className="relative isolate overflow-visible">
+    <div ref={rootRef} className="relative isolate overflow-visible max-lg:z-[1]">
       {cloudsEnabled && (
         <>
           {/* The stacked content is much taller than the desktop composition.
               Repeat natural-aspect cloud banks all the way down that sky. */}
-          <div data-belief-mobile-clouds aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2] overflow-hidden lg:hidden">
+          <div data-belief-mobile-clouds aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2] [container-type:inline-size] [overflow-x:clip] overflow-y-visible lg:hidden">
             {Array.from({ length: 16 }, (_, index) => (
               <div
                 key={index}
+                data-belief-mobile-cloud-end={index === 15 ? "" : undefined}
                 className="absolute aspect-[428/278] w-[135%]"
                 style={{
-                  top: `${10 + index * 5.7}%`,
+                  // Keep the full silhouette. The final cloud's visible base is
+                  // at y=222 in the 428x278 asset; its faint tail remains intact.
+                  top: `min(${10 + index * 5.7}%, calc(100% - 135cqw * ${index === 15 ? 222 : 278} / 428 + ${index === 15 ? 50 : 0}px))`,
                   left: index % 2 ? "22%" : "-52%",
-                  opacity: index % 3 === 0 ? 0.85 : 0.65,
+                  opacity: index === 15 ? 0.6 : index % 3 === 0 ? 0.85 : 0.65,
                   transform: index % 2 ? "scaleX(-1)" : undefined,
                 }}
               >

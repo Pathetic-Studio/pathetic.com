@@ -191,8 +191,7 @@
     width: calc(100% - 32px);
     min-height: 88px;
     margin-bottom: 14px;
-    padding-left: 68px;
-    padding-right: 40px;
+    padding-inline: 68px;
   }
   .heading > div {
     max-width: 100%;
