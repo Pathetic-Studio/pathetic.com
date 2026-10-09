@@ -311,6 +311,16 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
     let animationFrame = 0;
     let lastFrameTime = performance.now();
     let lastImpulseTime = 0;
+    let abyssPaused = false;
+    let resumeImpulseAfter = 0;
+    const settleBodies = () => {
+      bodies.forEach((body) => {
+        Body.setVelocity(body, { x: 0, y: 0 });
+        Body.setAngularVelocity(body, 0);
+        body.force.x = body.force.y = body.torque = 0;
+        if (!body.isStatic) Sleeping.set(body, true);
+      });
+    };
     let drag: {
       pointerId: number;
       index: number;
@@ -325,6 +335,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       velocityX: number;
       velocityY: number;
       moved: boolean;
+      threshold: number;
     } | null = null;
 
     const renderBodies = () => {
@@ -340,8 +351,19 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       if (disposed || !active) return;
       const delta = clamp(time - lastFrameTime, 8, 32);
       lastFrameTime = time;
-      Engine.update(engine, delta);
-      renderBodies();
+      const abyssActive = document.documentElement.hasAttribute("data-abyss-active");
+      if (abyssActive && !abyssPaused) settleBodies();
+      if (!abyssActive && abyssPaused) {
+        // Return at rest. Scroll locking/unlocking must not replay old scroll
+        // impulses or throwing velocity immediately after the artwork lands.
+        settleBodies();
+        resumeImpulseAfter = time + 200;
+      }
+      abyssPaused = abyssActive;
+      if (!abyssActive) {
+        Engine.update(engine, delta);
+        renderBodies();
+      }
       animationFrame = requestAnimationFrame(loop);
     };
 
@@ -451,7 +473,9 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const applyScrollImpulse = (velocity: number) => {
-      if (!active || drag || reducedMotion.matches) return;
+      if (!active || drag || reducedMotion.matches ||
+          document.documentElement.hasAttribute("data-abyss-active") ||
+          performance.now() < resumeImpulseAfter) return;
       const now = performance.now();
       if (now - lastImpulseTime < 70) return;
       lastImpulseTime = now;
@@ -519,6 +543,9 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         velocityX: 0,
         velocityY: 0,
         moved: false,
+        // A finger naturally shifts during a tap. Do not swallow its click
+        // using the tighter mouse threshold; intentional throws still drag.
+        threshold: event.pointerType === "touch" ? 12 : 6,
       };
       Body.setStatic(body, true);
       Sleeping.set(body, false);
@@ -538,7 +565,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       drag.lastX = point.x;
       drag.lastY = point.y;
       drag.lastTime = now;
-      drag.moved ||= Math.hypot(point.x - drag.startX, point.y - drag.startY) > 6;
+      drag.moved ||= Math.hypot(point.x - drag.startX, point.y - drag.startY) > drag.threshold;
       if (!drag.moved) return;
       drag.element.dataset.basketDragged = "true";
 
@@ -672,6 +699,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
         <span className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[66.666%] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-90 sm:inset-0 sm:h-full sm:w-full sm:translate-x-0 sm:translate-y-0 sm:rotate-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
+            data-basket-shell
             src={basketSrc}
             alt={stegaClean(props.basketImage?.alt) || "Red shopping basket"}
             draggable={false}

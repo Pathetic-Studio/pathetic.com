@@ -1,0 +1,66 @@
+{
+  "tool": "Built-in image_gen",
+  "transparentBackground": true,
+  "assets": [
+    {
+      "name": "rocket",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Primary request: One polished chrome retro space rocket, upright nose pointing exactly up, full body, three swept fins, dark round porthole, short realistic warm exhaust directly underneath. Sculptural photographed metal, subtle brushed imperfections, not cartoon, no branding. Composition: centered isolated single object, entirely visible with a small clear margin, square canvas. Studio/space lighting from upper left, strong readable volume and clean fine edges, visually real and tactile. Background: genuinely transparent alpha, no backdrop, ground, stars, frame, outline, cast shadow, text, label, logo, watermark or additional objects. This is a standalone bitmap asset, not a screenshot of a website.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-b6fffdc3-14d7-4200-8a3c-2814e6c297ad.png",
+      "output": "public/images/credibility/objects/rocket.webp"
+    },
+    {
+      "name": "asteroid",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Primary request: One irregular orange rust and charcoal asteroid, roughly round silhouette, rugged pitted stone, molten orange fissures faintly lit, realistic photographed miniature space rock. No fire trail (added live in the app). Composition: centered isolated single object, entirely visible with a small clear margin, square canvas. Studio/space lighting from upper left, strong readable volume and clean fine edges, visually real and tactile. Background: genuinely transparent alpha, no backdrop, ground, stars, frame, outline, cast shadow, text, label, logo, watermark or additional objects. This is a standalone bitmap asset, not a screenshot of a website.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-eb4aeeb3-64d0-40f8-9a9b-9be4cb6a5b7b.png",
+      "output": "public/images/credibility/objects/asteroid.webp"
+    },
+    {
+      "name": "ufo",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Primary request: One retro chrome flying saucer, wide disc seen at a slightly elevated three-quarter angle, symmetrical horizontal silhouette, glass dome with a subtle pale cyan tint, realistic metal rim and small lights, photographed detailed miniature. No beam. Composition: centered isolated single object, entirely visible with a small clear margin, square canvas. Studio/space lighting from upper left, strong readable volume and clean fine edges, visually real and tactile. Background: genuinely transparent alpha, no backdrop, ground, stars, frame, outline, cast shadow, text, label, logo, watermark or additional objects. This is a standalone bitmap asset, not a screenshot of a website.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-c0e66164-44e8-4dd2-b528-9b2ac71ba0e3.png",
+      "output": "public/images/credibility/objects/ufo.webp"
+    },
+    {
+      "name": "star",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Primary request: One five-point sculptural silver chrome star, front face nearly straight toward camera with a slight perspective showing its thick polished bevel, subtle lavender reflections, crisp dimensional specular highlights, photographed metal object. Composition: centered isolated single object, entirely visible with a small clear margin, square canvas. Studio/space lighting from upper left, strong readable volume and clean fine edges, visually real and tactile. Background: genuinely transparent alpha, no backdrop, ground, stars, frame, outline, cast shadow, text, label, logo, watermark or additional objects. This is a standalone bitmap asset, not a screenshot of a website.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-eb19c166-def9-402c-90e6-cd557ea56d47.png",
+      "output": "public/images/credibility/objects/star.webp"
+    },
+    {
+      "name": "violet-planet",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Primary request: One realistic lavender-blue ringed gas giant, complete spherical planet and complete thin Saturn-like rings, tilted rings rising toward the right, atmospheric cloud bands, detailed ice rings, natural high-detail astronomical texture with dimensional illumination. Composition: centered isolated single object, entirely visible with a small clear margin, square canvas. Studio/space lighting from upper left, strong readable volume and clean fine edges, visually real and tactile. Background: genuinely transparent alpha, no backdrop, ground, stars, frame, outline, cast shadow, text, label, logo, watermark or additional objects. This is a standalone bitmap asset, not a screenshot of a website.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-eb0f1dc9-cd97-4b48-ba87-3bd22b22e280.png",
+      "output": "public/images/credibility/objects/violet-planet.webp"
+    },
+    {
+      "name": "moon",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Primary request: One realistic silver-grey cratered full moon sphere, entire circular outline, slightly three-quarter lit but with detail visible on shadow side, authentic rough craters and lunar maria, high-detail astronomical photograph quality. Composition: centered isolated single object, entirely visible with a small clear margin, square canvas. Studio/space lighting from upper left, strong readable volume and clean fine edges, visually real and tactile. Background: genuinely transparent alpha, no backdrop, ground, stars, frame, outline, cast shadow, text, label, logo, watermark or additional objects. This is a standalone bitmap asset, not a screenshot of a website.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-3e4127b4-31dd-423e-a83b-fdabab03cc2c.png",
+      "output": "public/images/credibility/objects/moon.webp"
+    },
+    {
+      "name": "green-planet",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Primary request: One realistic emerald-teal ringed gas giant, complete spherical planet and complete thin Saturn-like rings, rings tilted gently down toward the right, flowing atmospheric cloud bands, detailed icy rings, natural high-detail astronomical texture with dimensional illumination. Composition: centered isolated single object, entirely visible with a small clear margin, square canvas. Studio/space lighting from upper left, strong readable volume and clean fine edges, visually real and tactile. Background: genuinely transparent alpha, no backdrop, ground, stars, frame, outline, cast shadow, text, label, logo, watermark or additional objects. This is a standalone bitmap asset, not a screenshot of a website.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-66dde9f7-9f9c-4343-92b9-33c445ed43e7.png",
+      "output": "public/images/credibility/objects/green-planet.webp"
+    },
+    {
+      "name": "saturn",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Composition: centered isolated single object, entire silhouette visible with a small clear margin. Photorealistic astronomical rendering with detailed surface, dimensional upper-left illumination, crisp silhouette and realistic shadows. Background: genuinely transparent alpha. No stars, backdrop, floor, frame, outline, cast shadow, labels, text, logos, watermark or extra objects. This is a standalone bitmap asset, not a website screenshot. Primary request: Saturn, a pale golden cream gas giant with softly banded atmosphere and its iconic very wide thin icy beige rings, distinct dark Cassini division. Natural tan and warm grey colors, not green or purple. Oblique rings tilted gently upward to the right, planet subtly shadows the rear rings. Detailed believable Saturn appearance, complete ring ellipse included.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-a5c995fc-7107-4614-9981-9b31610bc3c0.png",
+      "output": "public/images/credibility/objects/saturn.webp"
+    },
+    {
+      "name": "mars",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Composition: centered isolated single object, entire silhouette visible with a small clear margin. Photorealistic astronomical rendering with detailed surface, dimensional upper-left illumination, crisp silhouette and realistic shadows. Background: genuinely transparent alpha. No stars, backdrop, floor, frame, outline, cast shadow, labels, text, logos, watermark or extra objects. This is a standalone bitmap asset, not a website screenshot. Primary request: one ringless Mars-like planet, rusty red and burnt orange rocky surface, finely detailed craters and dark ochre canyon systems, full round planetary globe with a naturally shaded lower right limb. Absolutely no rings or moons. Warm terrestrial planet, not a gas giant.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-a45520a1-9cf8-4e88-999d-989b7f29728a.png",
+      "output": "public/images/credibility/objects/mars.webp"
+    },
+    {
+      "name": "neptune",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent cutout for an interactive website galaxy. Composition: centered isolated single object, entire silhouette visible with a small clear margin. Photorealistic astronomical rendering with detailed surface, dimensional upper-left illumination, crisp silhouette and realistic shadows. Background: genuinely transparent alpha. No stars, backdrop, floor, frame, outline, cast shadow, labels, text, logos, watermark or extra objects. This is a standalone bitmap asset, not a website screenshot. Primary request: one ringless Neptune-like deep cobalt and azure blue ice giant planet, fine atmospheric bands, subtle wisps of icy white clouds and a small darker oval storm, complete round globe with a naturally shaded lower right limb. Absolutely no rings or moons. Blue atmospheric sphere, not a rocky planet.",
+      "source": "/Users/jono/.codex/generated_images/01a085d6-7cbe-7e70-a40c-287b51eb40e4/exec-2e4d036c-2745-447c-8cd5-38d9d9346106.png",
+      "output": "public/images/credibility/objects/neptune.webp"
+    }
+  ]
+}

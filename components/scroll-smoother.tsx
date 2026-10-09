@@ -546,6 +546,10 @@ export default function SmoothScroller({
         smoothTouch: 0,
         effects: true,
         normalizeScroll: true,
+        // Fixed portal dialogs are not part of the scrolling document. Their
+        // entrance animations may start offscreen, but focusing them must not
+        // make ScrollSmoother scroll the page toward that animated position.
+        onFocusIn: (_self, event) => content.contains(event.target as Node),
       });
 
       wrapper.setAttribute("data-smooth-active", "true");

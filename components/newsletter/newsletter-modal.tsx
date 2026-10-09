@@ -49,11 +49,34 @@ export default function NewsletterModal() {
     const opener = document.activeElement as HTMLElement | null;
     const smoother = ScrollSmoother.get();
     const wasPaused = smoother?.paused();
-    const originalOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
-    smoother?.paused(true);
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
+    const body = document.body;
+    const html = document.documentElement;
+    const scrollX = window.scrollX,
+      scrollY = window.scrollY;
+    const previous = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+      htmlOverflow: html.style.overflow,
+    };
+    if (smoother) {
+      smoother.paused(true);
+    } else {
+      // Native scrolling needs a fixed body at its existing offset. Merely
+      // hiding overflow lets mobile Safari move the page behind the dialog.
+      Object.assign(body.style, {
+        position: "fixed",
+        top: `${-scrollY}px`,
+        left: `${-scrollX}px`,
+        right: "0",
+        width: "100%",
+        overflow: "hidden",
+      });
+      html.style.overflow = "hidden";
+    }
     departingRef.current = false;
     rootRef.current?.setAttribute("data-flight-state", "arriving");
     const reduceMotion = window.matchMedia(
@@ -107,10 +130,10 @@ export default function NewsletterModal() {
       const current = document.activeElement;
       if (event.shiftKey && (current === first || current === panel)) {
         event.preventDefault();
-        last.focus();
+        last.focus({ preventScroll: true });
       } else if (!event.shiftKey && (current === last || current === panel)) {
         event.preventDefault();
-        first.focus();
+        first.focus({ preventScroll: true });
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -118,9 +141,20 @@ export default function NewsletterModal() {
       window.removeEventListener("keydown", onKeyDown);
       flightRef.current?.kill();
       flightRef.current = null;
-      smoother?.paused(wasPaused ?? false);
-      document.body.style.overflow = originalOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
+      if (smoother) {
+        smoother.paused(wasPaused ?? false);
+      } else {
+        Object.assign(body.style, {
+          position: previous.position,
+          top: previous.top,
+          left: previous.left,
+          right: previous.right,
+          width: previous.width,
+          overflow: previous.overflow,
+        });
+        html.style.overflow = previous.htmlOverflow;
+        window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
+      }
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [isOpen, flyAway]);

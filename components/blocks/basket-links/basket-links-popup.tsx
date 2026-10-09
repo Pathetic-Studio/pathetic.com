@@ -113,17 +113,13 @@ function JobsPopup({ onClose }: { onClose: () => void }) {
 
 function AbyssPopup({ onClose }: { onClose: () => void }) {
   return (
-    <div data-basket-popup-surface className="relative mx-auto w-[min(84vw,29rem)] px-7 py-6 text-center text-white">
-      <div data-abyss-copy><CloseButton onClose={onClose} /></div>
-      <h3 data-abyss-copy className="relative z-10 text-[clamp(2.1rem,8vw,4rem)] font-black uppercase leading-none tracking-[-.06em]">The Abyss</h3>
-      <div data-basket-popup-hero className="relative mx-auto my-2 aspect-[1.8] w-[86%]">
+    <div data-basket-popup-surface className="pointer-events-none relative mx-auto aspect-square w-[min(72vw,29rem)]">
+      <button data-abyss-close type="button" onClick={onClose} aria-label="Close the abyss"
+        className="pointer-events-auto fixed right-4 top-4 z-40 grid size-11 place-items-center border border-black bg-white text-3xl leading-none text-black hover:bg-[#d7ff43] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">×</button>
+      <div data-basket-popup-hero className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/basket-links/portal.png" alt="The Abyss" className="h-full w-full object-contain" style={{ transform: "rotate(-20deg) scale(.86)" }} />
-        <span data-abyss-copy className="absolute left-1/2 top-1/2 h-[8%] w-[103%] -translate-x-1/2 -translate-y-1/2 rotate-[38deg] bg-[#ff2424]" />
-        <span data-abyss-copy className="absolute left-1/2 top-1/2 h-[8%] w-[103%] -translate-x-1/2 -translate-y-1/2 -rotate-[42deg] bg-[#ff2424]" />
+        <img src="/images/basket-links/portal.png" alt="" className="h-full w-full object-contain" />
       </div>
-      <p data-abyss-copy className="text-xl font-black italic uppercase leading-none">Currently unavailable</p>
-      <p data-abyss-copy className="mt-1 text-xs font-bold italic uppercase">(Try next winter)</p>
     </div>
   );
 }
@@ -552,7 +548,7 @@ export default function BasketLinksPopup({ active, onClose, sourceElement, shopH
           />
         </div>
       )}
-      <button ref={backdropRef} type="button" onClick={closeWithTransition} className={`absolute inset-0 z-10 ${active === "abyss" ? "bg-transparent" : "bg-[#181818]/88 backdrop-blur-[2px]"}`} aria-label="Close popup backdrop" />
+      <button ref={backdropRef} type="button" onClick={active === "abyss" ? undefined : closeWithTransition} tabIndex={active === "abyss" ? -1 : undefined} aria-hidden={active === "abyss" ? true : undefined} className={`absolute inset-0 z-10 ${active === "abyss" ? "bg-transparent" : "bg-[#181818]/88 backdrop-blur-[2px]"}`} aria-label="Close popup backdrop" />
       <div ref={panelRef} className="relative z-20 max-h-[92svh] max-w-[94vw]" style={active === "abyss" ? { opacity: 0 } : undefined} onClick={(event) => event.stopPropagation()}>
         {active === "shop" && <ShopPopup href={shopHref} onClose={closeWithTransition} />}
         {active === "newsletter" && (

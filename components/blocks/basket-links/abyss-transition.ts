@@ -1,4 +1,6 @@
 import gsap from "gsap";
+import { createAbyssPieces } from "./abyss-pieces";
+import { createAbyssWarp } from "./abyss-warp";
 
 type Pose = {
   left: number;
@@ -48,7 +50,7 @@ function paintDarkness(canvas: HTMLCanvasElement) {
   haze(0.54, 0.63, 0.35, 0.33, 0.82);
 }
 
-/** One timeline owns both the travelling artwork and the expanding darkness. */
+/** Keep the portal behind flying pieces; restore into the real page hierarchy. */
 export function createAbyssTransition({
   root,
   panel,
@@ -65,153 +67,282 @@ export function createAbyssTransition({
   onClose: () => void;
 }) {
   const target = panel.querySelector<HTMLElement>("[data-basket-popup-hero]")!;
-  const copy = panel.querySelectorAll<HTMLElement>("[data-abyss-copy]");
+  const closeButton =
+    panel.querySelector<HTMLButtonElement>("[data-abyss-close]")!;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let timeline: gsap.core.Timeline;
-  let clone: HTMLElement | null = null;
-  let closing = false;
-  let arrived = false;
+  const previousFocus = document.activeElement as HTMLElement | null;
+  const sourceOpacity = source?.style.opacity || "";
+  const sourceVisibility = source?.style.visibility || "";
+  const preparation = new AbortController();
+  let pieces: Awaited<ReturnType<typeof createAbyssPieces>> = null;
+  let closing = false,
+    disposed = false,
+    arrived = false;
+  let consumed = false,
+    darknessComplete = false;
+  let frame = 0,
+    lastFrame = 0,
+    simulationTime = 0,
+    warpTime = 0,
+    lastWarp = 0;
+  let width = innerWidth,
+    height = innerHeight;
+  let timeline = gsap.timeline();
+  const warpState = { amount: 0 };
 
-  const revealSource = () => {
+  const traveller = document.createElement("div");
+  traveller.dataset.abyssTraveller = "";
+  traveller.inert = true;
+  traveller.setAttribute("aria-hidden", "true");
+  Object.assign(traveller.style, {
+    position: "absolute",
+    zIndex: "30",
+    pointerEvents: "none",
+    transformOrigin: "50% 50%",
+    willChange: "transform",
+  });
+  const originalImage = (source || target).querySelector<HTMLImageElement>(
+    "img",
+  )!;
+  const image = originalImage.cloneNode(false) as HTMLImageElement;
+  image.removeAttribute("id");
+  image.removeAttribute("srcset");
+  image.src = originalImage.currentSrc || originalImage.src;
+  image.alt = "";
+  Object.assign(image.style, {
+    position: "absolute",
+    inset: "0",
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    transform: getComputedStyle(originalImage).transform,
+    transformOrigin: "50% 50%",
+  });
+  traveller.appendChild(image);
+  root.appendChild(traveller);
+  const warp = reduced ? null : createAbyssWarp(image);
+  const restoreSource = () => {
     if (!source) return;
-    source.style.opacity = "";
-    source.style.visibility = "";
+    source.style.opacity = sourceOpacity;
+    source.style.visibility = sourceVisibility;
   };
-  const removeClone = () => {
-    clone?.remove();
-    clone = null;
-  };
-  const makeClone = (pose: Pose) => {
-    const element = (source || target).cloneNode(true) as HTMLElement;
-    element.removeAttribute("id");
-    element
-      .querySelectorAll("[id]")
-      .forEach((node) => node.removeAttribute("id"));
-    element.inert = true;
-    element.setAttribute("aria-hidden", "true");
-    element.dataset.abyssTraveller = "";
-    Object.assign(element.style, {
-      position: "fixed",
-      margin: "0",
-      pointerEvents: "none",
-      opacity: "1",
-      visibility: "visible",
-      zIndex: "10060",
-    });
-    element.querySelector<HTMLElement>("[data-basket-label]")?.remove();
-    document.body.appendChild(element);
-    gsap.set(element, {
-      ...pose,
-      x: 0,
-      y: 0,
-      xPercent: 0,
-      yPercent: 0,
-      transformOrigin: "50% 50%",
-    });
-    return element;
-  };
-  const positionInk = () => {
-    const r = target.getBoundingClientRect();
-    const x = r.left + r.width / 2;
-    const y = r.top + r.height / 2;
-    // Put every viewport corner inside the fully opaque core. The wide, hazy
-    // edge remains visible during growth but clears the screen at full size.
-    const radius =
-      Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) /
-        0.38 +
-      24;
-    gsap.set(ink, {
-      left: x - radius,
-      top: y - radius,
-      width: radius * 2,
-      height: radius * 2,
-    });
+  const destination = () => {
+    const size = Math.min(innerWidth * 0.72, innerHeight * 0.57, 470);
     return {
-      left: r.left,
-      top: r.top,
-      width: r.width,
-      height: r.height,
+      left: (innerWidth - size) / 2,
+      top: (innerHeight - size) / 2,
+      width: size,
+      height: size,
       rotation: 0,
     };
   };
-
+  const positionInk = () => {
+    const radius = Math.hypot(innerWidth, innerHeight) / 0.68;
+    gsap.set(ink, {
+      left: innerWidth / 2 - radius,
+      top: innerHeight / 2 - radius,
+      width: radius * 2,
+      height: radius * 2,
+    });
+  };
+  const finishOpen = () => {
+    if (!closing && consumed && darknessComplete)
+      root.dataset.abyssPhase = "open";
+  };
+  const tick = (time: number) => {
+    frame = 0;
+    if (disposed || closing || document.hidden) {
+      lastFrame = 0;
+      return;
+    }
+    const dt = lastFrame ? Math.min((time - lastFrame) / 1000, 1 / 30) : 1 / 60;
+    lastFrame = time;
+    warpTime += dt;
+    if (time - lastWarp >= 32) {
+      warp?.render(warpTime, warpState.amount);
+      lastWarp = time;
+    }
+    if (arrived && !consumed) {
+      simulationTime += dt;
+      if (!pieces?.step(dt, simulationTime, innerWidth / 2, innerHeight / 2)) {
+        consumed = true;
+        root.dataset.abyssPhase = "expanding";
+        finishOpen();
+      }
+    }
+    frame = requestAnimationFrame(tick);
+  };
+  const startConsumption = () => {
+    if (closing || disposed) return;
+    arrived = true;
+    // Behind every Matter piece, above the dark cloud. Never spin the cutout.
+    traveller.style.zIndex = "5";
+    root.dataset.abyssPhase = "consuming";
+    gsap.to(warpState, { amount: 1, duration: reduced ? 0 : 0.65 });
+    gsap.to(ink, {
+      scale: 1,
+      duration: reduced ? 0.15 : 8.5,
+      ease: "sine.inOut",
+      onComplete: () => {
+        darknessComplete = true;
+        finishOpen();
+      },
+    });
+    if (reduced) {
+      pieces?.step(1 / 60, 9, innerWidth / 2, innerHeight / 2);
+      consumed = true;
+      finishOpen();
+    } else {
+      pieces?.release();
+      if (!frame) frame = requestAnimationFrame(tick);
+    }
+  };
+  const close = () => {
+    if (closing || disposed) return;
+    closing = true;
+    preparation.abort();
+    cancelAnimationFrame(frame);
+    timeline.kill();
+    gsap.killTweensOf([ink, warpState]);
+    root.dataset.abyssPhase = "collapsing";
+    const restoreAt = reduced ? 0.1 : pieces ? 0.5 : 0.05;
+    timeline = gsap.timeline({
+      onComplete: () => {
+        pieces?.dispose();
+        restoreSource();
+        warp?.dispose();
+        traveller.remove();
+        previousFocus?.focus({ preventScroll: true });
+        onClose();
+      },
+    });
+    pieces?.fade(timeline, reduced);
+    timeline.to(
+      ink,
+      { scale: 0, duration: reduced ? 0.1 : 0.5, ease: "power3.inOut" },
+      0,
+    );
+    timeline.to(
+      warpState,
+      {
+        amount: 0,
+        duration: reduced ? 0 : 0.4,
+        onUpdate: () => warp?.render(warpTime, warpState.amount),
+      },
+      0,
+    );
+    timeline.to(
+      traveller,
+      {
+        scale: arrived ? 0.38 : 1,
+        duration: reduced ? 0 : 0.4,
+        ease: "power2.in",
+      },
+      0,
+    );
+    timeline.call(
+      () => {
+        root.dataset.abyssPhase = "returning";
+      },
+      [],
+      restoreAt,
+    );
+    pieces?.restore(timeline, restoreAt, reduced);
+    timeline.to(
+      traveller,
+      {
+        ...(source?.isConnected ? getSourcePose(source) : destination()),
+        scale: 1,
+        duration: reduced ? 0.1 : 0.62,
+        ease: "power3.inOut",
+        onComplete: () => {
+          restoreSource();
+          traveller.style.opacity = "0";
+        },
+      },
+      restoreAt,
+    );
+    timeline.to({}, { duration: reduced ? 0 : 0.15 });
+  };
+  const onResize = () => {
+    positionInk();
+    if (
+      Math.abs(width - innerWidth) > 24 ||
+      Math.abs(height - innerHeight) > 120
+    )
+      close();
+    width = innerWidth;
+    height = innerHeight;
+  };
+  const onVisibility = () => {
+    if (document.hidden) {
+      cancelAnimationFrame(frame);
+      frame = lastFrame = 0;
+    } else if (!closing && arrived && !frame && !reduced)
+      frame = requestAnimationFrame(tick);
+  };
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      closeButton.focus({ preventScroll: true });
+    }
+  };
   paintDarkness(ink);
-  gsap.set(copy, { autoAlpha: 0 });
+  positionInk();
   gsap.set(target, { autoAlpha: 0 });
   gsap.set(panel, { opacity: 1 });
   gsap.set(ink, { scale: 0, transformOrigin: "50% 50%" });
-  const destination = positionInk();
-  const from = source?.isConnected ? getSourcePose(source) : destination;
-  clone = makeClone(from);
+  gsap.set(traveller, {
+    ...(source?.isConnected ? getSourcePose(source) : destination()),
+  });
   if (source) {
     source.style.opacity = "0";
     source.style.visibility = "hidden";
   }
-  root.dataset.abyssPhase = "moving";
-  timeline = gsap.timeline();
-  timeline
-    .to(clone, {
-      ...destination,
-      duration: reduced ? 0 : 0.6,
-      ease: "power3.inOut",
-    })
-    .call(() => {
-      arrived = true;
-      root.dataset.abyssPhase = "expanding";
-      gsap.set(target, { autoAlpha: 1 });
-      removeClone();
-    })
-    .to(ink, {
-      scale: 1,
-      duration: reduced ? 0.12 : 1.05,
-      ease: "power2.inOut",
-    })
-    .to(
-      copy,
-      { autoAlpha: 1, duration: reduced ? 0 : 0.18, ease: "power1.out" },
-      reduced ? ">" : "-=0.18",
-    )
-    .call(() => {
-      root.dataset.abyssPhase = "open";
-    });
-
-  window.addEventListener("resize", positionInk);
-  return {
-    close() {
-      if (closing) return;
-      closing = true;
-      timeline.kill();
-      const center = positionInk();
-      // During an early close the traveller can still be mid-flight. Keep its
-      // current pose instead of flashing a second image in the centre.
-      if (!clone) clone = makeClone(center);
-      gsap.set(target, { autoAlpha: 0 });
-      root.dataset.abyssPhase = "collapsing";
-      timeline = gsap.timeline({
-        onComplete: () => {
-          revealSource();
-          removeClone();
-          onClose();
+  root.dataset.abyssPhase = "preparing";
+  closeButton.focus({ preventScroll: true });
+  void createAbyssPieces(root, source, preparation.signal).then((prepared) => {
+    if (closing || disposed || !prepared) {
+      prepared?.dispose();
+      return;
+    }
+    pieces = prepared;
+    root.dataset.abyssCount = String(pieces.count);
+    // Keep the basket in place while the portal travels. It joins the same
+    // physics handoff as every other piece once the portal reaches the centre.
+    timeline.to(
+      traveller,
+      {
+        ...destination(),
+        duration: reduced ? 0.1 : 0.65,
+        ease: "power3.inOut",
+        onStart: () => {
+          root.dataset.abyssPhase = "moving";
         },
-      });
-      const collapseDuration = arrived && !reduced ? 0.26 : 0.08;
-      timeline
-        .to(copy, { autoAlpha: 0, duration: reduced ? 0 : 0.1 }, 0)
-        .to(ink, { scale: 0, duration: collapseDuration, ease: "power3.in" }, 0)
-        .call(() => {
-          root.dataset.abyssPhase = "returning";
-        })
-        .to(clone, {
-          ...(source?.isConnected ? getSourcePose(source) : center),
-          duration: reduced ? 0 : 0.55,
-          ease: "power3.inOut",
-        });
-    },
+      },
+      0,
+    );
+    timeline.call(startConsumption);
+  });
+  window.addEventListener("resize", onResize);
+  document.addEventListener("visibilitychange", onVisibility);
+  root.addEventListener("keydown", onKey);
+  return {
+    close,
     dispose() {
+      if (disposed) return;
+      disposed = true;
+      preparation.abort();
       timeline.kill();
-      window.removeEventListener("resize", positionInk);
-      removeClone();
-      revealSource();
+      gsap.killTweensOf([ink, warpState]);
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
+      root.removeEventListener("keydown", onKey);
+      pieces?.dispose();
+      warp?.dispose();
+      traveller.remove();
+      restoreSource();
       delete root.dataset.abyssPhase;
     },
   };

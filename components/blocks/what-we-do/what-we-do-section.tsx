@@ -434,7 +434,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       gsap.set(floatingLayers, { rotation: 0, rotationX: 0, rotationY: 0 });
       gsap.set(revealLayers, {
         autoAlpha: 1,
-        scale: reduceMotion ? 1 : enableDesktopFloat ? 0.12 : 0.68,
+        scale: reduceMotion ? 1 : 0,
         transformOrigin: "50% 50%",
       });
       gsap.set(scrollLagLayers, { y: 0 });

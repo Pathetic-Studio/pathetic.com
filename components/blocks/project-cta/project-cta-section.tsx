@@ -601,6 +601,7 @@ export default function ProjectCtaSection(props: ProjectCtaSectionBlock) {
       <div
         data-project-cta-panel
         className="relative min-h-[clamp(14rem,24vw,20rem)] overflow-hidden border border-current"
+        data-abyss-surface
         style={{ backgroundColor: panelColor, borderColor: outlineColor }}
       >
         <DefaultSky />

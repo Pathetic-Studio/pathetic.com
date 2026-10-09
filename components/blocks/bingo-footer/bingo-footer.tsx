@@ -376,7 +376,7 @@ export default function BingoFooter(props: BingoFooterBlock) {
           />
         </div>
 
-        <div className="order-1 col-span-2 flex min-h-[clamp(8rem,25vw,19rem)] items-center justify-center lg:order-2 lg:col-span-1">
+        <div data-abyss-piece className="order-1 col-span-2 flex min-h-[clamp(8rem,25vw,19rem)] items-center justify-center lg:order-2 lg:col-span-1">
           <LogoAnimated className="h-full max-h-[19rem] w-full text-current" />
         </div>
 
