@@ -88,7 +88,7 @@ function SlideCopy({
   textStyle?: LifecycleBlock["displayTextStyle"] | null;
   linkInstagram?: boolean;
 }) {
-  const cleanCenterText = centerText ? stegaClean(centerText) : "";
+  const cleanCenterText = centerText ? stegaClean(centerText).replace(/\.\s*$/, "") : "";
 
   return (
     <div data-lifecycle-copy className="pointer-events-none absolute inset-0 z-[90] px-5 text-center">
@@ -468,7 +468,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             resetKey={memeResetKey}
           />
           <SlideCopy
-            centerText={memeSlide?.centerText}
+            centerText="@PATHETIC STARTED AS AN INSTAGRAM PAGE DOCUMENTING CULTURE WITH MEMES"
             textStyle={displayTextStyle}
             linkInstagram
           />
@@ -513,7 +513,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           </div>
 
           <SlideCopy
-            centerText={objectSlide?.centerText}
+            centerText="TODAY, WE’RE A FULL STACK CREATIVE STUDIO"
             textStyle={displayTextStyle}
           />
 

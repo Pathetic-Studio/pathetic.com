@@ -355,7 +355,11 @@ export async function createUniverseScene(
     moveVX = 0,
     moveVY = 0;
 
+  let lastSize = "";
   function resize(w: number, h: number) {
+    const size = `${w}:${h}:${window.devicePixelRatio}`;
+    if (size === lastSize) return;
+    lastSize = size;
     width = Math.max(1, w);
     height = Math.max(1, h);
     compact = width < 700;
@@ -742,7 +746,9 @@ export async function createUniverseScene(
     });
   });
   // Compile while the section approaches, rather than on its first visible frame.
-  void renderer.compileAsync(scene, camera).catch(() => {});
+  // Wait before the first draw; starting compilation and immediately rendering
+  // forces the driver to finish it synchronously on that scroll frame.
+  await renderer.compileAsync(scene, camera).catch(() => {});
   return {
     resize,
     render,

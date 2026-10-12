@@ -1230,7 +1230,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               typeOnTrigger="immediate"
               className="!w-auto [&_p]:leading-none"
             >
-              We make Ads people love.
+              MAKING ADS PEOPLE LOVE
             </TitleText>
           </div>
         </div>

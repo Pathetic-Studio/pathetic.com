@@ -101,7 +101,8 @@ const MAX_ORBIT_PITCH = 1.02;
 const DUCK_GLB_PATH = '/desktop-flow/ads/duck.glb';
 const BOX_GLB_PATH = '/desktop-flow/stack-toy/box.glb';
 const COMPUTER_GLB_PATH = '/desktop-flow/stack-toy/computer.glb';
-const GOGGLES_GLB_PATH = '/models/pathetic-goggles.glb';
+// Share the homepage export with its smooth lens contours and polished rims.
+const GOGGLES_GLB_PATH = '/models/pathetic-goggles-smooth.glb';
 const WATER_COOLER_GLB_PATH = '/desktop-flow/stack-toy/water cooler.glb';
 const TRASH_CAN_GLB_PATH = '/desktop-flow/stack-toy/trashcan.glb';
 const CUBICLE_GLB_PATH = '/desktop-flow/stack-toy/desk_001.glb';
@@ -1495,7 +1496,8 @@ export function JobsOfficeScene({
         const gltfLoader = new GLTFLoader();
         const mobileModels: Record<string, string> = {
           [CUBICLE_GLB_PATH]: '/models/jobs-mobile/desk.glb',
-          [GOGGLES_GLB_PATH]: '/models/jobs-mobile/goggles.glb',
+          // The shared goggles are already optimized. The older mobile copy
+          // decimated the lenses and would bring back their jagged outlines.
           [TRASH_CAN_GLB_PATH]: '/models/jobs-mobile/trashcan.glb',
           [WATER_COOLER_GLB_PATH]: '/models/jobs-mobile/water-cooler.glb',
           [DUCK_GLB_PATH]: '/models/jobs-mobile/duck.glb',

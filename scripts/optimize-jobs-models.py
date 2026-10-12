@@ -11,7 +11,8 @@ OUTPUT = ROOT / "public/models/jobs-mobile"
 OUTPUT.mkdir(parents=True, exist_ok=True)
 
 MODELS = [
-    ("models/pathetic-goggles.glb", "goggles.glb", 0.25),
+    # Goggles use the shared smooth export on every screen. Do not decimate
+    # its corrected lens contours into a separate mobile model.
     ("desktop-flow/stack-toy/trashcan.glb", "trashcan.glb", 0.2),
     ("desktop-flow/stack-toy/desk_001.glb", "desk.glb", 0.45),
     ("desktop-flow/stack-toy/water cooler.glb", "water-cooler.glb", 0.45),

@@ -25,6 +25,7 @@ export function createProjectObjectWeather(canvas: HTMLCanvasElement, mode: Fort
   let raf = 0, lastTime = 0, elapsed = 0, spawnTime = 0, nextImage = 0, volley = 0;
   let pointerX = -10000, pointerY = -10000, pointerTime = 0;
   let currentMode = mode;
+  let lastCount = -1, lastRatio = 0;
   const random = (min: number, max: number) => min + Math.random() * (max - min);
 
   for (const src of FORTUNE_OBJECTS) {
@@ -37,9 +38,15 @@ export function createProjectObjectWeather(canvas: HTMLCanvasElement, mode: Fort
   }
 
   function resize() {
+    // The canvas has a stable large-viewport height on touch screens. Toolbar
+    // motion must not clear/reallocate it and rescale every falling object.
+    const nextWidth = Math.round(canvas.clientWidth);
+    const nextHeight = Math.round(canvas.clientHeight);
+    const ratio = Math.min(devicePixelRatio, nextWidth < 700 ? 1.5 : 1.25);
+    if (nextWidth === width && nextHeight === height && ratio === lastRatio) return;
     const oldWidth = width, oldHeight = height;
-    width = innerWidth; height = innerHeight;
-    const ratio = Math.min(devicePixelRatio, width < 700 ? 1.5 : 1.25);
+    width = Math.max(1, nextWidth); height = Math.max(1, nextHeight);
+    lastRatio = ratio;
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
     context!.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -119,15 +126,19 @@ export function createProjectObjectWeather(canvas: HTMLCanvasElement, mode: Fort
       context!.drawImage(drop.image, -w / 2, -h / 2, w, h);
       context!.restore();
     }
-    canvas.dataset.objectCount = String(drops.length);
-    canvas.dataset.weatherMode = currentMode;
+    if (drops.length !== lastCount) {
+      lastCount = drops.length;
+      canvas.dataset.objectCount = String(lastCount);
+    }
     if (active || drops.length) raf = requestAnimationFrame(render);
   }
 
   function wake() { if (!raf && visible && !disposed && !document.hidden) raf = requestAnimationFrame(render); }
   const visibilityChange = () => { lastTime = 0; wake(); };
-  window.addEventListener("resize", resize);
+  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(canvas);
   document.addEventListener("visibilitychange", visibilityChange);
+  canvas.dataset.weatherMode = currentMode;
   resize();
   return {
     setActive(value: boolean) { active = value; wake(); },
@@ -135,16 +146,16 @@ export function createProjectObjectWeather(canvas: HTMLCanvasElement, mode: Fort
       visible = value;
       if (!value) {
         cancelAnimationFrame(raf); raf = 0; lastTime = 0; drops.length = 0;
-        canvas.dataset.objectCount = "0";
+        canvas.dataset.objectCount = "0"; lastCount = 0;
         context.clearRect(0, 0, width, height);
       }
       else wake();
     },
-    setMode(value: FortuneWeatherMode) { currentMode = value; drops.length = 0; spawnTime = 0; wake(); },
+    setMode(value: FortuneWeatherMode) { currentMode = value; canvas.dataset.weatherMode = value; drops.length = 0; spawnTime = 0; wake(); },
     movePointer(x: number, y: number) { pointerX = x; pointerY = y; pointerTime = performance.now(); },
     dispose() {
       disposed = true; cancelAnimationFrame(raf); drops.length = images.length = 0;
-      window.removeEventListener("resize", resize);
+      resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", visibilityChange);
       context.clearRect(0, 0, width, height);
     },

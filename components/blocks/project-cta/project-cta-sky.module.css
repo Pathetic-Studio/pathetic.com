@@ -4,10 +4,16 @@
   margin: 1.5rem;
   overflow-anchor: none;
 }
-.portal { position: fixed; inset: 0; z-index: 50; pointer-events: none; visibility: hidden; }
+/* Match the matrix's large viewport height. The whole takeover, including
+   the sky crop, star placement and rain buffer, stays fixed as browser UI
+   opens/closes. Apply to every input type, including tablets with a mouse. */
+.portal {
+  position: fixed; inset: 0 0 auto; height: var(--section-full-height, 100lvh);
+  z-index: 50; pointer-events: none; visibility: hidden;
+}
 .backdrop { position: absolute; inset: 0; overflow: hidden; opacity: 0; pointer-events: none; }
 .sky { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 56%; }
-.star { position: absolute; left: 50%; top: 50%; width: max(128vw, 140vh); height: auto; transform: translate(-50%, -50%) scale(.45); }
+.star { position: absolute; left: 50%; top: 50%; width: max(128vw, calc(var(--section-full-height, 100lvh) * 1.4)); height: auto; transform: translate(-50%, -50%) scale(.45); }
 .weather { position: absolute; inset: 0; width: 100%; height: 100%; }
 .anchor { position: absolute; left: 0; top: 0; pointer-events: auto; }
 .window {
@@ -27,6 +33,7 @@
 .close:hover { background: #000; color: #fff; }
 .content { position: absolute; inset: 28px 3px 3px; overflow: hidden; }
 .title { position: absolute; left: 0; top: 0; width: max-content; pointer-events: none; will-change: transform; }
+.portal[data-layout="stationary"] .title { will-change: auto; }
 .titleText { width: max-content !important; }
 .titleText h2 { line-height: .78; letter-spacing: -.055em; paint-order: stroke fill; }
 .fortune {
@@ -36,6 +43,7 @@
   font-size: 1rem; line-height: 1; white-space: nowrap; opacity: 0; transform: translate(-50%, 0) scale(0); pointer-events: none;
 }
 .fortune::after { content: ""; position: absolute; inset: 5px; border: 1px dotted #272727; }
+.portal[data-layout="stationary"] .fortune { opacity: 1; transform: translate(-50%, 0) scale(1); }
 .trigger { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; border: 0; background: transparent; }
 .trigger:focus-visible { outline: 3px dashed #000; outline-offset: -8px; }
 .anchor:has(.trigger:active) .fortune { box-shadow: inset 2px 2px #171717, inset -2px -2px #fff; }

@@ -8,7 +8,6 @@ import ScrollSmoother from "gsap/ScrollSmoother";
 import styles from "./basket-section-shortcuts.module.css";
 
 const SHORTCUTS = [
-  { title: "Intro", id: "intro", selector: "#page-loader-section", image: "/images/page-loader/city-bike.webp" },
   { title: "Our Story", id: "our-story", selector: "[data-lifecycle-root]", image: "/images/lifecycle/memes/coffee-brick.webp" },
   { title: "Our Clients", id: "our-clients", selector: "[data-credibility-version]", image: "/images/credibility/objects/saturn.webp" },
   { title: "Our Work", id: "work", selector: "#work", image: "/images/what-we-do/trimmed/sandbar.webp" },
@@ -18,7 +17,11 @@ const SHORTCUTS = [
   { title: "What We Believe", id: "what-we-believe", selector: "[data-belief-section] section[id]", image: "/images/belief/cherub-left.png" },
   { title: "What We Are", id: "what-we-are", selector: "#what-we-are", image: "/images/what-we-are/wardrobe/hat-camo.webp" },
   { title: "Work With Us", id: "work-with-us", selector: "[data-project-cta-version]", image: "/images/project-cta/cursor-98.png" },
-].map((item, index) => ({ ...item, side: index % 2, y: (Math.floor(index / 2) + .5) / 5 }));
+].map((item, index, items) => ({
+  ...item,
+  side: index % 2,
+  y: (Math.floor(index / 2) + .5) / Math.ceil((items.length - index % 2) / 2),
+}));
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 type Lane = { left: number; right: number; top: number; bottom: number };
 
@@ -45,7 +48,10 @@ export default function BasketSectionShortcuts({ basketRef }: { basketRef: RefOb
       if (!horizontal.matches) return;
       const elements = itemRefs.current as HTMLAnchorElement[];
       const engine = Engine.create({ enableSleeping: true });
-      engine.gravity.y = 0;
+      // Match the basket's gravity as well as its bounce, drag and friction.
+      engine.gravity.x = 0;
+      engine.gravity.y = .12;
+      engine.gravity.scale = .001;
       let lanes: Lane[] = [], size = 100, disposed = false, active = false;
       let raf = 0, lastTime = 0, lastImpulse = 0, abyssPaused = false, resumeAfter = 0;
       let walls: Body[] = [];

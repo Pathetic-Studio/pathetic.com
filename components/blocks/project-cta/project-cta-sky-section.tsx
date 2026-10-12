@@ -29,6 +29,7 @@ export default function ProjectCtaSkySection({
   const starRef = useRef<HTMLCanvasElement>(null);
   const weatherRef = useRef<HTMLCanvasElement>(null);
   const activateRef = useRef<(active: boolean) => void>(() => {});
+  const scrollActivatedRef = useRef(false);
   const pointerRef = useRef<(x: number, y: number) => void>(() => {});
   const sectionId = stegaClean(props.anchor?.anchorId) || "work-with-us";
   const title = stegaClean(props.title) || "WORK WITH US";
@@ -43,6 +44,11 @@ export default function ProjectCtaSkySection({
     if (!mounted || !section || !portal || !anchor || !frame || !text || !button || !background || !starCanvas || !weatherCanvas) return;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)");
     const fine = matchMedia("(hover: hover) and (pointer: fine)");
+    const compact = matchMedia("(max-width: 1023px), (any-pointer: coarse)");
+    const readStationaryLayout = () => compact.matches || navigator.maxTouchPoints > 0 || !fine.matches;
+    let stationary = readStationaryLayout(), intersectionRatio = 0;
+    scrollActivatedRef.current = stationary;
+    portal.dataset.layout = stationary ? "stationary" : "bouncing";
     let disposed = false, visible = false, active = false, measured = false, prepared = false;
     let weather: ReturnType<typeof createProjectObjectWeather> = null;
     let fuzzy: ReturnType<typeof createProjectFuzzyStar> = null;
@@ -95,6 +101,7 @@ export default function ProjectCtaSkySection({
       const a = ink.getBoundingClientRect(), b = text.getBoundingClientRect();
       inkW = a.width; inkH = a.height;
       inkOffsetX = a.left - b.left; inkOffsetY = a.top - b.top;
+      button.style.top = `${(h - inkH) / 2 - 15 + inkH + 26}px`;
       anchor.style.width = `${w}px`; anchor.style.height = `${h}px`;
       const bounds = section.getBoundingClientRect();
       anchor.style.transform = `translate3d(${bounds.left}px,${bounds.top}px,0)`;
@@ -105,6 +112,13 @@ export default function ProjectCtaSkySection({
       }
       bounce.x = Math.max(10, Math.min(w - inkW - 10, bounce.x));
       bounce.y = Math.max(36, Math.min(h - inkH - 12, bounce.y));
+      if (stationary) {
+        titleX = (w - inkW) / 2; titleY = (h - inkH) / 2 - 15;
+        setX(titleX - inkOffsetX); setY(titleY - inkOffsetY);
+        frame.style.inset = "0px";
+        button.style.transform = "translate(-50%,0) scale(1)";
+        button.style.opacity = "1";
+      }
       lastProgress = NaN;
     };
 
@@ -119,32 +133,31 @@ export default function ProjectCtaSkySection({
         lastTop = bounds.top; lastLeft = bounds.left;
       }
       const p = progress.value;
-      const touch = !fine.matches;
       const minX = 10, maxX = Math.max(minX, w - inkW - 10);
       const minY = 36, maxY = Math.max(minY, h - inkH - 12);
-      if (measured && !active && p < .001 && !reduced.matches) {
+      if (measured && !stationary && !active && p < .001 && !reduced.matches) {
         const dt = Math.min(delta, 40) / 1000;
         bounce.x += bounce.vx * dt; bounce.y += bounce.vy * dt;
         if (bounce.x < minX || bounce.x > maxX) { bounce.vx *= -1; bounce.x = Math.max(minX, Math.min(maxX, bounce.x)); }
         if (bounce.y < minY || bounce.y > maxY) { bounce.vy *= -1; bounce.y = Math.max(minY, Math.min(maxY, bounce.y)); }
       }
-      const insetX = Math.max(0, Math.min(w * (touch ? .025 : .1), (w - inkW - 38) / 2));
-      const insetY = Math.max(0, Math.min(h * .1, (h - inkH - 148) / 2));
+      const insetX = stationary ? 0 : Math.max(0, Math.min(w * .1, (w - inkW - 38) / 2));
+      const insetY = stationary ? 0 : Math.max(0, Math.min(h * .1, (h - inkH - 148) / 2));
       const centerX = (w - inkW) / 2;
       const centerY = (h - inkH) / 2 - 15;
-      titleX = reduced.matches ? centerX : bounce.x + (centerX - bounce.x) * p;
-      titleY = reduced.matches ? centerY : bounce.y + (centerY - bounce.y) * p;
+      titleX = stationary || reduced.matches ? centerX : bounce.x + (centerX - bounce.x) * p;
+      titleY = stationary || reduced.matches ? centerY : bounce.y + (centerY - bounce.y) * p;
       setX(titleX - inkOffsetX); setY(titleY - inkOffsetY);
       if (p !== lastProgress) {
         frame.style.inset = `${insetY * p}px ${insetX * p}px`;
         background.style.opacity = String(p);
         const pop = 1 + 2.1 * Math.pow(p - 1, 3) + 1.1 * Math.pow(p - 1, 2);
         starCanvas.style.transform = `translate(-50%,-50%) scale(${.45 + pop * .55})`;
-        button.style.transform = `translate(-50%,0) scale(${Math.max(0, (p - .35) / .65)})`;
-        button.style.opacity = String(Math.max(0, (p - .35) / .65));
+        const buttonProgress = stationary ? 1 : Math.max(0, (p - .35) / .65);
+        button.style.transform = `translate(-50%,0) scale(${buttonProgress})`;
+        button.style.opacity = String(buttonProgress);
         lastProgress = p;
       }
-      button.style.top = `${centerY + inkH + 26}px`;
       if (p > .005) fuzzy?.draw(time * 1000, reduced.matches);
     };
     gsap.ticker.add(render);
@@ -154,15 +167,27 @@ export default function ProjectCtaSkySection({
     const preloader = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) prepare(); }, { rootMargin: "400px" });
     const observer = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
+      intersectionRatio = entry.intersectionRatio;
       portal.style.visibility = visible ? "visible" : "hidden";
       portal.inert = !visible;
       weather?.setVisible(visible && progress.value > .001);
       if (visible) measure();
       else activate(false);
-      if (!fine.matches) activate(visible && entry.intersectionRatio > .55);
-    }, { threshold: [0, .25, .55, 1] });
+      // Separate entry/exit thresholds prevent small touch-scroll reversals
+      // from repeatedly restarting the window and button animations.
+      if (stationary) activate(visible && intersectionRatio > (active ? .3 : .55));
+    }, { threshold: [0, .3, .55, 1] });
     preloader.observe(section); observer.observe(section);
     const motionChange = () => {
+      const nextStationary = readStationaryLayout();
+      if (nextStationary !== stationary) {
+        stationary = nextStationary;
+        scrollActivatedRef.current = stationary;
+        portal.dataset.layout = stationary ? "stationary" : "bouncing";
+        activate(stationary
+          ? visible && intersectionRatio > (active ? .3 : .55)
+          : visible && (anchor.matches(":hover") || anchor.contains(document.activeElement)));
+      }
       if (prepared && !weather && !reduced.matches && props.sparklesEnabled !== false) {
         weather = createProjectObjectWeather(weatherCanvas, mode);
       }
@@ -172,6 +197,7 @@ export default function ProjectCtaSkySection({
     };
     reduced.addEventListener("change", motionChange);
     fine.addEventListener("change", motionChange);
+    compact.addEventListener("change", motionChange);
     measure();
     return () => {
       disposed = true; tween?.kill(); gsap.ticker.remove(render);
@@ -181,6 +207,7 @@ export default function ProjectCtaSkySection({
       document.removeEventListener("keydown", dismiss);
       reduced.removeEventListener("change", motionChange);
       fine.removeEventListener("change", motionChange);
+      compact.removeEventListener("change", motionChange);
     };
   }, [mounted, weatherMode, props.sparklesEnabled]);
 
@@ -197,14 +224,14 @@ export default function ProjectCtaSkySection({
           <canvas ref={weatherRef} className={styles.weather} data-fortune-weather />
         </div>
         <div ref={anchorRef} className={styles.anchor}
-          onPointerEnter={event => { if (event.pointerType !== "touch") activateRef.current(true); }}
-          onPointerLeave={event => { if (event.pointerType !== "touch" && !event.currentTarget.contains(document.activeElement)) activateRef.current(false); }}
+          onPointerEnter={event => { if (!scrollActivatedRef.current && event.pointerType !== "touch") activateRef.current(true); }}
+          onPointerLeave={event => { if (!scrollActivatedRef.current && event.pointerType !== "touch" && !event.currentTarget.contains(document.activeElement)) activateRef.current(false); }}
           onPointerMove={event => pointerRef.current(event.clientX, event.clientY)}
-          onFocusCapture={() => activateRef.current(true)}
-          onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) activateRef.current(false); }}>
+          onFocusCapture={() => { if (!scrollActivatedRef.current) activateRef.current(true); }}
+          onBlurCapture={event => { if (!scrollActivatedRef.current && !event.currentTarget.contains(event.relatedTarget as Node | null)) activateRef.current(false); }}>
           <div ref={windowRef} className={styles.window} data-project-cta-panel>
             <div className={`${styles.titlebar} ${pixel.pixel}`}>
-              <span>Good Fortune.exe</span>
+              <span>Pathetic.exe</span>
               <XButton className={styles.close} aria-label="Close sky effect"
                 onClick={event => { activateRef.current(false); event.currentTarget.blur(); }}>×</XButton>
             </div>

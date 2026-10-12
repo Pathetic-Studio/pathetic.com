@@ -457,9 +457,9 @@ export default function CredibilityUniverseSection(
             outlinePosition="outside"
             fontWeight="bold"
           >
-            We work with the biggest
+            WORKING WITH THE BIGGEST
             <br />
-            brands in the universe
+            BRANDS IN THE UNIVERSE
           </TitleText>
         </div>
         <p id={instructionId} className="sr-only">

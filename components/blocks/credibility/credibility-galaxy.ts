@@ -81,7 +81,7 @@ export async function createCredibilityGalaxy(
     const bright = random() < 0.075;
     sizes[i] = bright ? 2.4 + random() * 1.8 : 1.15 + random() * 1.25;
     lights[i] = (0.34 + random() * 0.5) * (halo ? 0.45 : 1);
-    if (i > 0 && i % 12000 === 0) {
+    if (i > 0 && i % 2048 === 0) {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       if (signal.aborted) break;
     }
@@ -206,6 +206,19 @@ export async function createCredibilityGalaxy(
     seeds.dispose();
     compute.dispose();
     throw new Error(error);
+  }
+
+  // Precompile the simulation too. Otherwise these programs first compile
+  // when the galaxy starts moving, directly in the visible animation loop.
+  const compileScene = new THREE.Scene();
+  const compileQuad = new THREE.PlaneGeometry(2, 2);
+  compileScene.add(new THREE.Mesh(compileQuad, [velocity.material, displacement.material]));
+  await renderer.compileAsync(compileScene, new THREE.Camera());
+  compileQuad.dispose();
+  if (signal.aborted) {
+    seeds.dispose();
+    compute.dispose();
+    throw new Error("Galaxy creation cancelled");
   }
 
   const geometry = new THREE.BufferGeometry();

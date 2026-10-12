@@ -35,7 +35,12 @@ export default function LifecycleThreeScene({
     const slide = canvas.closest('[data-lifecycle-slide="object"]') || canvas;
     let inViewport = false;
     const syncVisibility = () => {
-      const style = getComputedStyle(slide);
+      // GSAP writes these two properties directly. Reading computed styles
+      // after every tween mutation forces a style flush during the handoff.
+      const inlineStyle = (slide as HTMLElement).style;
+      const style = inlineStyle.visibility && inlineStyle.opacity
+        ? inlineStyle
+        : getComputedStyle(slide);
       visibleRef.current =
         inViewport &&
         style.visibility !== "hidden" &&
@@ -270,6 +275,20 @@ export default function LifecycleThreeScene({
           10,
           reflectionTarget,
         );
+        await renderer.compileAsync(reflectionScene, reflectionCamera.children[0] as InstanceType<typeof THREE.Camera>);
+        if (cancelled) {
+          reflectionTarget.dispose();
+          reflectionLogo.dispose();
+          reflectionCardGeometry.dispose();
+          reflectionCardMaterial.dispose();
+          lensGlint.geometry.dispose();
+          lensGlint.material.dispose();
+          disposeReflectionLighting();
+          studioRenderTarget.dispose();
+          pmremGenerator.dispose();
+          renderer.dispose();
+          return;
+        }
         reflectionCamera.update(renderer, reflectionScene);
         lensGlint.geometry.dispose();
         lensGlint.material.dispose();
@@ -785,12 +804,6 @@ export default function LifecycleThreeScene({
           camera.position.y - visibleHalfHeight + lightningEdgeMargin;
       };
 
-      resizeObserver = new ResizeObserver(resize);
-      resizeObserver.observe(targetCanvas);
-      window.addEventListener("resize", resize, { passive: true });
-      window.visualViewport?.addEventListener("resize", resize, {
-        passive: true,
-      });
       resize();
 
       lightningGroup.visible = true;
@@ -802,7 +815,8 @@ export default function LifecycleThreeScene({
         warmedVisibility.set(object, object.visible);
         object.visible = true;
       });
-      renderer.compile(scene, camera);
+      await renderer.compileAsync(scene, camera);
+      if (cancelled) return;
       bloomComposer.renderToScreen = false;
       lightningBloom.strength = 0.7;
       bloomComposer.render();
@@ -813,6 +827,12 @@ export default function LifecycleThreeScene({
       });
       lightningGroup.visible = false;
       targetCanvas.dataset.funReady = "true";
+
+      resizeObserver = new ResizeObserver(resize);
+      resizeObserver.observe(targetCanvas);
+      window.addEventListener("resize", resize, { passive: true });
+      window.visualViewport?.addEventListener("resize", resize, { passive: true });
+      resize();
 
       const clock = new THREE.Clock();
       let idleRotationY = 0;
