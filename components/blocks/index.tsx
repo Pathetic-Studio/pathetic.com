@@ -30,7 +30,9 @@ import BeliefSection from "@/components/blocks/belief/belief-section";
 import WhatWeAreSection, {
   type WhatWeAreSectionBlock,
 } from "@/components/blocks/what-we-are/what-we-are-section";
-import ProjectCtaSection, { type ProjectCtaSectionBlock } from "@/components/blocks/project-cta/project-cta-section";
+import type { ProjectCtaSectionBlock } from "@/components/blocks/project-cta/project-cta-section";
+// The original CTA remains available in project-cta-section.
+import ProjectCtaSection from "@/components/blocks/project-cta/project-cta-sky-section";
 import BasketLinksSection, { type BasketLinksSectionBlock } from "@/components/blocks/basket-links/basket-links-section";
 import BingoFooter, { type BingoFooterBlock } from "@/components/blocks/bingo-footer/bingo-footer";
 

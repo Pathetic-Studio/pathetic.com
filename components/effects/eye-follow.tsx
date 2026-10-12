@@ -1,7 +1,7 @@
 // components/effects/eye-follow.tsx
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 
 type EyeConfig = {
@@ -13,6 +13,7 @@ type EyeConfig = {
     xMobile?: number | null; // percentage across section (mobile)
     yMobile?: number | null; // percentage down section (mobile)
     sizeMobile?: number | null; // base eye diameter in px (mobile)
+    hiddenOnMobile?: boolean;
 };
 
 type EyeFollowProps = {
@@ -108,6 +109,7 @@ export default function EyeFollow({
     const [pupilOffsets, setPupilOffsets] = useState<Record<string, Offset>>({});
     const [internalEyes, setInternalEyes] = useState<EyeConfig[]>(() => eyes ?? []);
     const [isMobile, setIsMobile] = useState(false);
+    const visibleEyes = useMemo(() => internalEyes.filter(eye => !isMobile || !eye.hiddenOnMobile), [internalEyes, isMobile]);
     const [eyeRolls, setEyeRolls] = useState<Record<string, number>>({});
     const [activeEyeRolls, setActiveEyeRolls] = useState<Record<string, boolean>>({});
     const [eyesVisible, setEyesVisible] = useState(!staggerOnEnter);
@@ -248,7 +250,7 @@ export default function EyeFollow({
 
     // Pointer tracking and click-to-add
     useEffect(() => {
-        if (!internalEyes || internalEyes.length === 0) return;
+        if (!visibleEyes || visibleEyes.length === 0) return;
 
         const el = document.getElementById(containerId);
         if (!el) return;
@@ -319,7 +321,7 @@ export default function EyeFollow({
 
             const size = baseSpawnSize * scale;
 
-            const occupiedEye = internalEyes.find((eye) => {
+            const occupiedEye = visibleEyes.find((eye) => {
                 const metrics = getEyeMetrics(eye, isMobile, rectRef.current, edgePadding);
                 const centerX = (metrics.xPercent / 100) * r.width;
                 const centerY = (metrics.yPercent / 100) * r.height;
@@ -364,7 +366,7 @@ export default function EyeFollow({
             }
 
             if (avoidSpawnOverlap) {
-                const wouldOverlap = internalEyes.some((eye) => {
+                const wouldOverlap = visibleEyes.some((eye) => {
                     const metrics = getEyeMetrics(eye, isMobile, rectRef.current, edgePadding);
                     const centerX = (metrics.xPercent / 100) * r.width;
                     const centerY = (metrics.yPercent / 100) * r.height;
@@ -445,7 +447,7 @@ export default function EyeFollow({
         containerId,
         edgePadding,
         enableClickToAdd,
-        internalEyes,
+        visibleEyes,
         isMobile,
         rollOnExistingClick,
         spawnGap,
@@ -456,11 +458,11 @@ export default function EyeFollow({
 
     // Physics loop
     useEffect(() => {
-        if (!internalEyes || internalEyes.length === 0) return;
+        if (!visibleEyes || visibleEyes.length === 0) return;
 
         const nextPhysics: Record<string, EyePhysics> = { ...physicsRef.current };
 
-        for (const eye of internalEyes) {
+        for (const eye of visibleEyes) {
             const { xPercent, yPercent, size } = getEyeMetrics(
                 eye,
                 isMobile,
@@ -517,7 +519,7 @@ export default function EyeFollow({
 
             const newOffsets: Record<string, Offset> = {};
 
-            for (const eye of internalEyes) {
+            for (const eye of visibleEyes) {
                 const { xPercent, yPercent, size } = getEyeMetrics(
                     eye,
                     isMobile,
@@ -601,16 +603,16 @@ export default function EyeFollow({
             cancelAnimationFrame(rafId);
             visibilityObserver?.disconnect();
         };
-    }, [containerId, edgePadding, internalEyes, isMobile]);
+    }, [containerId, edgePadding, visibleEyes, isMobile]);
 
-    if (!internalEyes || internalEyes.length === 0) return null;
+    if (!visibleEyes || visibleEyes.length === 0) return null;
 
     return (
         <div
             className={`pointer-events-none absolute inset-0 z-10 ${eyesVisible ? "eyes-visible" : ""} ${className}`}
             aria-hidden="true"
         >
-            {internalEyes.map((eye, index) => {
+            {visibleEyes.map((eye, index) => {
                 const { xPercent, yPercent, size } = getEyeMetrics(
                     eye,
                     isMobile,

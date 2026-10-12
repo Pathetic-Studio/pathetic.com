@@ -134,6 +134,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
         ...eye,
         x: index === 5 ? Math.min(90, (eye.x ?? 72) + 6) : eye.x,
         xMobile, yMobile, sizeMobile,
+        hiddenOnMobile: index === 4 || index === 5,
       };
     });
   }, [props.eyes]);

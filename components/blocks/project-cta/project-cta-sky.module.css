@@ -1,0 +1,54 @@
+.section {
+  position: relative;
+  height: clamp(24rem, 31vw, 38rem);
+  margin: 1.5rem;
+  overflow-anchor: none;
+}
+.portal { position: fixed; inset: 0; z-index: 50; pointer-events: none; visibility: hidden; }
+.backdrop { position: absolute; inset: 0; overflow: hidden; opacity: 0; pointer-events: none; }
+.sky { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 56%; }
+.star { position: absolute; left: 50%; top: 50%; width: max(128vw, 140vh); height: auto; transform: translate(-50%, -50%) scale(.45); }
+.weather { position: absolute; inset: 0; width: 100%; height: 100%; }
+.anchor { position: absolute; left: 0; top: 0; pointer-events: auto; }
+.window {
+  position: absolute; inset: 0; padding: 3px; background: #c0c0c0; color: #000;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #171717, inset 2px 2px #dfdfdf, inset -2px -2px #808080;
+}
+.titlebar {
+  position: relative; z-index: 4; display: flex; align-items: center; justify-content: space-between; pointer-events: none;
+  height: 25px; padding: 2px 3px 2px 6px;
+  background: linear-gradient(90deg, #4e82eb, #6db9dc); color: #fff; font-size: 14px; line-height: 1;
+}
+.close {
+  display: grid; place-items: center; width: 19px; height: 19px; padding: 0; border: 0; background: #c0c0c0; pointer-events: auto; cursor: pointer;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #171717, inset 2px 2px #dfdfdf, inset -2px -2px #808080;
+  color: #111; font: inherit; font-size: 18px; line-height: 1;
+}
+.close:hover { background: #000; color: #fff; }
+.content { position: absolute; inset: 28px 3px 3px; overflow: hidden; }
+.title { position: absolute; left: 0; top: 0; width: max-content; pointer-events: none; will-change: transform; }
+.titleText { width: max-content !important; }
+.titleText h2 { line-height: .78; letter-spacing: -.055em; paint-order: stroke fill; }
+.fortune {
+  position: absolute; display: inline-flex; align-items: center; justify-content: center;
+  left: 50%; height: 2.5rem; padding: 0 1.5rem; background: #c0c0c0; color: #080808; border: 1px solid #808080;
+  box-shadow: inset 2px 2px #fff, inset -2px -2px #171717, inset 3px 3px #dfdfdf, inset -3px -3px #808080;
+  font-size: 1rem; line-height: 1; white-space: nowrap; opacity: 0; transform: translate(-50%, 0) scale(0); pointer-events: none;
+}
+.fortune::after { content: ""; position: absolute; inset: 5px; border: 1px dotted #272727; }
+.trigger { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; border: 0; background: transparent; }
+.trigger:focus-visible { outline: 3px dashed #000; outline-offset: -8px; }
+.anchor:has(.trigger:active) .fortune { box-shadow: inset 2px 2px #171717, inset -2px -2px #fff; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (hover: hover) and (pointer: fine) {
+  .anchor, .trigger { cursor: url('/images/project-cta/cursor-98.png') 3 3, pointer; }
+}
+@media (max-width: 1023px) {
+  .section { margin: 1rem; height: clamp(20rem, 44vw, 28rem); }
+}
+@media (max-width: 639px) {
+  .section { margin: var(--mobile-section-gap, 3rem) .75rem .75rem; height: 19rem; }
+  .titlebar { height: 23px; font-size: 11px; }
+  .content { top: 26px; }
+}
+@media (prefers-reduced-motion: reduce) { .title { will-change: auto; } }

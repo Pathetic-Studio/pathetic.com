@@ -15,6 +15,7 @@ import gsap from "gsap";
 import { stegaClean } from "next-sanity";
 import Link from "next/link";
 import BasketLinksPopup, { type BasketPopupType } from "./basket-links-popup";
+import BasketSectionShortcuts from "./basket-section-shortcuts";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger);
 
@@ -694,7 +695,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       <h2 className="sr-only">{title}</h2>
       <div
         ref={stageRef}
-        className="relative aspect-[2/3] w-[min(92vw,58svh)] touch-pan-y select-none sm:aspect-[1151/768] sm:w-[min(96vw,112svh,78rem)]"
+        className="relative aspect-[2/3] w-[min(92vw,58svh)] touch-pan-y select-none sm:aspect-[1151/768] sm:w-[min(68vw,112svh,78rem)]"
       >
         <span className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[66.666%] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-90 sm:inset-0 sm:h-full sm:w-full sm:translate-x-0 sm:translate-y-0 sm:rotate-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -752,6 +753,7 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
           );
         })}
       </div>
+      <BasketSectionShortcuts basketRef={stageRef} />
       <BasketLinksPopup
         active={activePopup}
         onClose={closePopup}

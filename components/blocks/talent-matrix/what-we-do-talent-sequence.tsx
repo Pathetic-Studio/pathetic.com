@@ -235,6 +235,7 @@ export default function WhatWeDoTalentSequence({
           const timeline = gsap.timeline({
             defaults: { ease: "power2.inOut" },
             scrollTrigger: {
+              id: "what-we-do-matrix-reveal",
               trigger: root,
               start: "top top",
               end: () => `+=${window.innerHeight * sequenceDuration}`,

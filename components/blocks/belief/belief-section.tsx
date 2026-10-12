@@ -265,7 +265,7 @@ export default function BeliefSection(props: BeliefBlock) {
   }, [cloudsEnabled, partDuration]);
 
   const beliefContent = (
-    <div ref={rootRef} className="relative isolate overflow-visible max-lg:z-[1]">
+    <div ref={rootRef} data-belief-section className="relative isolate overflow-visible max-lg:z-[1]">
       {cloudsEnabled && (
         <>
           {/* The stacked content is much taller than the desktop composition.
