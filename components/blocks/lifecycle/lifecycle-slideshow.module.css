@@ -1,0 +1,74 @@
+@media (min-width: 1024px) {
+  .glassesCopy {
+    top: 31%;
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 800px) {
+  .glassesCopy {
+    /* Keep a gap above the enlarged frames on shorter laptop screens. */
+    top: 29.5%;
+  }
+}
+
+@media (max-width: 1023px) {
+  /* overflow-x:hidden also makes main a vertical scroll container. Sticky
+     needs the document scroller; clip still prevents horizontal overscroll. */
+  :global(main):has(.root) {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .viewport {
+    /* The largest viewport is stable while the phone's browser controls move,
+       and fills the entire screen once those controls retract. */
+    height: 100lvh;
+  }
+
+  /* Keep TitleText's shared stretch and height measurement. Only the type size,
+     leading and measure change for these two compact slide compositions. */
+  .slideTitle h2 {
+    font-size: clamp(2.25rem, 11.5vw, 3.5rem);
+    line-height: 0.92;
+    text-wrap: wrap;
+  }
+
+  .memeCopy {
+    top: 50%;
+    width: calc(min(64vw, 20rem) / 0.68);
+  }
+
+  .glassesCopy {
+    top: 30%;
+    width: calc(min(86vw, 26rem) / 0.68);
+  }
+
+  .funButton {
+    bottom: 8%;
+    right: 5.5%;
+    width: clamp(5rem, 22vw, 6.75rem);
+    height: clamp(5rem, 22vw, 6.75rem);
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 520px) and (orientation: landscape) {
+  .slideTitle h2 {
+    font-size: clamp(1.75rem, 8.5lvh, 2.25rem);
+  }
+
+  .funButton {
+    width: 5rem;
+    height: 5rem;
+  }
+}
+
+@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
+  .root {
+    height: calc(100lvh * var(--lifecycle-scroll-length));
+  }
+
+  .viewport {
+    position: sticky;
+    top: 0;
+  }
+}

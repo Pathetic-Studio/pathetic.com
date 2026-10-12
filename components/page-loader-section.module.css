@@ -1,0 +1,12 @@
+@media (max-width: 767px) {
+  .content {
+    flex-direction: column;
+    justify-content: flex-start;
+    padding-top: clamp(7rem, 18svh, 10rem);
+    padding-bottom: 3rem;
+  }
+
+  .title h2 {
+    font-size: clamp(2.5rem, 12.4vw, var(--text-5xl));
+  }
+}

@@ -8,6 +8,8 @@
 }
 
 @media (max-width: 767px) {
+  .intro { min-height: 0; }
+
   .section {
     overflow: clip;
   }

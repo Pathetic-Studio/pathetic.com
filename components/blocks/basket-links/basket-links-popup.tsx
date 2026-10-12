@@ -328,7 +328,7 @@ export default function BasketLinksPopup({ active, onClose, sourceElement, shopH
     }
   }, [active, newsletterFlapping, runCloseTransition]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active) return;
     const smoother = ScrollSmoother.get();
     const wasPaused = smoother ? Boolean(smoother.paused()) : false;
@@ -355,6 +355,10 @@ export default function BasketLinksPopup({ active, onClose, sourceElement, shopH
       body.style.width = "100%";
       body.style.overflow = "hidden";
       html.style.overflow = "hidden";
+      // Commit the native scroll lock before the abyss measures page objects.
+      // Otherwise Chrome can snapshot between the fixed-body offset and its
+      // reset scroll position, placing those copies outside the viewport.
+      window.scrollTo(0, 0);
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeWithTransition();

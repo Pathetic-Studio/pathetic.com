@@ -5,7 +5,6 @@ import Link from "next/link";
 import { stegaClean } from "next-sanity";
 import {
   useEffect,
-  useId,
   useRef,
   useState,
   type CSSProperties,
@@ -591,7 +590,9 @@ export function WhatWeDoGridView({
   className?: string;
 }) {
   const accent = colorValue(block.accentColor, "#ff00d9");
-  const carouselId = useId();
+  // Anchor the carousel and its controls to the content block, rather than
+  // the surrounding React tree, so their IDs stay consistent on hydration.
+  const carouselId = `what-services-${encodeURIComponent(stegaClean(block._key))}`;
   const background = colorValue(block.backgroundColor, "#e7e7e2");
   const services = (block.services || []).slice(0, 4);
   const rootRef = useRef<HTMLDivElement | null>(null);

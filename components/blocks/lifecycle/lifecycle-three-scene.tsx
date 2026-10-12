@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import gsap from "gsap";
 import { createLifecycleEnvironment } from "./lifecycle-environment";
+import { createGogglesReflector } from "./goggles-reflector";
 
 type LifecycleThreeSceneProps = {
   modelUrl?: string | null;
   modelScale?: number | null;
   rotationSpeed?: number | null;
   boosted: boolean;
-  entryKey: number;
+  entryProgress: RefObject<{ progress: number }>;
+  /** Downward offset as a fraction of the desktop canvas height. */
+  desktopDrop?: number;
   environmentRoot: RefObject<HTMLElement | null>;
 };
 
@@ -18,20 +20,13 @@ export default function LifecycleThreeScene({
   modelScale = 1,
   rotationSpeed = 0.35,
   boosted,
-  entryKey,
+  entryProgress,
+  desktopDrop = 0,
   environmentRoot,
 }: LifecycleThreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const visibleRef = useRef(false);
   const boostedRef = useRef(boosted);
-  const sceneReadyRef = useRef(false);
-  const pendingEntryRef = useRef(false);
-  const entryKeyRef = useRef(entryKey);
-  const entrySpinRef = useRef({ value: 0 });
-  const entryTweenRef = useRef<gsap.core.Tween | null>(null);
-  const startEntryRef = useRef<() => void>(() => {
-    pendingEntryRef.current = true;
-  });
   const [webglUnavailable, setWebglUnavailable] = useState(false);
 
   useEffect(() => {
@@ -75,11 +70,6 @@ export default function LifecycleThreeScene({
     boostedRef.current = boosted;
   }, [boosted]);
 
-  useEffect(() => {
-    entryKeyRef.current = entryKey;
-    if (entryKey <= 0) return;
-    startEntryRef.current();
-  }, [entryKey]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -146,7 +136,32 @@ export default function LifecycleThreeScene({
       // Bake them once so the finish adds no per-frame reflection rendering.
       const pmremGenerator = new THREE.PMREMGenerator(renderer);
       const reflectionLighting = new THREE.Scene();
-      reflectionLighting.background = new THREE.Color(0x292929);
+      // Broad gradients between the sharp light ribbons keep curved silver
+      // readable at every angle, instead of flat grey areas between highlights.
+      const studioCanvas = document.createElement("canvas");
+      studioCanvas.width = 1024;
+      studioCanvas.height = 512;
+      const studioContext = studioCanvas.getContext("2d")!;
+      const studioGradient = studioContext.createLinearGradient(0, 0, 0, 512);
+      studioGradient.addColorStop(0, "#c2cbd4");
+      studioGradient.addColorStop(0.24, "#718398");
+      studioGradient.addColorStop(0.46, "#17222f");
+      studioGradient.addColorStop(0.54, "#8b99a8");
+      studioGradient.addColorStop(0.72, "#263342");
+      studioGradient.addColorStop(1, "#9faab7");
+      studioContext.fillStyle = studioGradient;
+      studioContext.fillRect(0, 0, 1024, 512);
+      for (const [x, y, radius] of [[220, 150, 220], [750, 300, 260]]) {
+        const glow = studioContext.createRadialGradient(x, y, 0, x, y, radius);
+        glow.addColorStop(0, "rgba(242,247,255,.9)");
+        glow.addColorStop(1, "rgba(242,247,255,0)");
+        studioContext.fillStyle = glow;
+        studioContext.fillRect(0, 0, 1024, 512);
+      }
+      const studioGradientTexture = new THREE.CanvasTexture(studioCanvas);
+      studioGradientTexture.colorSpace = THREE.SRGBColorSpace;
+      studioGradientTexture.mapping = THREE.EquirectangularReflectionMapping;
+      reflectionLighting.background = studioGradientTexture;
       const addReflectionStrip = (
         width: number,
         height: number,
@@ -165,12 +180,14 @@ export default function LifecycleThreeScene({
         strip.lookAt(0, 0, 0);
         reflectionLighting.add(strip);
       };
-      addReflectionStrip(8, 4, [0, 3, 4], 1.4);
-      addReflectionStrip(5, 8, [-4, 1, 2.5], 0.9);
-      addReflectionStrip(4, 9, [4, 0, 2], 1.8);
-      addReflectionStrip(8, 5, [0, 3, -4], 1.2);
-      addReflectionStrip(7, 3, [0, -3, 4], 0.7);
+      addReflectionStrip(8, 1.2, [0, 3, 4], 2.8);
+      addReflectionStrip(1.2, 7, [-4, 1, 2.5], 1.6);
+      addReflectionStrip(0.65, 8, [4, 0, 2], 3.2);
+      addReflectionStrip(7, 1.4, [0, 3, -4], 2.2);
+      addReflectionStrip(7, 0.55, [0, -3, 4], 1.8);
+      addReflectionStrip(0.35, 6, [-3, 0, -4], 2.4);
       const disposeReflectionLighting = () => {
+        studioGradientTexture.dispose();
         reflectionLighting.traverse((object) => {
           if (object instanceof THREE.Mesh) {
             object.geometry.dispose();
@@ -193,7 +210,7 @@ export default function LifecycleThreeScene({
       > | null = null;
       try {
         const reflectionLogo = await new THREE.TextureLoader().loadAsync(
-          "/models/pathetic-com-goggles-reflection.webp",
+          "/models/pathetic-com-goggles-reflection-chomsky.webp",
         );
         reflectionLogo.colorSpace = THREE.SRGBColorSpace;
         reflectionLogo.anisotropy = Math.min(
@@ -211,13 +228,16 @@ export default function LifecycleThreeScene({
         }
 
         const reflectionScene = new THREE.Scene();
-        reflectionScene.background = new THREE.Color(0x020204);
-        // Keep the blackletter word large in the reflection so the lens
-        // curvature can bend it without reducing it to a faint highlight.
-        const reflectionCardGeometry = new THREE.PlaneGeometry(8.7, 2.9);
+        reflectionScene.background = new THREE.Color(0x000000);
+        // Use the authored Blender curve and UVs, rather than wrapping the
+        // logo around a generic cylinder. Bake once for both lenses and metal.
+        const reflectionCardGeometry = createGogglesReflector(THREE);
         const reflectionCardMaterial = new THREE.MeshBasicMaterial({
           map: reflectionLogo,
+          color: new THREE.Color().setRGB(1.45, 1.45, 1.45),
           transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
           side: THREE.DoubleSide,
           toneMapped: false,
         });
@@ -225,33 +245,48 @@ export default function LifecycleThreeScene({
           reflectionCardGeometry,
           reflectionCardMaterial,
         );
-        reflectionCard.position.set(0, -0.38, 2.65);
+        reflectionCard.rotation.x = 0.8;
+        reflectionCard.scale.y = 1.25;
         reflectionScene.add(reflectionCard);
 
-        const reflectionTarget = new THREE.WebGLCubeRenderTarget(512, {
-          generateMipmaps: true,
-          minFilter: THREE.LinearMipmapLinearFilter,
-        });
+        // The small softbox glint in the original lens sits above the word.
+        const lensGlint = new THREE.Mesh(
+          new THREE.CircleGeometry(0.14, 24),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
+        );
+        lensGlint.position.set(-0.8, 1.4, 2.5);
+        lensGlint.scale.set(1.7, 0.55, 1);
+        reflectionScene.add(lensGlint);
+
+        const reflectionTarget = new THREE.WebGLCubeRenderTarget(
+          window.innerWidth >= 1024 ? 1024 : 512,
+          {
+            generateMipmaps: true,
+            minFilter: THREE.LinearMipmapLinearFilter,
+          },
+        );
         const reflectionCamera = new THREE.CubeCamera(
           0.1,
           10,
           reflectionTarget,
         );
         reflectionCamera.update(renderer, reflectionScene);
+        lensGlint.geometry.dispose();
+        lensGlint.material.dispose();
         // Keep the sharp cube reflection. PMREM filtering made the lettering
         // behave correctly, but softened it until it was barely legible.
         brandedLensEnvironment = reflectionTarget.texture;
         brandedLensEnvironment.mapping = THREE.CubeReflectionMapping;
         brandedLensRenderTarget = reflectionTarget;
 
-        // Keep the lens word-only. Chrome gets the same word plus neutral
-        // highlight strips that reveal the curved silver frame and charms.
+        // Keep the lenses dark apart from the word and softbox glint. Chrome
+        // gets the same word plus the silver highlight ribbons and gradients.
         // Neither environment contains a floor, room or reflected objects.
-        reflectionCardMaterial.color.setRGB(1.8, 1.8, 1.8);
+        reflectionCardMaterial.color.setRGB(3, 3, 3);
         reflectionLighting.add(reflectionCard);
         brandedChromeRenderTarget = pmremGenerator.fromScene(
           reflectionLighting,
-          0.12,
+          0,
           0.1,
           10,
         );
@@ -271,8 +306,8 @@ export default function LifecycleThreeScene({
       const displaySceneBackground = new THREE.Color(0xffffff);
 
       const root = new THREE.Group();
-      // Keep a restrained elevated view without overpowering the composition.
-      root.rotation.x = THREE.MathUtils.degToRad(12);
+      // Match the elevated view of the source spin GIF, including the arms.
+      root.rotation.x = THREE.MathUtils.degToRad(25);
       scene.add(root);
 
       const lightningGroup = new THREE.Group();
@@ -457,29 +492,6 @@ export default function LifecycleThreeScene({
       );
       bloomComposer.addPass(bloomRenderPass);
       bloomComposer.addPass(lightningBloom);
-      const startEntrySpin = () => {
-        if (!sceneReadyRef.current) {
-          pendingEntryRef.current = true;
-          return;
-        }
-
-        pendingEntryRef.current = false;
-        entryTweenRef.current?.kill();
-        entrySpinRef.current.value = -Math.PI * 4.5;
-        entryTweenRef.current = gsap.to(entrySpinRef.current, {
-          value: 0,
-          duration: 1.18,
-          ease: "power4.out",
-          overwrite: true,
-          onComplete: () => {
-            entryTweenRef.current = null;
-          },
-        });
-      };
-      startEntryRef.current = startEntrySpin;
-      sceneReadyRef.current = true;
-      if (pendingEntryRef.current) startEntrySpin();
-
       scene.add(new THREE.HemisphereLight(0xffffff, 0x6f6f8f, 2.4));
       const keyLight = new THREE.DirectionalLight(0xffffff, 5);
       keyLight.position.set(3, 4, 5);
@@ -491,6 +503,7 @@ export default function LifecycleThreeScene({
       const surgeAccentColor = new THREE.Color(0x3fa7ff);
       const getResponsiveModelScale = () => {
         const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+        const stageHeight = canvas?.clientHeight || window.innerHeight;
 
         if (viewportWidth < 640) {
           const mobileProgress = THREE.MathUtils.clamp(
@@ -498,10 +511,18 @@ export default function LifecycleThreeScene({
             0,
             1,
           );
-          return THREE.MathUtils.lerp(0.54, 0.68, mobileProgress);
+          // The elevated GIF angle reveals the full arms. Fit their turning
+          // silhouette into a tall mobile viewport as well as the front view.
+          const portraitFit = (viewportWidth / Math.max(stageHeight, 1)) * 1.14;
+          return Math.min(
+            THREE.MathUtils.lerp(0.7, 0.86, mobileProgress),
+            portraitFit,
+          );
         }
 
-        return viewportWidth < 1024 ? 0.84 : 1;
+        return viewportWidth < 1024
+          ? Math.min(0.84, (viewportWidth / Math.max(stageHeight, 1)) * 0.8)
+          : 1.07;
       };
       let visibleObjectScaleBase = Math.max(0.1, modelScale || 1);
       let visibleObjectResponsiveScale = getResponsiveModelScale();
@@ -586,9 +607,14 @@ export default function LifecycleThreeScene({
                     return material;
                   }
 
-                  return new THREE.MeshBasicMaterial({
+                  // Phong evaluates the reflection from the interpolated
+                  // normal per pixel. Basic's vertex reflection visibly bent
+                  // the lettering at triangle boundaries on these lenses.
+                  return new THREE.MeshPhongMaterial({
                     name: material.name,
-                    color: 0x020204,
+                    color: 0x000000,
+                    emissive: 0x0b111a,
+                    specular: 0x000000,
                     envMap: brandedLensEnvironment,
                     combine: THREE.AddOperation,
                     reflectivity: 1,
@@ -603,6 +629,9 @@ export default function LifecycleThreeScene({
                 mesh.material = Array.isArray(mesh.material)
                   ? reflectedMaterials
                   : reflectedMaterials[0];
+                materials.forEach((material, index) => {
+                  if (material !== reflectedMaterials[index]) material.dispose();
+                });
                 return;
               }
 
@@ -616,9 +645,9 @@ export default function LifecycleThreeScene({
                   material.envMap = studioEnvironment;
                   material.envMapIntensity = 1;
                 } else {
-                  material.color.set(0xe8e8e8);
+                  material.color.set(0xf2f5fa);
                   material.metalness = 1;
-                  material.roughness = 0.065;
+                  material.roughness = 0.025;
                   material.envMap =
                     brandedChromeRenderTarget?.texture || studioEnvironment;
                   material.envMapIntensity = 1;
@@ -643,11 +672,7 @@ export default function LifecycleThreeScene({
 
             visibleObject = model;
             root.add(model);
-            // If the real model arrived after the entrance tween had already
-            // finished on the fallback, replay it once on the glasses.
-            if (entryKeyRef.current > 0 && !entryTweenRef.current) {
-              startEntrySpin();
-            }
+
           },
           () => {
             // The chrome fallback intentionally remains visible on load failure.
@@ -658,24 +683,42 @@ export default function LifecycleThreeScene({
       if (cancelled) return;
 
       let headerArcTargetsAvailable = false;
+      let entryTravelY = 0;
+      let restingY = 0;
+      let lastSceneSize = "";
       const resize = () => {
         const bounds = targetCanvas.getBoundingClientRect();
         const width = Math.max(1, Math.round(bounds.width));
         const height = Math.max(1, Math.round(bounds.height));
+        const sceneSize = `${width}:${height}:${window.devicePixelRatio}:${window.innerWidth < 1024}`;
+        // Browser toolbar changes resize the visual viewport, not this stable
+        // canvas. Avoid reallocating render targets or refitting the model.
+        if (sceneSize === lastSceneSize) return;
+        lastSceneSize = sceneSize;
         renderer.setSize(width, height, false);
         bloomComposer.setPixelRatio(
           Math.min(window.devicePixelRatio || 1, 1.6),
         );
         bloomComposer.setSize(width, height);
         camera.aspect = width / height;
-        // Raise the stacked composition without moving the canvas edge: the
-        // lightning/background must still cover the complete section.
+        // Lower the mobile model beneath its headline without moving the
+        // canvas edge: lightning still covers the full stable-height scene.
         if (window.innerWidth < 1024) {
-          camera.setViewOffset(width, height, 0, height * 0.055, width, height);
+          camera.setViewOffset(width, height, 0, height * (width < 640 ? -0.045 : -0.015), width, height);
         } else {
           camera.clearViewOffset();
         }
         camera.updateProjectionMatrix();
+        // Move only the model, keeping the full canvas and lightning edges
+        // in place. The slideshow uses the same offset for gathered images.
+        restingY = window.innerWidth >= 1024
+          ? -2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * camera.position.z * desktopDrop
+          : 0;
+        // Start the complete mobile silhouette below the bottom edge, then
+        // lift the mesh into view inside a stationary, full-height canvas.
+        entryTravelY = window.innerWidth < 1024
+          ? Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * camera.position.z * 2.05
+          : 0;
         const nextResponsiveScale = getResponsiveModelScale();
         targetCanvas.dataset.modelResponsiveScale =
           nextResponsiveScale.toFixed(4);
@@ -773,6 +816,7 @@ export default function LifecycleThreeScene({
 
       const clock = new THREE.Clock();
       let idleRotationY = 0;
+      let lastEntryProgress = 0;
       let surgeIntensity = 0;
       let powerCharge = 0;
       let backgroundCharge = 0;
@@ -796,6 +840,14 @@ export default function LifecycleThreeScene({
       const render = () => {
         const transitionDelta = Math.min(clock.getDelta(), 0.25);
         const delta = Math.min(transitionDelta, 0.05);
+        const entrance = prefersReducedMotion ? 1 : entryProgress.current.progress;
+        // Preserve the current pose when reversing out of the idle spin. A new
+        // entrance starts from the same authored angle, even after Fun mode.
+        if (entrance <= 0.001) idleRotationY = 0;
+        else if (entrance < 1 && lastEntryProgress >= 1) {
+          idleRotationY = THREE.MathUtils.euclideanModulo(idleRotationY + Math.PI, Math.PI * 2) - Math.PI;
+        }
+        lastEntryProgress = entrance;
         // Keep the prewarmed scene resident, but spend no GPU time on hidden slides.
         if (
           (!visibleRef.current || document.hidden) &&
@@ -834,7 +886,10 @@ export default function LifecycleThreeScene({
           poweredSceneBackground,
           backgroundProgress,
         );
-        renderer.setClearColor(currentSceneBackground, 1);
+        // Let the gathering images remain behind the chrome while it rises.
+        // The full scene background takes over only once they enter the lenses.
+        renderer.setClearColor(currentSceneBackground, entrance >= 1 ? 1 : 0);
+        root.position.y = restingY - entryTravelY * (1 - entrance);
 
         const lightningActive = boostActive && powerCharge > 0.78;
         if (lightningActive && !wasLightningActive) {
@@ -850,8 +905,10 @@ export default function LifecycleThreeScene({
             1.7,
           );
           const multiplier = 1 + surgeRamp * 115;
-          idleRotationY += delta * (rotationSpeed || 0.35) * multiplier;
-          root.rotation.y = idleRotationY + entrySpinRef.current.value;
+          if (entrance >= 1) idleRotationY += delta * (rotationSpeed || 0.35) * multiplier;
+          root.rotation.y = THREE.MathUtils.lerp(-Math.PI * 0.95, idleRotationY, entrance);
+          root.rotation.x = THREE.MathUtils.lerp(0.95, THREE.MathUtils.degToRad(25), entrance);
+          root.rotation.z = THREE.MathUtils.lerp(-0.24, 0, entrance);
 
           const flicker = THREE.MathUtils.clamp(
             0.72 +
@@ -943,14 +1000,6 @@ export default function LifecycleThreeScene({
       render();
 
       cleanUpScene = () => {
-        sceneReadyRef.current = false;
-        pendingEntryRef.current = false;
-        entryTweenRef.current?.kill();
-        entryTweenRef.current = null;
-        entrySpinRef.current.value = 0;
-        startEntryRef.current = () => {
-          pendingEntryRef.current = true;
-        };
         environment.dispose();
         window.cancelAnimationFrame(animationFrame);
         resizeObserver?.disconnect();
@@ -981,7 +1030,7 @@ export default function LifecycleThreeScene({
       cancelled = true;
       cleanUpScene();
     };
-  }, [environmentRoot, modelScale, modelUrl, rotationSpeed]);
+  }, [desktopDrop, entryProgress, environmentRoot, modelScale, modelUrl, rotationSpeed]);
 
   if (webglUnavailable) {
     return (

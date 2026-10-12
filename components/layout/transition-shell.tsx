@@ -369,6 +369,13 @@ export default function TransitionShell({
 
       gsap.killTweensOf(el);
       document.documentElement.removeAttribute(INITIAL_HASH_PENDING_ATTR);
+      // Native mobile scrolling can reach this reveal through the fallback,
+      // without ScrollSmoother ever publishing a ready event. Notify the header
+      // too, otherwise its logo and menu remain in their hidden entry state.
+      document.documentElement.setAttribute(INITIAL_HASH_READY_ATTR, "true");
+      window.dispatchEvent(
+        new CustomEvent(INITIAL_HASH_READY_EVENT, { detail: { ready: true } }),
+      );
       gsap.set(el, { opacity: 0 });
       gsap.to(el, {
         opacity: 1,

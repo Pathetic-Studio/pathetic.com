@@ -85,8 +85,7 @@ export function createAbyssTransition({
     simulationTime = 0,
     warpTime = 0,
     lastWarp = 0;
-  let width = innerWidth,
-    height = innerHeight;
+  let width = innerWidth;
   let timeline = gsap.timeline();
   const warpState = { amount: 0 };
 
@@ -178,6 +177,7 @@ export function createAbyssTransition({
     // Behind every Matter piece, above the dark cloud. Never spin the cutout.
     traveller.style.zIndex = "5";
     root.dataset.abyssPhase = "consuming";
+    gsap.to(traveller, { ...destination(), duration: reduced ? 0 : 0.2 });
     gsap.to(warpState, { amount: 1, duration: reduced ? 0 : 0.65 });
     gsap.to(ink, {
       scale: 1,
@@ -203,7 +203,7 @@ export function createAbyssTransition({
     preparation.abort();
     cancelAnimationFrame(frame);
     timeline.kill();
-    gsap.killTweensOf([ink, warpState]);
+    gsap.killTweensOf([ink, warpState, traveller]);
     root.dataset.abyssPhase = "collapsing";
     const restoreAt = reduced ? 0.1 : pieces ? 0.5 : 0.05;
     timeline = gsap.timeline({
@@ -266,13 +266,14 @@ export function createAbyssTransition({
   };
   const onResize = () => {
     positionInk();
-    if (
-      Math.abs(width - innerWidth) > 24 ||
-      Math.abs(height - innerHeight) > 120
-    )
+    // Mobile browser bars can change the height when scrolling is locked.
+    // Keep the objects alive; only an actual layout/orientation change closes.
+    if (Math.abs(width - innerWidth) > 24) {
       close();
+    } else if (arrived && !closing) {
+      gsap.to(traveller, { ...destination(), duration: reduced ? 0 : 0.2, overwrite: "auto" });
+    }
     width = innerWidth;
-    height = innerHeight;
   };
   const onVisibility = () => {
     if (document.hidden) {
@@ -334,7 +335,7 @@ export function createAbyssTransition({
       disposed = true;
       preparation.abort();
       timeline.kill();
-      gsap.killTweensOf([ink, warpState]);
+      gsap.killTweensOf([ink, warpState, traveller]);
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);

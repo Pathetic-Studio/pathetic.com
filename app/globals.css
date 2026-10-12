@@ -4,11 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Cropped scenes keep a stable height with 10% more breathing room; full scenes
-   fill the viewport as the mobile browser toolbar retracts. */
+/* Both scene sizes stay stable as mobile browser controls move. Full scenes
+   fill the largest viewport, including when the toolbar has retracted. */
 :root {
   --site-nav-height: 82px;
-  --section-full-height: 100dvh;
+  --section-full-height: 100lvh;
   --section-cropped-height: calc((100svh - var(--site-nav-height)) * 1.1);
   --mobile-section-gap: 3rem;
 }
@@ -621,6 +621,18 @@ html[data-lifecycle-environment] [data-lifecycle-environment-section] {
 
 html {
   scrollbar-gutter: stable;
+}
+
+/* The rendered compact track replaces the browser's transient overlay bar. */
+html[data-mobile-scrollbar],
+html[data-mobile-scrollbar] body {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+}
+html[data-mobile-scrollbar]::-webkit-scrollbar,
+html[data-mobile-scrollbar] body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 @keyframes what-pigeon-flap {

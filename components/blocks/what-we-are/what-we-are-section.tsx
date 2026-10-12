@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useId, useRef, useState } from "react";
+import { stegaClean } from "next-sanity";
+import { useEffect, useRef, useState } from "react";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import styles from "./what-we-are.module.css";
 import TitleText from "@/components/ui/title-text";
@@ -16,8 +17,10 @@ export type WhatWeAreSectionBlock = {
 
 const ASSETS = "/images/belief/what-we-are";
 
-export default function WhatWeAre() {
-  const id = useId();
+export default function WhatWeAre({ _key }: WhatWeAreSectionBlock) {
+  // Share a stable block identity across the server-rendered title, labels,
+  // instructions and carousel controls, including on a full-page reload.
+  const id = `what-we-are-${encodeURIComponent(stegaClean(_key))}`;
   const sectionRef = useRef<HTMLElement>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [mobile, setMobile] = useState(false);

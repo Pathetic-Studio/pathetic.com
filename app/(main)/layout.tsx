@@ -17,6 +17,7 @@ import TransitionShell from "@/components/layout/transition-shell";
 import { HeaderNavOverridesProvider } from "@/components/header/nav-overrides";
 import { HeaderVisualThemeProvider } from "@/components/header/visual-theme";
 import DevFpsCounter from "@/components/dev-fps-counter";
+import MobileScrollbar from "@/components/mobile-scrollbar";
 
 const HOME_LOADER_SESSION_KEY = "pageLoaderPlayed";
 const HOME_LOADER_PENDING_ATTR = "data-home-loader-pending";
@@ -48,6 +49,7 @@ export default async function MainLayout({
                     />
                 )}
                 <Header />
+                <MobileScrollbar />
                 <ContactModal />
                 <NewsletterModal />
                 {process.env.NODE_ENV === "development" && <DevFpsCounter />}

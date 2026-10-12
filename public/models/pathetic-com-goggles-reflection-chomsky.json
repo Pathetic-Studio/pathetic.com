@@ -1,0 +1,15 @@
+{
+  "font": "Chomsky",
+  "author": "Fredrick Brennan",
+  "source": "https://github.com/ctrlcctrlv/chomsky",
+  "fontFile": "https://raw.githubusercontent.com/ctrlcctrlv/chomsky/master/dist/Chomsky.otf",
+  "license": "SIL Open Font License 1.1",
+  "text": "pathetic.com",
+  "comparison": "Closest visual match to the local goggles GIF: wedge h ascender, curved h descender, open a, angular e and diamond i. Original source font metadata was not present in the Blender file.",
+  "canvas": [2048, 768],
+  "inkBounds": [64, 190, 1912, 390],
+  "ink": "#d4d4d4",
+  "background": "#000000",
+  "encoding": "lossless WebP",
+  "previousTexture": "pathetic-com-goggles-reflection.webp"
+}

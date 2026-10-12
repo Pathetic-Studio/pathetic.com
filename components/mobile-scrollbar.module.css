@@ -1,0 +1,22 @@
+.track {
+  position: fixed;
+  right: max(1px, env(safe-area-inset-right));
+  z-index: 85;
+  width: 8px;
+  border: 1px solid #000;
+  padding: 1px;
+  background: #fff;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.track[hidden] { display: none; }
+.track::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 -16px;
+}
+.track:active { cursor: grabbing; }
+.track:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
+.thumb { width: 100%; background: #000; pointer-events: none; }
+@media (min-width: 640px) { .track { width: 10px; } }

@@ -295,6 +295,13 @@ export default function SmoothScroller({
       wrapper.setAttribute("data-smooth-active", "false");
     };
 
+    // Apply to native touch scrolling too: browser toolbar movement must not
+    // repeatedly refresh pinned timelines while a finger is still scrolling.
+    ScrollTrigger.config({
+      autoRefreshEvents: "DOMContentLoaded,load,resize",
+      ignoreMobileResize: true,
+    });
+
     // If loader is playing: kill smoother + remove transforms (DO NOT touch opacity)
     if (suppressForLoader) {
       restoreNativeScroller();
@@ -355,11 +362,6 @@ export default function SmoothScroller({
         window.history.scrollRestoration = "manual";
       }
     } catch {}
-
-    ScrollTrigger.config({
-      autoRefreshEvents: "DOMContentLoaded,load,resize",
-      ignoreMobileResize: true,
-    });
 
     wrapper.style.overflowAnchor = "none";
     content.style.overflowAnchor = "none";

@@ -200,6 +200,10 @@ export async function createAbyssPieces(
   source: HTMLElement | null | undefined,
   signal: AbortSignal,
 ) {
+  // Let native scroll locking and its ScrollTrigger updates settle before any
+  // viewport-relative snapshots. The actual content stays visible meanwhile.
+  await snapshotFrame(signal);
+  if (signal.aborted) return null;
   const layer = document.createElement("div");
   layer.dataset.abyssPieces = "";
   Object.assign(layer.style, {

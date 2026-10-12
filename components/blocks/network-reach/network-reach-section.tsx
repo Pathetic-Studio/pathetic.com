@@ -123,6 +123,20 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
   const rootRef = useRef<HTMLElement | null>(null);
   const friendsRef = useRef<HTMLDivElement | null>(null);
   const [introVisible, setIntroVisible] = useState(false);
+  const introEyes = useMemo(() => {
+    const positions = [
+      [16, 12, 52], [80, 13, 64], [12, 39, 28], [91, 39, 28],
+      [15, 94, 54], [87, 94, 42], [50, 8, 28],
+    ];
+    return (props.eyes ?? []).map((eye, index) => {
+      const [xMobile, yMobile, sizeMobile] = positions[index % positions.length];
+      return {
+        ...eye,
+        x: index === 5 ? Math.min(90, (eye.x ?? 72) + 6) : eye.x,
+        xMobile, yMobile, sizeMobile,
+      };
+    });
+  }, [props.eyes]);
   useEffect(() => {
     const friends = friendsRef.current;
     if (!friends) return;
@@ -132,27 +146,6 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
     observer.observe(friends);
     return () => observer.disconnect();
   }, []);
-  const introEyes = useMemo(() => {
-    const positions = [
-      [16, 12, 52],
-      [80, 13, 64],
-      [12, 39, 28],
-      [91, 39, 28],
-      [15, 87, 54],
-      [87, 87, 42],
-      [50, 8, 28],
-    ];
-    return (props.eyes ?? []).map((eye, index) => {
-      const [xMobile, yMobile, sizeMobile] =
-        positions[index % positions.length];
-      return {
-        ...eye,
-        // Give the eye beside ADVANTAGE some room on the desktop composition.
-        x: index === 5 ? Math.min(90, (eye.x ?? 72) + 6) : eye.x,
-        xMobile, yMobile, sizeMobile,
-      };
-    });
-  }, [props.eyes]);
   useEffect(() => {
     const intro = rootRef.current?.querySelector("[data-network-intro]");
     if (!intro) return;
@@ -173,6 +166,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
   const sectionId =
     stegaClean(props.anchor?.anchorId) || `_network-reach-${props._key}`;
   const eyeAreaId = `${sectionId}-eyes`;
+  const introEyeAreaId = `${sectionId}-intro-eyes`;
   const reachPoints = props.reachPoints?.length
     ? props.reachPoints
     : fallbackPoints;
@@ -292,28 +286,33 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
       className={`${styles.section} relative isolate bg-background p-2.5 sm:p-4 lg:p-6`}
     >
       <div
+        id={eyeAreaId}
         className={`${styles.panel} relative overflow-hidden rounded-none border border-current before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[100] before:h-px before:bg-current before:content-['']`}
         style={{ backgroundColor, color: textColor }}
       >
-        <div
-          id={eyeAreaId}
-          className="relative min-h-[27rem] cursor-default sm:min-h-[29rem] sm:cursor-crosshair lg:min-h-[33rem]"
-        >
-          <EyeFollow
-            containerId={eyeAreaId}
-            eyes={introEyes}
-            enableClickToAdd={stegaClean(props.enableClickToAddEyes) !== false}
-            minSpawnScale={stegaClean(props.eyeSpawnMinScale) || 0.55}
-            maxSpawnScale={stegaClean(props.eyeSpawnMaxScale) || 1.35}
-            avoidSpawnOverlap
-            rollOnExistingClick
-            spawnGap={12}
-            edgePadding={12}
-            staggerOnEnter
-            staggerEnterDelayMs={80}
-            staggerEnterRootMargin="0px 0px -8% 0px"
+        <EyeFollow
+          containerId={eyeAreaId}
+          initialEyesContainerId={introEyeAreaId}
+          eyes={introEyes}
+          className="!z-0"
+          spawnOnRelease
+          enableClickToAdd={stegaClean(props.enableClickToAddEyes) !== false}
+          minSpawnScale={stegaClean(props.eyeSpawnMinScale) || 0.55}
+          maxSpawnScale={stegaClean(props.eyeSpawnMaxScale) || 1.35}
+          avoidSpawnOverlap
+          rollOnExistingClick
+          spawnGap={12}
+          edgePadding={12}
+          staggerOnEnter
+          staggerEnterDelayMs={80}
+          staggerEnterRootMargin="0px 0px -8% 0px"
+        />
+        <div className={`${styles.intro} relative z-10 min-h-[27rem] cursor-default sm:min-h-[29rem] sm:cursor-crosshair lg:min-h-[33rem]`}>
+          <div
+            id={introEyeAreaId}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 min-h-[27rem] sm:min-h-[29rem] lg:min-h-[33rem]"
           />
-
           <div
             data-network-intro
             data-typeon-trigger="true"
@@ -420,7 +419,7 @@ export default function NetworkReachSection(props: NetworkReachBlock) {
           }))}
         />
 
-        <div className="relative mx-auto flex min-h-[25rem] max-w-[96rem] flex-col items-center justify-end px-2 pb-[clamp(2.5rem,4vw,4rem)] pt-8 text-center sm:min-h-[28rem] sm:px-6 sm:pt-10 lg:px-8 lg:pt-12">
+        <div className="relative z-10 mx-auto flex min-h-[25rem] max-w-[96rem] flex-col items-center justify-end px-2 pb-[clamp(2.5rem,4vw,4rem)] pt-8 text-center sm:min-h-[28rem] sm:px-6 sm:pt-10 lg:px-8 lg:pt-12">
           <div className="mb-auto flex w-full max-w-[90rem] flex-col items-center">
             <TitleText
               variant="stretched"

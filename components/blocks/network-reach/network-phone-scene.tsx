@@ -31,6 +31,15 @@ export default function NetworkPhoneScene({
     const items = Array.from(
       root.querySelectorAll<HTMLElement>("[data-network-floating-point]"),
     );
+    const compactLayout = window.matchMedia("(max-width: 1023px)");
+    const resetStaticMetrics = () => {
+      if (compactLayout.matches) {
+        items.filter(item => item.dataset.networkPointType === "metric")
+          .forEach(item => { item.style.transform = ""; });
+      }
+    };
+    resetStaticMetrics();
+    compactLayout.addEventListener("change", resetStaticMetrics);
     let frame = 0;
     let visible = false;
     let lastTime = 0;
@@ -75,6 +84,7 @@ export default function NetworkPhoneScene({
       x += (pointer.current.x - x) * ease;
       y += (pointer.current.y - y) * ease;
       items.forEach((item, index) => {
+        if (compactLayout.matches && item.dataset.networkPointType === "metric") return;
         const depth = 10 + (index % 3) * 9;
         const dx =
           (x * depth + Math.sin(elapsed * 0.6 + index * 1.7) * 6) * amplitude;
@@ -99,14 +109,15 @@ export default function NetworkPhoneScene({
       cancelAnimationFrame(frame);
       observer.disconnect();
       resize.disconnect();
+      compactLayout.removeEventListener("change", resetStaticMetrics);
       section.removeEventListener("pointermove", move);
       section.removeEventListener("pointerleave", leave);
       document.removeEventListener("visibilitychange", resume);
     };
   }, []);
 
-  // Interleave metrics and audience details around the phone, with three
-  // above and three below in the compact layout.
+  // Keep the desktop orbit order; compact layouts group metrics above the
+  // phone and the three audience details beneath it.
   const orderedReach = [reachPoints[0], reachPoints[2], reachPoints[1]]
     .filter(Boolean)
     .map((point) => ({
@@ -140,6 +151,7 @@ export default function NetworkPhoneScene({
           <div
             key={point.key}
             data-network-floating-point
+            data-network-point-type={point.metric ? "metric" : "detail"}
             className={`${styles.point} ${point.metric ? styles.metric : styles.detail}`}
             style={{ "--point-index": index } as CSSProperties}
           >
@@ -157,7 +169,12 @@ export default function NetworkPhoneScene({
                     animation="none"
                     className="!w-auto [&_p]:whitespace-nowrap [&_p]:leading-[.82] [&_p]:tracking-[-.06em]"
                   >
-                    {point.value}
+                    {/^50\s*million\s*\+?$/i.test(point.value.trim()) ? (
+                      <>
+                        <span className={styles.desktopMetric}>{point.value}</span>
+                        <span className={styles.compactMetric}>50M+</span>
+                      </>
+                    ) : point.value}
                   </TitleText>
                   <p className={`mt-2 uppercase ${TEXT_STYLES.label}`}>
                     {point.title}

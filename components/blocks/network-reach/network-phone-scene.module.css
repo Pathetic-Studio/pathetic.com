@@ -5,6 +5,7 @@
   min-height: 655px;
   margin: -60px auto 0;
   isolation: isolate;
+  z-index: 10;
 }
 .phone {
   position: absolute;
@@ -66,6 +67,7 @@
 }
 .points {
   position: absolute;
+  z-index: 3;
   inset: 0;
   pointer-events: none;
 }
@@ -83,6 +85,7 @@
 .pointContent:hover {
   transform: scale(1.06) rotate(-2deg);
 }
+.compactMetric { display: none; }
 .detail .pointContent {
   padding: 25px 20px;
 }
@@ -162,118 +165,64 @@
     top: 45px;
   }
 }
-/* Touch layouts keep three facts above the phone and three below it.
-   Their independent offsets retain the loose desktop composition. */
+/* Three metrics above the phone, three smaller star facts beneath it. */
 @media (max-width: 1023px) {
   .scene {
-    margin-top: 20px;
-    min-height: 965px;
+    --phone-top: 96px;
+    --phone-height: 590px;
+    --details-top: 650px;
+    margin-top: 12px;
+    min-height: 830px;
   }
   .phone {
-    top: 175px;
-    width: 440px;
-    height: 590px;
+    top: var(--phone-top);
+    width: min(100%, 440px);
+    height: var(--phone-height);
   }
   .point:nth-child(n) {
-    width: 29%;
     inset: auto;
+    width: 33.333%;
   }
+  .point.metric { top: 0; will-change: auto; }
+  .metric .pointContent { padding-block: 0; transition: none; }
+  .metric .pointContent:hover { transform: none; }
+  .desktopMetric { display: none; }
+  .compactMetric { display: inline; }
+  .point:nth-child(1) { left: 0; }
+  .point:nth-child(3) { left: 33.333%; }
+  .point:nth-child(5) { left: 66.666%; }
   .point.detail {
-    width: 23%;
+    top: var(--details-top);
+    width: 28%;
   }
-  .point:nth-child(1) {
-    left: 2%;
-    top: 18px;
-  }
-  .point:nth-child(2) {
-    left: 39%;
-    top: 70px;
-  }
-  .point:nth-child(3) {
-    right: 0;
-    top: 0;
-  }
-  .point:nth-child(4) {
-    left: 6%;
-    top: 752px;
-  }
-  .point:nth-child(5) {
-    right: 0;
-    top: 772px;
-  }
-  .point:nth-child(6) {
-    left: 39%;
-    top: 820px;
-  }
-  .detail::before {
-    inset: -22px -18px;
-  }
+  .point:nth-child(2) { left: 2.666%; }
+  .point:nth-child(4) { left: 36%; top: calc(var(--details-top) + 20px); }
+  .point:nth-child(6) { left: 69.333%; top: calc(var(--details-top) + 4px); }
+  .detail::before { inset: -12px -6px; }
+  .pointContent { padding-inline: 4px; }
+  .detail .pointContent { padding: 18px 2px; }
+  .metric p + p { text-wrap: balance; }
+}
+@media (max-width: 767px) {
+  .scene { margin-top: 28px; }
 }
 @media (max-width: 639px) {
   .scene {
-    margin-top: 22px;
-    min-height: 900px;
+    --phone-top: 76px;
+    --phone-height: 440px;
+    --details-top: 492px;
+    min-height: 650px;
   }
-  .phone {
-    top: 208px;
-    width: min(100%, 390px);
-    height: 430px;
-  }
-  .phone :global(.network-phone-model) {
-    inset: 0 0 35px;
-  }
-  .shadow {
-    bottom: 55px;
-  }
-  .point:nth-child(n) {
-    width: 51%;
-    inset: auto;
-  }
-  .point.detail {
-    width: min(37%, 132px);
-  }
-  .point:nth-child(1) {
-    left: 0;
-    top: 0;
-  }
-  .point:nth-child(2) {
-    right: 3%;
-    top: 18px;
-  }
-  .point:nth-child(3) {
-    right: 8%;
-    top: 120px;
-  }
-  .point:nth-child(4) {
-    left: 5%;
-    top: 625px;
-  }
-  .point:nth-child(5) {
-    right: 0;
-    top: 680px;
-  }
-  .point:nth-child(6) {
-    left: 12%;
-    top: 780px;
-  }
+  .phone { width: min(100%, 390px); }
+  .phone :global(.network-phone-model) { inset: 0 0 35px; }
+  .shadow { bottom: 55px; }
   .metric .pointContent > div p {
-    font-size: clamp(2.35rem, 10.6vw, 3rem);
+    font-size: clamp(1.8rem, 8.5vw, 3rem);
   }
-  .detail::before {
-    inset: -15px -12px;
-  }
-  .pointContent {
-    padding: 22px 2px;
-  }
-  .detail .pointContent {
-    padding: 15px 0;
-  }
-  .detail p {
-    font-size: clamp(11px, 3.1vw, 13px);
-  }
-  .metric p + p {
-    font-size: 12px;
-  }
+  .pointContent { padding: 18px 2px; }
+  .detail .pointContent { padding: 15px 0; }
+  .detail p { font-size: clamp(10px, 2.9vw, 13px); }
+  .metric p + p { font-size: clamp(9px, 2.6vw, 12px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .pointContent {

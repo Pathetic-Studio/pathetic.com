@@ -10,7 +10,7 @@ type TitleTextVariant = "normal" | "stretched";
 type TitleTextAnimation = "none" | "typeOn";
 type TitleTextWeight = "regular" | "medium" | "semibold" | "bold" | "black";
 type TitleTextOutlinePosition = "center" | "outside";
-type TitleTextSize =
+export type TitleTextSize =
   | "xxl"
   | "xl"
   | "lg"
@@ -82,12 +82,12 @@ const WEIGHT_CLASSES: Record<TitleTextWeight, string> = {
   black: "font-black",
 };
 
-const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
+export const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   md: "text-3xl",
   lg: "text-5xl",
   xl: "text-6xl",
   xxl: "text-5xl lg:text-8xl",
-  display: "text-[2rem] sm:text-[2.5rem] lg:text-[3.5rem]",
+  display: "text-[2rem] sm:text-[2.5rem] lg:text-[3.5rem] lg:leading-[.95]",
   "display-compact": "text-[1.65rem] sm:text-[2.4rem] lg:text-[2.9rem]",
   "what-we-do": "text-[clamp(3.25rem,6.6vw,7.2rem)] sm:text-[clamp(5.5rem,10vw,10.5rem)] lg:text-[clamp(3.25rem,6.6vw,7.2rem)]",
   "matrix-eyebrow": "text-[clamp(1.3rem,2vw,2.15rem)]",
@@ -103,7 +103,7 @@ const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   "contact-cta": "text-[clamp(4rem,11.8vw,11rem)]",
 };
 
-const SCALE_CONFIG: Record<
+export const SCALE_CONFIG: Record<
   TitleTextSize,
   Record<Breakpoint, { stretchScaleX: number; overallScale: number }>
 > = {

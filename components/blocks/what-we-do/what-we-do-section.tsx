@@ -136,7 +136,7 @@ const CURATED_ITEM_LAYOUT: Record<
   Pick<ResolvedFloatingProject, "positionX" | "positionY" | "width">
 > = {
   whatWeDoRamp: { positionX: 11.5, positionY: 62, width: 13 },
-  whatWeDoDoorDash: { positionX: 36, positionY: 48, width: 10.5 },
+  whatWeDoDoorDash: { positionX: 36, positionY: 44.5, width: 10.5 },
   whatWeDoAdidas: { positionX: 82, positionY: 36, width: 13.5 },
 };
 

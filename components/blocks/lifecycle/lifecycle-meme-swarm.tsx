@@ -42,12 +42,9 @@ type RenderLayer = {
   restZIndex: number;
 };
 
-const DEPTH_SEQUENCE = [1, 0, 2, 1, 2, 0, 1, 2, 0, 2, 1, 0] as const;
-const DEPTH_PRESETS = [
-  { opacity: 0.42, scale: 0.78, zIndex: 8 },
-  { opacity: 0.72, scale: 0.92, zIndex: 16 },
-  { opacity: 1, scale: 1.08, zIndex: 28 },
-] as const;
+// A single visual weight for the first-slide trial. Aspect ratios stay intact.
+const REST_SIDE = 64;
+const REST_STYLE = { opacity: 1, scale: 1, zIndex: 16 };
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -80,13 +77,8 @@ function getScatterPosition(index: number, total: number) {
   };
 }
 
-function getRestSize(layer: MemeLayerSpec, index: number) {
-  if (!layer.src) {
-    const side = 38 + ((index * 11) % 18);
-    return { width: side, height: side };
-  }
-
-  const maxSide = 56 + ((index * 13) % 38);
+function getRestSize(layer: MemeLayerSpec) {
+  const maxSide = REST_SIDE;
   const aspect = Math.max(0.35, Math.min(2.8, layer.width / layer.height));
 
   return aspect >= 1
@@ -161,9 +153,8 @@ export default function LifecycleMemeSwarm({
       template.layers.map((layer, layerIndex): RenderLayer => {
         const currentIndex = globalIndex++;
         const rest = getScatterPosition(currentIndex, total);
-        const size = getRestSize(layer, currentIndex);
-        const depth =
-          DEPTH_PRESETS[DEPTH_SEQUENCE[currentIndex % DEPTH_SEQUENCE.length]];
+        const size = getRestSize(layer);
+        const depth = REST_STYLE;
 
         return {
           groupIndex,
@@ -222,51 +213,30 @@ export default function LifecycleMemeSwarm({
           });
         }
       });
-      const title = slide.querySelector<HTMLElement>(
-        "[data-lifecycle-center-text]",
-      );
-      const titleScale = title
-        ? Number(gsap.getProperty(title, "scaleX")) || 1
-        : 1;
-      const growth = bounds.width >= 1024 ? 1.14 / titleScale : 1;
+      // Give each text line breathing room beyond the object's own hover and
+      // float clearance, while leaving the outer edges available for images.
+      const textPadding = clamp(bounds.width * 0.02, 14, 28);
       zones.forEach((zone) => {
-        zone.left = bounds.width / 2 + (zone.left - bounds.width / 2) * growth;
-        zone.right =
-          bounds.width / 2 + (zone.right - bounds.width / 2) * growth;
-        zone.top = bounds.height / 2 + (zone.top - bounds.height / 2) * growth;
-        zone.bottom =
-          bounds.height / 2 + (zone.bottom - bounds.height / 2) * growth;
+        zone.left -= textPadding;
+        zone.right += textPadding;
+        zone.top -= textPadding;
+        zone.bottom += textPadding;
       });
-      const subtitle = slide.querySelector<HTMLElement>(
-        "[data-lifecycle-top-text]",
-      );
-      if (subtitle) {
-        const range = document.createRange();
-        range.selectNodeContents(subtitle);
-        const box = range.getBoundingClientRect();
-        zones.push({
-          left: box.left - bounds.left,
-          right: box.right - bounds.left,
-          top: box.top - bounds.top,
-          bottom: box.bottom - bounds.top,
-        });
-      }
       const placed: Array<{ x: number; y: number; radius: number }> = [];
-      const compact = bounds.width < 1024;
       // Edge cutouts can bleed outside the frame; keep the text protected.
       root
         .querySelectorAll<HTMLElement>("[data-lifecycle-meme-image]")
         .forEach((item, index) => {
           const layer = layers[index] ?? { restX: 68, restY: 21 };
           const scale =
-            Number(item.dataset.restScale) * (bounds.width < 640 ? 0.6 : 1);
+            Number(item.dataset.restScale) * (bounds.width < 640 ? 0.68 : 1);
           // Include the hover growth and floating travel in the clearance.
           const halfWidth = Number(item.dataset.restWidth) * scale * 0.61 + 7;
           const halfHeight =
             Number(item.dataset.restHeight) * scale * 0.61 + 14;
           const clear = (x: number, y: number) =>
-            (!compact || (x >= -halfWidth * 0.3 && x <= bounds.width + halfWidth * 0.3
-              && y - halfHeight >= 20 && y + halfHeight <= bounds.height - 24)) &&
+            (x >= -halfWidth * 0.3 && x <= bounds.width + halfWidth * 0.3
+              && y >= -halfHeight * 0.3 && y <= bounds.height + halfHeight * 0.3) &&
             zones.every(
               (zone) =>
                 x + halfWidth < zone.left ||
@@ -275,45 +245,42 @@ export default function LifecycleMemeSwarm({
                 y - halfHeight > zone.bottom,
             );
           const origin = {
-            x: (bounds.width * (compact ? 50 + (layer.restX - 50) * 1.16 : layer.restX)) / 100,
-            y: (bounds.height * (compact ? 50 + (layer.restY - 50) * 1.28 : layer.restY)) / 100,
+            x: (bounds.width * (50 + (layer.restX - 50) * 1.2)) / 100,
+            y: (bounds.height * (50 + (layer.restY - 50) * 1.4)) / 100,
           };
           let best = origin;
-          let bestScore = Infinity;
-          for (let candidate = 0; candidate < 240; candidate++) {
+          let bestScore = -Infinity;
+          const radius = Math.max(halfWidth, halfHeight);
+          // Fill the largest remaining safe space rather than pulling displaced
+          // images back towards their old grid cells along the headline edges.
+          // A tiny origin preference keeps the arrangement deterministic and loose.
+          for (let candidate = 0; candidate < 512; candidate++) {
             const x =
               candidate === 0
                 ? origin.x
                 : bounds.width *
-                  ((compact ? -0.025 : 0.035) +
-                    ((candidate * 0.61803398875 + index * 0.13) % 1) * (compact ? 1.05 : 0.93));
+                  (-0.025 +
+                    ((candidate * 0.61803398875 + index * 0.13) % 1) * 1.05);
             const y =
               candidate === 0
                 ? origin.y
                 : bounds.height *
-                  ((compact ? 0.07 : 0.18) +
-                    ((candidate * 0.41421356237 + index * 0.17) % 1) * (compact ? 0.86 : 0.64));
+                  (-0.025 +
+                    ((candidate * 0.41421356237 + index * 0.17) % 1) * 1.05);
             if (!clear(x, y)) continue;
-            const crowding = placed.reduce(
-              (total, point) =>
-                total +
-                Math.max(
-                  0,
-                  halfWidth +
-                    point.radius +
-                    12 -
-                    Math.hypot(x - point.x, y - point.y),
-                ) *
-                  12,
-              0,
-            );
-            const score = Math.hypot(x - origin.x, y - origin.y) + crowding;
-            if (score < bestScore) {
+            let clearance = placed.length ? Infinity : 0;
+            for (const point of placed) {
+              clearance = Math.min(clearance,
+                Math.hypot(x - point.x, y - point.y) - radius - point.radius,
+              );
+            }
+            const score = clearance - Math.hypot(x - origin.x, y - origin.y) * .015;
+            if (score > bestScore) {
               best = { x, y };
               bestScore = score;
             }
           }
-          placed.push({ ...best, radius: halfWidth });
+          placed.push({ ...best, radius });
           item.dataset.restX = String(
             roundLayoutValue((best.x / bounds.width) * 100),
           );
@@ -343,13 +310,13 @@ export default function LifecycleMemeSwarm({
   }, [layers, bridgeImage?.src]);
 
   const bridgeLayer = useMemo(() => {
-    const depth = DEPTH_PRESETS[2];
+    const depth = REST_STYLE;
     return {
       globalIndex: layers.length,
       restX: 68,
       restY: 21,
-      restWidth: 68,
-      restHeight: 68,
+      restWidth: REST_SIDE,
+      restHeight: REST_SIDE,
       restOpacity: depth.opacity,
       restScale: depth.scale,
       restZIndex: depth.zIndex,
@@ -487,7 +454,7 @@ export default function LifecycleMemeSwarm({
         const { distance, direction, duration, delay } = getFloatMotion(index);
         const tween = gsap.fromTo(
           layer,
-          { y: -distance * direction },
+          { y: 0 },
           {
             y: distance * direction,
             duration,
@@ -513,7 +480,7 @@ export default function LifecycleMemeSwarm({
     if (!root) return;
 
     const rootBounds = root.getBoundingClientRect();
-    const mobileRestScale = rootBounds.width < 640 ? 0.6 : 1;
+    const mobileRestScale = rootBounds.width < 640 ? 0.68 : 1;
     const items = gsap.utils.toArray<HTMLElement>(
       "[data-lifecycle-meme-image]",
       root,

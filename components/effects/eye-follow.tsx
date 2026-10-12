@@ -17,6 +17,9 @@ type EyeConfig = {
 
 type EyeFollowProps = {
     containerId: string;
+    initialEyesContainerId?: string;
+    className?: string;
+    spawnOnRelease?: boolean;
     eyes?: EyeConfig[];
     enableClickToAdd?: boolean;
     minSpawnScale?: number;
@@ -31,7 +34,11 @@ type EyeFollowProps = {
 };
 
 type MousePos = { x: number; y: number } | null;
-type Rect = { width: number; height: number } | null;
+type Rect = {
+    width: number;
+    height: number;
+    initialArea?: { width: number; height: number; left: number; top: number };
+} | null;
 
 type Offset = { x: number; y: number };
 
@@ -63,18 +70,27 @@ function getEyeMetrics(
         return { xPercent: rawX, yPercent: rawY, size };
     }
 
-    const xInset = Math.min(50, ((size * 0.5 + edgePadding) / rect.width) * 100);
-    const yInset = Math.min(50, ((size * 0.5 + edgePadding) / rect.height) * 100);
+    // Authored eyes stay anchored to their original composition. Newly added
+    // eyes use the complete interaction area, including below the heading.
+    const initialArea = !eye._key?.startsWith("spawn-") ? rect.initialArea : undefined;
+    const area = initialArea || rect;
+    const xInset = Math.min(50, ((size * 0.5 + edgePadding) / area.width) * 100);
+    const yInset = Math.min(50, ((size * 0.5 + edgePadding) / area.height) * 100);
+    const xPercent = Math.min(100 - xInset, Math.max(xInset, rawX));
+    const yPercent = Math.min(100 - yInset, Math.max(yInset, rawY));
 
     return {
-        xPercent: Math.min(100 - xInset, Math.max(xInset, rawX)),
-        yPercent: Math.min(100 - yInset, Math.max(yInset, rawY)),
+        xPercent: initialArea ? (initialArea.left + xPercent * area.width / 100) / rect.width * 100 : xPercent,
+        yPercent: initialArea ? (initialArea.top + yPercent * area.height / 100) / rect.height * 100 : yPercent,
         size,
     };
 }
 
 export default function EyeFollow({
     containerId,
+    initialEyesContainerId,
+    className = "",
+    spawnOnRelease = false,
     eyes,
     enableClickToAdd,
     minSpawnScale,
@@ -163,18 +179,34 @@ export default function EyeFollow({
     useEffect(() => {
         const el = document.getElementById(containerId);
         if (!el) return;
+        const initialArea = initialEyesContainerId
+            ? document.getElementById(initialEyesContainerId)
+            : null;
 
         const updateRect = () => {
             const nextRect = el.getBoundingClientRect();
-            setRect({ width: nextRect.width, height: nextRect.height });
+            const areaRect = initialArea?.getBoundingClientRect();
+            const next: NonNullable<Rect> = {
+                width: el.clientWidth,
+                height: el.clientHeight,
+                ...(areaRect ? { initialArea: {
+                    width: areaRect.width,
+                    height: areaRect.height,
+                    left: areaRect.left - nextRect.left - el.clientLeft,
+                    top: areaRect.top - nextRect.top - el.clientTop,
+                } } : {}),
+            };
+            rectRef.current = next;
+            setRect(next);
         };
 
         updateRect();
         const observer = new ResizeObserver(updateRect);
         observer.observe(el);
+        if (initialArea) observer.observe(initialArea);
 
         return () => observer.disconnect();
-    }, [containerId]);
+    }, [containerId, initialEyesContainerId]);
 
     useEffect(() => {
         if (!staggerOnEnter) {
@@ -221,14 +253,10 @@ export default function EyeFollow({
         const el = document.getElementById(containerId);
         if (!el) return;
 
-        const handleMove = (event: PointerEvent) => {
-            if (event.pointerType === "touch") {
-                setMouse(null);
-                return;
-            }
+        const trackPosition = (event: { clientX: number; clientY: number }) => {
             const r = el.getBoundingClientRect();
-            const localX = event.clientX - r.left;
-            const localY = event.clientY - r.top;
+            const localX = event.clientX - r.left - el.clientLeft;
+            const localY = event.clientY - r.top - el.clientTop;
 
             if (localX < 0 || localY < 0 || localX > r.width || localY > r.height) {
                 setMouse(null);
@@ -236,19 +264,46 @@ export default function EyeFollow({
             }
 
             setMouse({ x: localX, y: localY });
-            setRect({ width: r.width, height: r.height });
         };
 
+        // Native scrolling cancels PointerEvents after a pan starts. Passive
+        // TouchEvents keep the gaze on the finger without intercepting the pan.
+        let finger: { identifier: number; clientX: number; clientY: number } | null = null;
+        const handleMove = (event: PointerEvent) => {
+            if (event.pointerType !== "touch") trackPosition(event);
+        };
         const handleLeave = () => {
+            if (!finger) setMouse(null);
+        };
+        const touchStart = (event: TouchEvent) => {
+            const touch = event.touches[0];
+            if (!touch || finger) return;
+            finger = { identifier: touch.identifier, clientX: touch.clientX, clientY: touch.clientY };
+            trackPosition(finger);
+        };
+        const touchMove = (event: TouchEvent) => {
+            if (!finger) return;
+            const touch = Array.from(event.touches).find(t => t.identifier === finger!.identifier);
+            if (!touch) return;
+            finger = { identifier: touch.identifier, clientX: touch.clientX, clientY: touch.clientY };
+            trackPosition(finger);
+        };
+        const touchEnd = (event: TouchEvent) => {
+            if (!finger || Array.from(event.touches).some(t => t.identifier === finger!.identifier)) return;
+            finger = null;
             setMouse(null);
         };
+        const touchScroll = () => {
+            if (finger) trackPosition(finger);
+        };
 
-        const handleDown = (event: PointerEvent) => {
+        const handleDown = (event: Pick<PointerEvent, "clientX" | "clientY">) => {
             if (!enableClickToAdd) return;
 
-            const r = el.getBoundingClientRect();
-            const localX = event.clientX - r.left;
-            const localY = event.clientY - r.top;
+            const bounds = el.getBoundingClientRect();
+            const r = { width: el.clientWidth, height: el.clientHeight };
+            const localX = event.clientX - bounds.left - el.clientLeft;
+            const localY = event.clientY - bounds.top - el.clientTop;
 
             if (localX < 0 || localY < 0 || localX > r.width || localY > r.height) {
                 return;
@@ -335,14 +390,54 @@ export default function EyeFollow({
             setInternalEyes((prev) => [...prev, newEye]);
         };
 
+        let press: { x: number; y: number; scroll: number; id: number } | null = null;
+        const startPress = (event: PointerEvent) => {
+            if (event.button !== 0 || (event.target as Element).closest("a, button, input, select, textarea, canvas, [role='button']")) return;
+            press = { x: event.clientX, y: event.clientY, scroll: window.scrollY, id: event.pointerId };
+        };
+        const endPress = (event: PointerEvent) => {
+            const start = press;
+            press = null;
+            if (!start || start.id !== event.pointerId ||
+                Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8 ||
+                Math.abs(window.scrollY - start.scroll) > 8) return;
+            handleDown(event);
+        };
+        const cancelPress = () => { press = null; };
+        // A 3D canvas may cover empty background too. Its hit test can forward
+        // a real background tap without also spawning an eye on the model.
+        const canvasBackgroundTap = (event: Event) => {
+            handleDown((event as CustomEvent<{ clientX: number; clientY: number }>).detail);
+        };
+
         el.addEventListener("pointermove", handleMove);
         el.addEventListener("pointerleave", handleLeave);
-        el.addEventListener("pointerdown", handleDown);
+        el.addEventListener("touchstart", touchStart, { passive: true });
+        window.addEventListener("touchmove", touchMove, { passive: true });
+        window.addEventListener("touchend", touchEnd, { passive: true });
+        window.addEventListener("touchcancel", touchEnd, { passive: true });
+        window.addEventListener("scroll", touchScroll, { passive: true });
+        el.addEventListener("pointerdown", spawnOnRelease ? startPress : handleDown);
+        if (spawnOnRelease) {
+            el.addEventListener("pointerup", endPress);
+            el.addEventListener("pointercancel", cancelPress);
+            el.addEventListener("pointerleave", cancelPress);
+            el.addEventListener("eye-background-tap", canvasBackgroundTap);
+        }
 
         return () => {
             el.removeEventListener("pointermove", handleMove);
             el.removeEventListener("pointerleave", handleLeave);
-            el.removeEventListener("pointerdown", handleDown);
+            el.removeEventListener("touchstart", touchStart);
+            window.removeEventListener("touchmove", touchMove);
+            window.removeEventListener("touchend", touchEnd);
+            window.removeEventListener("touchcancel", touchEnd);
+            window.removeEventListener("scroll", touchScroll);
+            el.removeEventListener("pointerdown", spawnOnRelease ? startPress : handleDown);
+            el.removeEventListener("pointerup", endPress);
+            el.removeEventListener("pointercancel", cancelPress);
+            el.removeEventListener("pointerleave", cancelPress);
+            el.removeEventListener("eye-background-tap", canvasBackgroundTap);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
@@ -356,6 +451,7 @@ export default function EyeFollow({
         spawnGap,
         spawnMax,
         spawnMin,
+        spawnOnRelease,
     ]);
 
     // Physics loop
@@ -511,7 +607,7 @@ export default function EyeFollow({
 
     return (
         <div
-            className={`pointer-events-none absolute inset-0 z-10 ${eyesVisible ? "eyes-visible" : ""}`}
+            className={`pointer-events-none absolute inset-0 z-10 ${eyesVisible ? "eyes-visible" : ""} ${className}`}
             aria-hidden="true"
         >
             {internalEyes.map((eye, index) => {

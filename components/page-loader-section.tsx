@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { setIntroHandoffPending } from "@/components/header/intro-handoff";
 
 import ImageExplodeLoader from "@/components/effects/image-explode-loader";
+import styles from "./page-loader-section.module.css";
 import {
   getLeftNavController,
   getMobileNavController,
@@ -549,6 +550,8 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         <ImageExplodeLoader
           containerId={EXPLODE_STAGE_ID}
           images={sprites as any}
+          desktopSize={220}
+          mobileSize={117.6}
           onAllItemsAnimatedIn={handleExplodeReady}
           appearStaggerEach={0.1}
           appearDuration={0.68}
@@ -560,6 +563,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
         <div
           ref={contentRef}
           className={cn(
+            styles.content,
             fixedPinned
               ? "absolute inset-0 flex items-center justify-center text-center"
               : "min-h-[100svh] flex flex-col justify-center py-20 text-center"
@@ -581,7 +585,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
                   animation="none"
                   animationSpeed={1.2}
                   fontWeight="bold"
-                  className="[&_h2]:tracking-[-.035em]"
+                  className={cn(styles.title, "[&_h2]:tracking-[-.035em]")}
                 >
                   {title}
                 </TitleText>
@@ -612,7 +616,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
                     animationSpeed={1.2}
                     typeOnTrigger="immediate"
                     fontWeight="bold"
-                    className="[&_h2]:tracking-[-.035em]"
+                    className={cn(styles.title, "[&_h2]:tracking-[-.035em]")}
                   >
                     {title}
                   </TitleText>

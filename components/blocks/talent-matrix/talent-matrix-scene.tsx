@@ -1,6 +1,7 @@
 "use client";
 
 import { cropBuildingAtFloor } from "./crop-building-at-floor";
+import { applyBuildingGlyphUVs } from "./building-glyph-uvs";
 
 import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
@@ -10,7 +11,12 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
 const MATRIX_GLYPHS =
-  "00110101001101010010110101ABCDEFGHIJKLMNOPQRSTUVWXYZ<>/{}[]$#@+-*";
+  "0011010100110101PATHETICPATHETIC<>/{}[]$#@+-*";
+// World-space tiles stay undistorted when the planes extend on touch layouts.
+const MATRIX_TILE_WIDTH = 156 / 2.8;
+const MATRIX_TILE_HEIGHT = 124 / 2.15;
+// The distant wall needs larger characters to stay legible in perspective.
+const MATRIX_BACKDROP_GLYPH_SCALE = 1.5;
 const CAMERA_SCROLL_START_LIFT = 9;
 const CAMERA_SCROLL_END_LIFT = -0.55;
 const AVATAR_WORLD_HEIGHT = 8.75;
@@ -284,14 +290,14 @@ export default function TalentMatrixScene({
       seed: 4102,
       width: 512,
       height: 512,
-      columns: 32,
+      columns: 40,
       background: "#000300",
       lineOpacity: 0.025,
       gapChance: 0.22,
       minStrength: 0.04,
       maxStrength: 0.76,
       glowScale: 0.05,
-      glyphWidth: 0.26,
+      glyphWidth: 0.32,
     });
     const floorSurface = createMatrixTextureFrames({
       color: sceneColor,
@@ -341,17 +347,17 @@ export default function TalentMatrixScene({
     const anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
     backgroundSurface.textures.forEach((texture) => {
       texture.anisotropy = anisotropy;
-      texture.repeat.set(1.05, 1);
+      texture.repeat.set(1, 1);
       renderer.initTexture(texture);
     });
     floorSurface.textures.forEach((texture) => {
       texture.anisotropy = anisotropy;
-      texture.repeat.set(2.8, 2.15);
+      texture.repeat.set(1, 1);
       renderer.initTexture(texture);
     });
     buildingSurface.textures.forEach((texture) => {
       texture.anisotropy = anisotropy;
-      texture.repeat.set(1, 1.65);
+      texture.repeat.set(1, 1);
       renderer.initTexture(texture);
     });
 
@@ -841,15 +847,11 @@ export default function TalentMatrixScene({
               // local plane axes (XY), preserving the size of the matrix glyphs.
               object.scale.x *= 3;
               object.scale.y *= 3;
-              const uv = object.geometry.getAttribute("uv");
-              for (let i = 0; i < uv.count; i++) {
-                uv.setXY(i, (uv.getX(i) - 0.5) * 3 + 0.5, (uv.getY(i) - 0.5) * 3 + 0.5);
-              }
-              uv.needsUpdate = true;
             }
           } else {
             originalBuildingGeometries.add(object.geometry);
             cropBuildingAtFloor(object, floorY + 0.003);
+            applyBuildingGlyphUVs(object);
             object.material = isTower ? towerMaterial : buildingMaterial;
             object.userData.matrixInteractive = true;
             interactiveBuildings.push(object);
@@ -864,6 +866,21 @@ export default function TalentMatrixScene({
             outline.name = `${object.name}_Matrix_Outline`;
             outline.renderOrder = 1;
             object.add(outline);
+          }
+
+          if (isBackdrop || isFloor) {
+            object.updateWorldMatrix(true, false);
+            object.geometry.computeBoundingBox();
+            const size = object.geometry.boundingBox!.getSize(new THREE.Vector3());
+            const scale = object.getWorldScale(new THREE.Vector3());
+            const uv = object.geometry.getAttribute("uv");
+            const glyphScale = isBackdrop ? MATRIX_BACKDROP_GLYPH_SCALE : 1;
+            const repeatX = size.x * Math.abs(scale.x) / (MATRIX_TILE_WIDTH * glyphScale);
+            const repeatY = size.y * Math.abs(scale.y) / (MATRIX_TILE_HEIGHT * glyphScale);
+            for (let i = 0; i < uv.count; i++) {
+              uv.setXY(i, (uv.getX(i) - 0.5) * repeatX + 0.5, (uv.getY(i) - 0.5) * repeatY + 0.5);
+            }
+            uv.needsUpdate = true;
           }
 
           originalMaterials.forEach((material) => material.dispose());

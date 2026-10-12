@@ -562,7 +562,7 @@ export default function ImageExplodeLoader({
         e.clientX,
         e.clientY,
       ) as HTMLElement | null;
-      if (elAtPoint?.closest("#site-header-root")) {
+      if (!elAtPoint || elAtPoint.closest("#site-header-root")) {
         mouseRef.current = null;
         return;
       }
@@ -592,6 +592,14 @@ export default function ImageExplodeLoader({
     const handleBlur = () => {
       mouseRef.current = null;
     };
+    const handlePointerOut = (event: PointerEvent) => {
+      // Moving into browser chrome does not necessarily blur the window.
+      // A null destination means the pointer has left this document entirely.
+      if (event.relatedTarget === null) handleBlur();
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) handleBlur();
+    };
 
     window.addEventListener("pointermove", handlePointerMove, {
       passive: true,
@@ -600,6 +608,10 @@ export default function ImageExplodeLoader({
       passive: true,
     });
     window.addEventListener("blur", handleBlur);
+    window.addEventListener("pointerout", handlePointerOut);
+    window.addEventListener("pointercancel", handleBlur);
+    document.documentElement.addEventListener("pointerleave", handleBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
@@ -611,6 +623,10 @@ export default function ImageExplodeLoader({
       window.removeEventListener("pointermove", handlePointerMove as any);
       window.removeEventListener("pointerdown", handlePointerDown as any);
       window.removeEventListener("blur", handleBlur as any);
+      window.removeEventListener("pointerout", handlePointerOut);
+      window.removeEventListener("pointercancel", handleBlur);
+      document.documentElement.removeEventListener("pointerleave", handleBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
 
       if (loopId !== null) cancelAnimationFrame(loopId);
 

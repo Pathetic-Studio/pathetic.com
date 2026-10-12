@@ -139,7 +139,13 @@ export default function WhatWeDoTalentSequence({
           const heading = whatScene.querySelector<HTMLElement>("[data-what-heading]");
           let headerBoundary = 0;
           let headerExited = false;
+          const edgeColor = gsap.utils.interpolate(sequenceBackground, matrixSurface);
           const applyRevealMask = (reveal: number) => {
+            // Pinning can leave a fraction of a pixel uncovered. Its backing
+            // must follow the top-to-bottom reveal rather than remain white.
+            pinTarget.style.setProperty("--sequence-edge-top", edgeColor(smoothstep(0, .3, reveal)));
+            pinTarget.style.setProperty("--sequence-edge-bottom", edgeColor(smoothstep(.7, 1, reveal)));
+            pinTarget.style.backgroundColor = edgeColor(reveal);
             if (reveal <= 0.001) {
               whatScene.style.maskImage = "none";
               whatScene.style.webkitMaskImage = "none";
@@ -383,6 +389,9 @@ export default function WhatWeDoTalentSequence({
         whatScene.style.maskImage = "";
         whatScene.style.webkitMaskImage = "";
       }
+      pinTargetRef.current?.style.removeProperty("--sequence-edge-top");
+      pinTargetRef.current?.style.removeProperty("--sequence-edge-bottom");
+      if (pinTargetRef.current) pinTargetRef.current.style.backgroundColor = sequenceBackground;
     };
   }, [
     accent,
@@ -391,6 +400,7 @@ export default function WhatWeDoTalentSequence({
     headerThemeSource,
     matrixHeaderEnabled,
     matrixSurface,
+    sequenceBackground,
     setHeaderVisualTheme,
     softness,
     viewportMode,

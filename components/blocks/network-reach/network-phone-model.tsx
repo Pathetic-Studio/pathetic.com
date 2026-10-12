@@ -96,7 +96,8 @@ export default function NetworkPhoneModel({
           powerPreference: "low-power",
         });
         const webgl = renderer;
-        webgl.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        const pixelRatio = () => Math.min(window.devicePixelRatio, innerWidth < 1024 ? 2 : 1.5);
+        webgl.setPixelRatio(pixelRatio());
         webgl.outputColorSpace = THREE.SRGBColorSpace;
         webgl.toneMapping = THREE.ACESFilmicToneMapping;
         const scene = new THREE.Scene();
@@ -346,12 +347,19 @@ export default function NetworkPhoneModel({
           );
           raycaster.setFromCamera(cursor, camera);
           const hit = raycaster.intersectObject(screen)[0];
-          if (hit?.uv)
+          if (hit?.uv) {
             impact(hit.uv.x * SCREEN_WIDTH, (1 - hit.uv.y) * SCREEN_HEIGHT);
+          } else if (!raycaster.intersectObject(phone, true).length) {
+            canvas!.dispatchEvent(new CustomEvent("eye-background-tap", {
+              bubbles: true,
+              detail: { clientX: event.clientX, clientY: event.clientY },
+            }));
+          }
         };
         canvas!.addEventListener("click", onClick);
         const resize = () => {
           const bounds = canvas!.getBoundingClientRect();
+          if (webgl.getPixelRatio() !== pixelRatio()) webgl.setPixelRatio(pixelRatio());
           webgl.setSize(
             Math.max(1, bounds.width),
             Math.max(1, bounds.height),
