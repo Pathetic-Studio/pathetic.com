@@ -3,6 +3,7 @@
 
 import { useState, FormEvent } from "react";
 import { useContactModal } from "@/components/contact/contact-modal-context";
+import { CloseButton } from "@/components/ui/close-button";
 import { Button } from "@/components/ui/button";
 
 type ContactFormData = {
@@ -113,14 +114,7 @@ export default function ContactForm() {
             )}
 
             <div className="flex justify-between pt-2">
-                <Button
-                    type="button"
-                    onClick={close}
-                    variant="menu"
-                    className="border border-border px-3 py-1.5 text-xs font-medium "
-                >
-                    Cancel
-                </Button>
+                <CloseButton onClick={close} className="text-sm">Cancel</CloseButton>
                 <Button
                     type="submit"
                     variant="default"

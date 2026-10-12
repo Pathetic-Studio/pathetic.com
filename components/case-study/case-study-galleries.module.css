@@ -246,12 +246,7 @@
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
-  background: #d6ff00;
-  border: 1px solid #111;
-  padding: 0.65rem 1rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  cursor: pointer;
+  z-index: 2;
 }
 @media (min-width: 761px) and (max-width: 1050px) {
   .jumble {

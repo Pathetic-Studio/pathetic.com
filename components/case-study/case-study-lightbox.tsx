@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/ui/close-button";
 import Image from "next/image";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRef } from "react";
@@ -37,7 +38,7 @@ export default function CaseStudyLightbox({
           <Dialog.Title className="sr-only">
             {image?.alt || "Project image"}
           </Dialog.Title>
-          <Dialog.Close className={styles.close}>Close ×</Dialog.Close>
+          <Dialog.Close asChild><CloseButton className={styles.close} /></Dialog.Close>
           {image && (
             <div className={styles.lightboxImage}>
               <Image

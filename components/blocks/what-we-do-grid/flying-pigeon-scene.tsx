@@ -200,23 +200,30 @@ export default function FlyingPigeonScene() {
       onPointerLeaveWindow,
     );
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        visible = Boolean(entry?.isIntersecting);
-        if (visible) {
-          scheduleFlight(350, 1400);
-          return;
-        }
+    const sequenceStage = root.closest<HTMLElement>("[data-sequence-what]");
+    let intersects = false;
+    const syncVisibility = () => {
+      const next = intersects && !sequenceStage?.inert;
+      if (visible === next) return;
+      visible = next;
+      if (visible) {
+        scheduleFlight(350, 1400);
+        return;
+      }
 
-        clearSchedule();
-        flightTween?.kill();
-        dropTween?.kill();
-        isDropping = false;
-        setDropping(false);
-        gsap.set(pigeon, { autoAlpha: 0, pointerEvents: "none" });
-      },
-      { threshold: 0.08 },
-    );
+      clearSchedule();
+      flightTween?.kill();
+      dropTween?.kill();
+      isDropping = false;
+      setDropping(false);
+      gsap.set(pigeon, { autoAlpha: 0, pointerEvents: "none" });
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      intersects = Boolean(entry?.isIntersecting);
+      syncVisibility();
+    }, { threshold: 0.08 });
+    const stageObserver = new MutationObserver(syncVisibility);
+    if (sequenceStage) stageObserver.observe(sequenceStage, { attributes: true, attributeFilter: ["inert"] });
 
     observer.observe(root);
 
@@ -224,6 +231,7 @@ export default function FlyingPigeonScene() {
       disposed = true;
       clearSchedule();
       observer.disconnect();
+      stageObserver.disconnect();
       flightTween?.kill();
       dropTween?.kill();
       window.removeEventListener("pointermove", onPointerMove);

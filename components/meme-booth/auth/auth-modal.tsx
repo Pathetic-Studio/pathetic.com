@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { XButton } from "@/components/ui/close-button";
 import { useBoothAuth } from "./booth-auth-context";
 import { cn } from "@/lib/utils";
 
@@ -82,16 +82,9 @@ export default function AuthModal() {
         role="dialog"
         aria-label={mode === "login" ? "Sign in" : "Sign up"}
       >
-        <button
-          type="button"
-          onClick={handleClose}
-          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <XButton onClick={handleClose} className="absolute right-3 top-3" />
 
-        <div className="p-6">
+        <div className="px-6 pb-6 pt-16">
           <h2 className="mb-1 text-center text-xl font-bold uppercase">
             {mode === "login" ? "Welcome Back" : "Create Account"}
           </h2>

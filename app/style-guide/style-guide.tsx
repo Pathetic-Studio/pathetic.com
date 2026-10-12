@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import TitleText, { SCALE_CONFIG, SIZE_TEXT_CLASSES, type TitleTextSize } from "@/components/ui/title-text";
 import { TEXT_STYLES, DISPLAY_OUTLINE_WIDTHS } from "@/components/ui/text-styles";
 import { buttonVariants, type ButtonVariantProps } from "@/components/ui/button-variants";
+import { CloseButton, XButton } from "@/components/ui/close-button";
 import CarouselDots from "@/components/ui/carousel-dots";
 import { CASE_STUDIES } from "@/lib/case-studies";
 import areStyles from "@/components/blocks/what-we-are/what-we-are.module.css";
@@ -37,11 +38,12 @@ const BUTTONS: { variant: NonNullable<ButtonVariantProps["variant"]>; label: str
   { variant: "underline", label: "Instagram", note: "Underlined text · always visible" },
   { variant: "secondary", label: "Secondary", note: "Shared UI · soft grey fill" },
   { variant: "destructive", label: "Delete", note: "Shared UI · destructive action" },
-  { variant: "icon", label: "×", note: "Icon · 36 × 36px" },
+  { variant: "icon", label: "★", note: "Generic icon · 36 × 36px (use XButton for dismissal)" },
 ];
 const number = (n: number) => Math.round(n * 10) / 10;
 
 export default function StyleGuide() {
+  const [closeExample, setCloseExample] = useState("");
   const [width, setWidth] = useState(1440);
   const [draft, setDraft] = useState<StyleDraft>(EMPTY_DRAFT);
   const [draftLoaded, setDraftLoaded] = useState(false);
@@ -172,7 +174,13 @@ export default function StyleGuide() {
     </section>
     <section id="buttons" className={styles.section}>
       <div className={styles.sectionHeading}><div><p className={styles.kicker}>05 / Buttons & controls</p><h2>Go on. Press it.</h2></div><p>Live shared styles, including hover, keyboard focus and disabled states. Square corners throughout the primary UI; the Fun Button and star are scene-specific exceptions.</p></div>
-      <div className={styles.buttonGrid}>{BUTTONS.map(b => <article key={b.variant}><div className={styles.buttonStage}><button aria-label={b.variant === "icon" ? "Close example" : undefined} className={buttonVariants({ variant: b.variant, size: b.variant === "icon" ? "icon" : "default" })}>{b.label}</button></div><h3>{b.variant}</h3><p>{b.note}</p></article>)}</div>
+      <div className={styles.buttonGrid}>{BUTTONS.map(b => <article key={b.variant}><div className={styles.buttonStage}><button aria-label={b.variant === "icon" ? "Icon example" : undefined} className={buttonVariants({ variant: b.variant, size: b.variant === "icon" ? "icon" : "default" })}>{b.label}</button></div><h3>{b.variant}</h3><p>{b.note}</p></article>)}</div>
+      <div className={styles.buttonGrid} data-close-specimens>
+        <article><div className={styles.buttonStage}><CloseButton onClick={() => setCloseExample("Close button activated.")} /></div><h3>CloseButton / text</h3><p>40px high · shared outline style · white fill / black text · black fill / white text on hover · no offset shadow</p></article>
+        <article><div className={styles.buttonStage}><XButton aria-label="Close icon example" onClick={() => setCloseExample("X button activated.")} /></div><h3>XButton / icon</h3><p>44 × 44px touch target · same outline and hover · accessible Close label · sharp SVG cross</p></article>
+        <article><div className={styles.buttonStage}><CloseButton disabled /><XButton disabled aria-label="Disabled close icon example" /></div><h3>Dismissal states</h3><p>Pointer cursor · Tab to see the focus outline · disabled at 50% opacity · used by videos, images, forms, newsletter and jobs</p></article>
+      </div>
+      <p className={styles.copyStatus} role="status">{closeExample || "Try the shared close controls above. These examples leave the style guide open."}</p>
       <div className={styles.controlRow}><div><h3>Button sizes</h3><div className={styles.buttonSizes}>{(["sm", "default", "lg"] as const).map(size => <button key={size} className={buttonVariants({ variant: "outline", size })}>{size === "sm" ? "Small / 32px" : size === "lg" ? "Large / 40px" : "Default / 36px"}</button>)}</div></div><div><h3>Disabled</h3><button disabled className={buttonVariants({ variant: "outline" })}>Unavailable</button><p>50% opacity · no pointer events</p></div></div>
       <div className={styles.buttonGrid}>
         <article><div className={styles.buttonStage}><button className="flex h-20 w-20 items-center justify-center rounded-full bg-[#ff241a] px-3 text-center text-[10px] font-bold uppercase leading-[.95] text-white hover:brightness-95 focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-4 lg:h-28 lg:w-28 lg:text-xs">Fun Button</button></div><h3>Glasses / Fun Button</h3><p>80px circle · desktop 112px</p></article>

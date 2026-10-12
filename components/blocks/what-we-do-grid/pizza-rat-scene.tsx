@@ -329,25 +329,32 @@ export default function PizzaRatScene() {
       onPointerLeaveWindow,
     );
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        visible = Boolean(entry?.isIntersecting);
-        if (visible) {
-          scheduleRat(500, 1600);
-          return;
-        }
+    const sequenceStage = root.closest<HTMLElement>("[data-sequence-what]");
+    let intersects = false;
+    const syncVisibility = () => {
+      const next = intersects && !sequenceStage?.inert;
+      if (visible === next) return;
+      visible = next;
+      if (visible) {
+        scheduleRat(500, 1600);
+        return;
+      }
 
-        clearSchedule();
-        clearNibble();
-        movementTween?.kill();
-        escapeTween?.kill();
-        ratActive = false;
-        scared = false;
-        updateMode("pulling");
-        gsap.set(rat, { autoAlpha: 0, pointerEvents: "none" });
-      },
-      { threshold: 0.08 },
-    );
+      clearSchedule();
+      clearNibble();
+      movementTween?.kill();
+      escapeTween?.kill();
+      ratActive = false;
+      scared = false;
+      updateMode("pulling");
+      gsap.set(rat, { autoAlpha: 0, pointerEvents: "none" });
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      intersects = Boolean(entry?.isIntersecting);
+      syncVisibility();
+    }, { threshold: 0.08 });
+    const stageObserver = new MutationObserver(syncVisibility);
+    if (sequenceStage) stageObserver.observe(sequenceStage, { attributes: true, attributeFilter: ["inert"] });
 
     observer.observe(root);
 
@@ -373,6 +380,7 @@ export default function PizzaRatScene() {
       clearSchedule();
       clearNibble();
       observer.disconnect();
+      stageObserver.disconnect();
       resizeObserver.disconnect();
       movementTween?.kill();
       escapeTween?.kill();

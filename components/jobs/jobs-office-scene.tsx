@@ -1,5 +1,6 @@
 'use client';
 
+import { XButton } from "@/components/ui/close-button";
 import { useEffect, useRef, useState } from 'react';
 import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
@@ -2747,14 +2748,7 @@ export function JobsOfficeScene({
 
         {activeJob && (
           <article ref={detailRef} className={styles.detail} data-active-job={activeJob.key}>
-            <button
-              type="button"
-              className={styles.detailClose}
-              onClick={() => clearSelectionRef.current()}
-              aria-label="Close job details"
-            >
-              ×
-            </button>
+            <XButton className={styles.detailClose} onClick={() => clearSelectionRef.current()} aria-label="Close job details" />
             {activeJob.team && <p className={styles.detailTeam}>{activeJob.team}</p>}
             <h2 className={styles.detailTitle}>{activeJob.title}</h2>
             {(activeJob.location || activeJob.employmentType) && (

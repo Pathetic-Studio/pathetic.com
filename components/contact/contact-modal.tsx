@@ -7,6 +7,7 @@ import gsap from "gsap";
 import Draggable from "gsap/Draggable";
 import { InertiaPlugin } from "gsap/InertiaPlugin";
 import { useContactModal } from "@/components/contact/contact-modal-context";
+import { XButton } from "@/components/ui/close-button";
 import ContactForm from "./contact-form";
 
 gsap.registerPlugin(Draggable, InertiaPlugin);
@@ -45,7 +46,7 @@ export default function ContactModal() {
                     inertia: true,
                     edgeResistance: 0.85,
                     allowContextMenu: true,
-                    dragClickables: true,
+                    dragClickables: false,
                     allowEventDefault: true,
                     zIndexBoost: false,
                     cursor: "grab",
@@ -82,13 +83,7 @@ export default function ContactModal() {
                 {/* Title bar / drag handle */}
                 <div className="flex cursor-move items-center justify-between px-3 py-2 text-sm font-semibold uppercase">
                     <span>Drop us a message</span>
-                    <button
-                        type="button"
-                        onClick={close}
-                        className="cursor-pointer scale-x-[0.6] text-4xl font-semibold leading-[14px]"
-                    >
-                        ×
-                    </button>
+                    <XButton onClick={close} aria-label="Close contact form" />
                 </div>
 
                 {/* Body */}

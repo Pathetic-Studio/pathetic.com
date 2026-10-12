@@ -141,6 +141,11 @@ export default function WhatWeDoTalentSequence({
           let headerExited = false;
           const edgeColor = gsap.utils.interpolate(sequenceBackground, matrixSurface);
           const applyRevealMask = (reveal: number) => {
+            // Opacity and parent pointer-events do not prevent children with
+            // pointer-events:auto from intercepting the revealed Matrix. Inert
+            // excludes the entire hidden scene from pointer and keyboard input.
+            whatScene.inert = reveal >= 0.999;
+            talentScene.inert = reveal <= 0.001;
             // Pinning can leave a fraction of a pixel uncovered. Its backing
             // must follow the top-to-bottom reveal rather than remain white.
             pinTarget.style.setProperty("--sequence-edge-top", edgeColor(smoothstep(0, .3, reveal)));
@@ -386,9 +391,11 @@ export default function WhatWeDoTalentSequence({
       cameraScrollProgress.current.value = 0;
       const whatScene = whatSceneRef.current;
       if (whatScene) {
+        whatScene.inert = false;
         whatScene.style.maskImage = "";
         whatScene.style.webkitMaskImage = "";
       }
+      if (talentSceneRef.current) talentSceneRef.current.inert = false;
       pinTargetRef.current?.style.removeProperty("--sequence-edge-top");
       pinTargetRef.current?.style.removeProperty("--sequence-edge-bottom");
       if (pinTargetRef.current) pinTargetRef.current.style.backgroundColor = sequenceBackground;

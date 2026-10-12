@@ -1,5 +1,7 @@
 "use client";
 
+import { XButton } from "@/components/ui/close-button";
+
 import {
   type FormEvent,
   useEffect,
@@ -159,18 +161,7 @@ function newsletterWingTransformVars(transform: NewsletterWingTransform) {
   };
 }
 
-function CloseButton({ onClose }: { onClose: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClose}
-      className="absolute right-2 top-2 z-40 grid size-8 place-items-center border border-black bg-white text-2xl font-black leading-none text-black hover:bg-[#d7ff43]"
-      aria-label="Close popup"
-    >
-      ×
-    </button>
-  );
-}
+
 
 export default function PigeonNewsletter({
   onClose,
@@ -608,7 +599,7 @@ export default function PigeonNewsletter({
           backgroundImage: "url('/images/basket-links/newsletter-paper.png')",
         }}
       >
-        <CloseButton onClose={onClose} />
+        <XButton onClick={onClose} aria-label="Close popup" className="absolute right-2 top-2 z-40" />
         <h3 className="text-[clamp(2.5rem,9vw,5rem)] font-black italic uppercase leading-[.83] tracking-[-.065em] text-white [paint-order:stroke_fill] [-webkit-text-stroke:clamp(1.5px,.25vw,3px)_#000]">
           Join our
           <br />

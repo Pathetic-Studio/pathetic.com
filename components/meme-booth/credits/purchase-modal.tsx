@@ -1,9 +1,11 @@
 // components/meme-booth/credits/purchase-modal.tsx
 "use client";
 
+import { XButton } from "@/components/ui/close-button";
+
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Star, Loader2 } from "lucide-react";
+import { Star, Loader2 } from "lucide-react";
 import { useCreditsModal, CREDIT_PACKS, type CreditPack } from "./credits-context";
 import { cn } from "@/lib/utils";
 
@@ -66,17 +68,9 @@ export default function PurchaseModal() {
         role="dialog"
         aria-label="Get more memes"
       >
-        <button
-          type="button"
-          onClick={handleClose}
-          disabled={loading}
-          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <XButton onClick={handleClose} disabled={loading} className="absolute right-3 top-3" />
 
-        <div className="p-6">
+        <div className="px-6 pb-6 pt-16">
           <h2 className="mb-1 text-center text-xl font-bold uppercase">
             Get More Memes
           </h2>

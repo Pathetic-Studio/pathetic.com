@@ -40,7 +40,8 @@ const BUILDING_BLOOM_LAYER = 1;
 const BLOOM_PIXEL_RATIO = 0.24;
 const BLOOM_MIN_FPS = 50;
 const BLOOM_RESUME_FPS = 56;
-const BLOOM_COOLDOWN = 6000;
+const BLOOM_FRAME_INTERVAL = 1000 / 30;
+const BLOOM_BUSY_FRAME_INTERVAL = 1000 / 20;
 
 function seededRandom(seed: number) {
   let value = seed >>> 0;
@@ -1128,7 +1129,7 @@ export default function TalentMatrixScene({
     };
     const onPointerLeave = () => {
       pointerInside = false;
-      setBuildingHover(null);
+      if (!highlightAllBuildings?.current.value) setBuildingHover(null);
     };
     const finePointer = window.matchMedia(
       "(hover: hover) and (pointer: fine)",
@@ -1190,11 +1191,14 @@ export default function TalentMatrixScene({
     let lastMatrixSurfaceUpdate = 0;
     let previousFrameTime = 0;
     let smoothedFps = 60;
-    let bloomLowFpsStartedAt = 0;
-    let bloomCooldownUntil = 0;
-    let bloomWasRendered = false;
+    let lastBloomUpdate = 0;
+    let bloomTarget: BuildingHoverTarget | null = null;
+    let bloomThrottled = false;
     let bloomState = "";
     let prewarmed = false;
+    const submitControl = host.parentElement?.querySelector<HTMLElement>(
+      "[data-matrix-submit-hover]",
+    );
 
     const setBloomState = (state: string) => {
       if (state === bloomState) return;
@@ -1294,7 +1298,15 @@ export default function TalentMatrixScene({
           element.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
         },
       );
-      const submitHoverIsActive = !!highlightAllBuildings?.current.value;
+      // Pin refreshes can temporarily reparent this DOM without a new React
+      // mouse-enter event. Read the actual hover/focus state to recover in the
+      // same frame, even when the pointer has not moved.
+      const submitHoverIsActive = submitControl
+        ? submitControl.matches(":hover, :focus-within")
+        : !!highlightAllBuildings?.current.value;
+      if (highlightAllBuildings) {
+        highlightAllBuildings.current.value = submitHoverIsActive;
+      }
       if (submitHoverIsActive) {
         if (
           allBuildingsHoverTarget &&
@@ -1314,24 +1326,20 @@ export default function TalentMatrixScene({
 
       const hasHoveredBuilding = activeBuildingHoverTarget !== null;
       if (hasHoveredBuilding) updateBuildingHoverPulse(now);
-      let renderBloom =
-        quality === "desktop" &&
-        hasHoveredBuilding &&
-        now >= bloomCooldownUntil &&
-        (bloomWasRendered || smoothedFps >= BLOOM_RESUME_FPS);
+      const renderBloom = quality === "desktop" && hasHoveredBuilding;
+      if (smoothedFps < BLOOM_MIN_FPS) bloomThrottled = true;
+      else if (smoothedFps > BLOOM_RESUME_FPS) bloomThrottled = false;
+      const bloomInterval = bloomThrottled
+        ? BLOOM_BUSY_FRAME_INTERVAL
+        : BLOOM_FRAME_INTERVAL;
 
-      if (renderBloom && smoothedFps < BLOOM_MIN_FPS) {
-        bloomLowFpsStartedAt ||= now;
-        if (now - bloomLowFpsStartedAt > 550) {
-          bloomCooldownUntil = now + BLOOM_COOLDOWN;
-          bloomLowFpsStartedAt = 0;
-          renderBloom = false;
-        }
-      } else {
-        bloomLowFpsStartedAt = 0;
-      }
-
-      if (renderBloom) {
+      // Reuse the small bloom target between updates. The city and its hover
+      // pulse keep rendering every frame; performance adaptation never blanks
+      // the glow or repeatedly recompiles its materials.
+      if (renderBloom && (
+        bloomTarget !== activeBuildingHoverTarget ||
+        now - lastBloomUpdate >= bloomInterval
+      )) {
         const cameraLayerMask = activeCamera.layers.mask;
         activeCamera.layers.set(0);
         prepareBloomOcclusion();
@@ -1341,7 +1349,10 @@ export default function TalentMatrixScene({
           restoreBloomOcclusion();
           activeCamera.layers.mask = cameraLayerMask;
         }
+        lastBloomUpdate = now;
+        bloomTarget = activeBuildingHoverTarget;
       }
+      if (!renderBloom) bloomTarget = null;
 
       renderer.setRenderTarget(null);
       renderer.autoClear = true;
@@ -1352,15 +1363,12 @@ export default function TalentMatrixScene({
         renderer.autoClear = true;
       }
 
-      bloomWasRendered = renderBloom;
       setBloomState(
         !hasHoveredBuilding
           ? "idle"
           : renderBloom
-            ? "on"
-            : now < bloomCooldownUntil
-              ? "cooldown"
-              : "off-performance",
+            ? bloomThrottled ? "on-throttled" : "on"
+            : "off-mobile",
       );
     };
     frame = requestAnimationFrame(render);

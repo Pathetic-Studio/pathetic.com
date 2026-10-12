@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import gsap from "gsap";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { CloseButton } from "@/components/ui/close-button";
 import { cn } from "@/lib/utils";
 
 export type WorkViewerContent = {
@@ -86,13 +87,7 @@ export default function WorkContentViewer({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute right-4 top-4 z-20 border border-black bg-white px-4 py-2 text-sm font-bold uppercase tracking-[-.03em] shadow-[3px_3px_0_#000] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black sm:right-6 sm:top-6"
-      >
-        Close
-      </button>
+      <CloseButton onClick={onClose} className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6" />
 
       <div
         ref={panelRef}

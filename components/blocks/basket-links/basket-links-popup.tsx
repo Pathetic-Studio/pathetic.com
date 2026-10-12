@@ -1,5 +1,7 @@
 "use client";
 
+import { XButton } from "@/components/ui/close-button";
+
 import Link from "next/link";
 import PigeonNewsletter from "@/components/newsletter/pigeon-newsletter";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -30,18 +32,7 @@ function burstPoints(points: number, innerRadius: number) {
 const LARGE_BURST_POINTS = burstPoints(18, 34);
 const SMALL_BURST_POINTS = burstPoints(14, 32);
 
-function CloseButton({ onClose }: { onClose: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClose}
-      className="absolute right-2 top-2 z-40 grid size-8 place-items-center border border-black bg-white text-2xl font-black leading-none text-black hover:bg-[#d7ff43]"
-      aria-label="Close popup"
-    >
-      ×
-    </button>
-  );
-}
+
 
 function ShopPopup({ href, onClose }: { href?: string; onClose: () => void }) {
   const largeStarRef = useRef<SVGSVGElement | null>(null);
@@ -71,7 +62,7 @@ function ShopPopup({ href, onClose }: { href?: string; onClose: () => void }) {
 
   return (
     <div data-basket-popup-surface className="relative mx-auto aspect-square w-[min(82vw,31rem)]">
-      <CloseButton onClose={onClose} />
+      <XButton onClick={onClose} aria-label="Close popup" className="absolute right-2 top-2 z-40" />
       <svg ref={largeStarRef} viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
         <polygon points={LARGE_BURST_POINTS} fill="#fff522" stroke="#000" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
       </svg>
@@ -93,9 +84,9 @@ function ShopPopup({ href, onClose }: { href?: string; onClose: () => void }) {
 function JobsPopup({ onClose }: { onClose: () => void }) {
   return (
     <div data-basket-popup-surface className="relative mx-auto w-[min(84vw,25rem)] border-2 border-b-[#202020] border-l-white border-r-[#202020] border-t-white bg-[#c0c0c0] p-[2px] text-black shadow-[10px_12px_0_rgba(0,0,0,.45),inset_1px_1px_0_#dfdfdf,inset_-1px_-1px_0_#808080] [font-family:'MS_Sans_Serif',Tahoma,Arial,sans-serif]">
-      <div className="flex h-7 items-center justify-between bg-[#000080] px-1.5 text-xs font-bold text-white">
+      <div className="flex min-h-12 items-center justify-between bg-[#000080] px-1.5 text-xs font-bold text-white">
         <span>System Message</span>
-        <button type="button" onClick={onClose} className="grid size-5 place-items-center border-2 border-b-[#222] border-l-white border-r-[#222] border-t-white bg-[#c0c0c0] text-[13px] font-black leading-none text-black shadow-[inset_1px_1px_0_#dfdfdf,inset_-1px_-1px_0_#808080] active:translate-x-px active:translate-y-px active:border-b-white active:border-l-[#222] active:border-r-white active:border-t-[#222]" aria-label="Close jobs popup">×</button>
+        <XButton onClick={onClose} aria-label="Close jobs popup" />
       </div>
       <div className="flex flex-col items-center px-6 py-7">
         <div data-basket-popup-hero className="h-56 w-56 sm:h-64 sm:w-64">
@@ -114,8 +105,8 @@ function JobsPopup({ onClose }: { onClose: () => void }) {
 function AbyssPopup({ onClose }: { onClose: () => void }) {
   return (
     <div data-basket-popup-surface className="pointer-events-none relative mx-auto aspect-square w-[min(72vw,29rem)]">
-      <button data-abyss-close type="button" onClick={onClose} aria-label="Close the abyss"
-        className="pointer-events-auto fixed right-4 top-4 z-40 grid size-11 place-items-center border border-black bg-white text-3xl leading-none text-black hover:bg-[#d7ff43] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">×</button>
+      <XButton data-abyss-close onClick={onClose} aria-label="Close the abyss"
+        className="pointer-events-auto fixed right-4 top-4 z-40" />
       <div data-basket-popup-hero className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/basket-links/portal.png" alt="" className="h-full w-full object-contain" />
@@ -552,7 +543,7 @@ export default function BasketLinksPopup({ active, onClose, sourceElement, shopH
           />
         </div>
       )}
-      <button ref={backdropRef} type="button" onClick={active === "abyss" ? undefined : closeWithTransition} tabIndex={active === "abyss" ? -1 : undefined} aria-hidden={active === "abyss" ? true : undefined} className={`absolute inset-0 z-10 ${active === "abyss" ? "bg-transparent" : "bg-[#181818]/88 backdrop-blur-[2px]"}`} aria-label="Close popup backdrop" />
+      <button ref={backdropRef} type="button" onClick={active === "abyss" ? undefined : closeWithTransition} tabIndex={active === "abyss" ? -1 : undefined} aria-hidden={active === "abyss" ? true : undefined} className={`absolute inset-0 z-10 ${active === "abyss" ? "bg-transparent" : "cursor-pointer bg-[#181818]/88 backdrop-blur-[2px] transition-colors hover:bg-[#181818]/90 focus-visible:outline-2 focus-visible:outline-white"}`} aria-label="Close popup backdrop" />
       <div ref={panelRef} className="relative z-20 max-h-[92svh] max-w-[94vw]" style={active === "abyss" ? { opacity: 0 } : undefined} onClick={(event) => event.stopPropagation()}>
         {active === "shop" && <ShopPopup href={shopHref} onClose={closeWithTransition} />}
         {active === "newsletter" && (

@@ -14,7 +14,8 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import gsap from "gsap";
-import { Menu, X } from "lucide-react";
+import { XButton, CloseIcon } from "@/components/ui/close-button";
+import { Menu } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -583,9 +584,8 @@ export default function MobileNav({
         className="inline-flex"
         style={{ visibility: "hidden", pointerEvents: "none" }}
       >
-        <Button
+        <XButton
           aria-label={open ? "Close Menu" : "Open Menu"}
-          variant="menu"
           onClick={toggleMenu}
           className={cn(
             "relative z-[70] h-10 w-10 rounded-none",
@@ -603,10 +603,10 @@ export default function MobileNav({
             {icon === "menu" ? (
               <Menu strokeLinecap="butt" strokeLinejoin="miter" className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
             ) : (
-              <X strokeLinecap="butt" strokeLinejoin="miter" className="block h-4 w-4 scale-x-[0.6] dark:text-white" />
+              <CloseIcon />
             )}
           </span>
-        </Button>
+        </XButton>
       </span>
 
       {overlay}
