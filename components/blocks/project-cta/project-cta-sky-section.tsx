@@ -10,6 +10,7 @@ import { XButton } from "@/components/ui/close-button";
 import type { ProjectCtaSectionBlock } from "./project-cta-section";
 import { createProjectObjectWeather, type FortuneWeatherMode } from "./project-cta-object-weather";
 import { createProjectFuzzyStar } from "./project-cta-fuzzy-star";
+import { createProjectCtaUi } from "./project-cta-ui";
 import pixel from "./project-cta-pixel-font.module.css";
 import styles from "./project-cta-sky.module.css";
 
@@ -24,7 +25,7 @@ export default function ProjectCtaSkySection({
   const anchorRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLSpanElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const starRef = useRef<HTMLCanvasElement>(null);
   const weatherRef = useRef<HTMLCanvasElement>(null);
@@ -50,6 +51,8 @@ export default function ProjectCtaSkySection({
     scrollActivatedRef.current = stationary;
     portal.dataset.layout = stationary ? "stationary" : "bouncing";
     let disposed = false, visible = false, active = false, measured = false, prepared = false;
+    let uiActive = false;
+    const ui = createProjectCtaUi();
     let weather: ReturnType<typeof createProjectObjectWeather> = null;
     let fuzzy: ReturnType<typeof createProjectFuzzyStar> = null;
     const progress = { value: 0 };
@@ -74,6 +77,8 @@ export default function ProjectCtaSkySection({
       if (next === active) return;
       if (!next) { bounce.x = titleX; bounce.y = titleY; }
       active = next; portal.dataset.active = String(next);
+      button.tabIndex = next || stationary ? 0 : -1;
+      window.dispatchEvent(new CustomEvent("app:project-cta-active", { detail: { active: next } }));
       if (next) prepare();
       weather?.setActive(next && !reduced.matches);
       if (next) weather?.setVisible(visible);
@@ -112,6 +117,7 @@ export default function ProjectCtaSkySection({
       }
       bounce.x = Math.max(10, Math.min(w - inkW - 10, bounce.x));
       bounce.y = Math.max(36, Math.min(h - inkH - 12, bounce.y));
+      button.tabIndex = active || stationary ? 0 : -1;
       if (stationary) {
         titleX = (w - inkW) / 2; titleY = (h - inkH) / 2 - 15;
         setX(titleX - inkOffsetX); setY(titleY - inkOffsetY);
@@ -168,6 +174,8 @@ export default function ProjectCtaSkySection({
     const observer = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       intersectionRatio = entry.intersectionRatio;
+      uiActive = visible && intersectionRatio > (uiActive ? .3 : .55);
+      ui.setActive(uiActive);
       portal.style.visibility = visible ? "visible" : "hidden";
       portal.inert = !visible;
       weather?.setVisible(visible && progress.value > .001);
@@ -201,6 +209,9 @@ export default function ProjectCtaSkySection({
     measure();
     return () => {
       disposed = true; tween?.kill(); gsap.ticker.remove(render);
+      ui.dispose();
+      portal.dataset.active = "false";
+      window.dispatchEvent(new CustomEvent("app:project-cta-active", { detail: { active: false } }));
       resize.disconnect(); observer.disconnect(); preloader.disconnect();
       weather?.dispose(); fuzzy?.dispose();
       activateRef.current = () => {}; pointerRef.current = () => {};
@@ -249,7 +260,9 @@ export default function ProjectCtaSkySection({
               {title}
             </TitleText>
           </div>
-          <span ref={buttonRef} className={`${styles.fortune} ${pixel.pixel}`} data-project-cta-button aria-hidden="true">Contact Us</span>
+          <ContactFormTrigger ref={buttonRef} tabIndex={-1} className={`${styles.fortune} ${pixel.pixel}`} data-project-cta-button>
+            <span>Contact Us</span>
+          </ContactFormTrigger>
         </div>
       </div>, document.body,
     )}

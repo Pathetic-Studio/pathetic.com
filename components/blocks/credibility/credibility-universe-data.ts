@@ -25,7 +25,7 @@ export const UNIVERSE_BRANDS = [
     image: "asteroid.webp",
     imageSize: 2,
     radius: 0.57,
-    angle: 0.45,
+    angle: 0.55,
     wordmarkHeight: 0.72,
   },
   {
@@ -36,7 +36,7 @@ export const UNIVERSE_BRANDS = [
     image: "ufo.webp",
     imageSize: 3.2,
     radius: 0.65,
-    angle: -0.2,
+    angle: -0.15,
     wordmarkHeight: 0.76,
   },
   {
@@ -47,7 +47,7 @@ export const UNIVERSE_BRANDS = [
     image: "mars.webp",
     imageSize: 2.3,
     radius: 0.65,
-    angle: -0.9,
+    angle: -0.85,
     wordmarkHeight: 0.83,
   },
   {
@@ -58,7 +58,7 @@ export const UNIVERSE_BRANDS = [
     image: "neptune.webp",
     imageSize: 2.25,
     radius: 0.8,
-    angle: 1.53,
+    angle: 1.25,
     wordmarkHeight: 1,
   },
   {
@@ -69,7 +69,7 @@ export const UNIVERSE_BRANDS = [
     image: "moon.webp",
     imageSize: 2,
     radius: 0.6,
-    angle: -2.04,
+    angle: -2.25,
     wordmarkHeight: 0.64,
   },
   {
@@ -82,6 +82,28 @@ export const UNIVERSE_BRANDS = [
     radius: 0.76,
     angle: -2.95,
     wordmarkHeight: 0.6,
+  },
+  {
+    name: "Hinge",
+    file: "hinge.webp",
+    color: "#b59bdf",
+    kind: "moon",
+    image: "violet-planet.webp",
+    imageSize: 2.25,
+    radius: 0.65,
+    angle: 1.95,
+    wordmarkHeight: 0.72,
+  },
+  {
+    name: "Navan",
+    file: "navan.svg",
+    color: "#6ad6b4",
+    kind: "moon",
+    image: "green-planet.webp",
+    imageSize: 2.3,
+    radius: 0.65,
+    angle: -1.55,
+    wordmarkHeight: 1,
   },
 ] as const;
 

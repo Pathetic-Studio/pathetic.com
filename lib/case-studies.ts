@@ -14,6 +14,14 @@ export type CaseStudyImage = {
   fit?: "cover" | "contain";
 };
 
+// The same floating gallery can belong to a project or sit outside the
+// project blocks on a client page. Keep project-specific imagery with its project.
+export type CaseStudyGallery = {
+  id: string;
+  title?: string;
+  images: CaseStudyImage[];
+};
+
 export type CaseStudyFilm = {
   src: string;
   poster: string;
@@ -23,15 +31,25 @@ export type CaseStudyFilm = {
   preview?: string;
 };
 
+export type CaseStudyText = {
+  text: string;
+  href?: string;
+  strong?: boolean;
+  emphasis?: boolean;
+};
+export type CaseStudyCopyBlock =
+  | { type: "paragraph"; content: CaseStudyText[] }
+  | { type: "list"; items: CaseStudyText[][] };
+
 export type CaseStudyCampaign = {
   id: string;
   title: string;
   format: string;
-  result: string;
-  copy: string;
+  result?: string;
+  copy: string | CaseStudyCopyBlock[];
   film?: CaseStudyFilm;
   link?: { label: string; href: string };
-  images?: CaseStudyImage[];
+  galleries?: CaseStudyGallery[];
 };
 
 export type CaseStudy = {
@@ -44,7 +62,7 @@ export type CaseStudy = {
   additionalObjects?: CaseStudy["object"][];
   cover: CaseStudyImage;
   campaigns: CaseStudyCampaign[];
-  images?: CaseStudyImage[];
+  galleries?: CaseStudyGallery[];
 };
 
 const media = "/media/case-studies";
@@ -70,15 +88,20 @@ export const CASE_STUDIES: CaseStudy[] = [
         title: "You’re on Mute",
         format: "Social Series",
         result: "2M+ views",
-        images: [
+        galleries: [
           {
-            src: "/images/case-studies/figma/yom-bts.webp",
-            alt: "Filming You’re on Mute on location",
-            width: 884,
-            height: 788,
+            id: "youre-on-mute-bts",
+            images: [
+              {
+                src: "/images/case-studies/figma/yom-bts.webp",
+                alt: "Filming You’re on Mute on location",
+                width: 884,
+                height: 788,
+              },
+            ],
           },
         ],
-        copy: "Global remote work is Deel’s category and its customers’ daily life, so we made a comedy about it: a four-part series starring Brett Neustrom with guest creators, built around the absurd complications of working from anywhere. We conceptualized, developed and cast the series, produced it and designed its identity and social rollout. Stay tuned for Season 2…",
+        copy: "Global remote work is Deel’s category and its customers’ daily life, so we made a comedy about it: a four-part series starring Brett Neustrom with guest creators, built around the absurd complications of working from anywhere. Stay tuned for Season 2…",
         film: {
           src: `${media}/deel/yom.mp4`,
           poster: `${media}/deel/yom-poster.webp`,
@@ -93,15 +116,20 @@ export const CASE_STUDIES: CaseStudy[] = [
         title: "Bless This Desk",
         format: "Social Series",
         result: "1M+ views",
-        images: [
+        galleries: [
           {
-            src: "/images/case-studies/figma/bless-this-desk-bts.webp",
-            alt: "Behind the scenes of Bless This Desk",
-            width: 878,
-            height: 726,
+            id: "bless-this-desk-bts",
+            images: [
+              {
+                src: "/images/case-studies/figma/bless-this-desk-bts.webp",
+                alt: "Behind the scenes of Bless This Desk",
+                width: 878,
+                height: 726,
+              },
+            ],
           },
         ],
-        copy: "Deel IT equips remote teams, making remote work delightful. So we launched “Bless This Desk”, a social series hosted by Jean-Luc, bestowing glow-ups on the home workspaces of four New Yorkers using kit supplied by Deel IT. A classic makeover format with real people and real stories. Produced end to end, from casting and makeover, to edit and distribution.",
+        copy: "Deel IT equips remote teams, making remote work delightful. So we launched “Bless This Desk”, a social series hosted by Jean-Luc, bestowing glow-ups on the home workspaces of four New Yorkers using kit supplied by Deel IT. A classic makeover format with real people and real stories.",
         film: {
           src: `${media}/deel/bless-this-desk.mp4`,
           poster: `${media}/deel/bless-this-desk-poster.webp`,
@@ -148,17 +176,16 @@ export const CASE_STUDIES: CaseStudy[] = [
     },
     campaigns: [
       {
-        id: "sdk-launch",
-        title: "SDK Launch Film",
-        format: "Product Film",
-        result: "100K+ views",
-        copy: "Stream is a private voice ring for everything on your mind, no matter where you are. So a cliche launch film with the founder sitting at a desk wouldn’t cut it. To announce the SDK, we follow co-founder Kirak Hong through his day, showing the ring doing its job on the move. Creative direction, production and edit.",
+        id: "whats-on-your-mind",
+        title: "What’s On Your Mind",
+        format: "Brand Series",
+        copy: "We created a brand series for Stream which followed 5 influential New Yorkers, documenting how they use Stream to develop thoughts and organise their life. The series focused on practical use cases, rather than dystopian predictions and showcased the ring being used to create more connection between people and their loved ones.",
         film: {
-          src: `${media}/sandbar/sdk.mp4`,
-          poster: `${media}/sandbar/sdk-poster.webp`,
-          width: 1920,
-          height: 1080,
-          label: "Watch the film",
+          src: `${media}/sandbar/whats-on-your-mind.mp4`,
+          poster: `${media}/sandbar/whats-on-your-mind-poster.webp`,
+          width: 720,
+          height: 1280,
+          label: "Watch Brooke’s episode",
         },
       },
       {
@@ -166,7 +193,7 @@ export const CASE_STUDIES: CaseStudy[] = [
         title: "Universal Dictation Launch Film",
         format: "Product Film",
         result: "2M+ views",
-        copy: "Universal Dictation enables push-to-talk from Stream into any text field on your iPhone or Mac, with no app switching in between. To show the handoff without a cut, we shot a one-minute demo with Mina Fahmi as a single continuous camera shot on a stark, Dune-inspired set. The film was picked up by the biggest names on tech Twitter. Creative direction, production and edit.",
+        copy: "Universal Dictation enables push-to-talk from Stream into any text field on your iPhone or Mac, with no app switching in between. To show the handoff without a cut, we shot a one-minute demo with Mina Fahmi as a single continuous camera shot on a stark, Dune-inspired set. The film was picked up by the biggest names on tech Twitter.",
         film: {
           src: `${media}/sandbar/dictation.mp4`,
           poster: `${media}/sandbar/dictation-poster.webp`,
@@ -175,20 +202,25 @@ export const CASE_STUDIES: CaseStudy[] = [
           label: "Watch the film",
           preview: "/media/work/dictation-preview.mp4",
         },
-      },
-    ],
-    images: [
-      {
-        src: `${media}/sandbar/stream-ring.webp`,
-        alt: "The chrome Stream ring on the sculptural set",
-        width: 1600,
-        height: 844,
-      },
-      {
-        src: `${media}/sandbar/dictation-set.webp`,
-        alt: "Mina Fahmi seated on the Dune-inspired Universal Dictation set",
-        width: 1600,
-        height: 844,
+        galleries: [
+          {
+            id: "dictation-stills",
+            images: [
+              {
+                src: `${media}/sandbar/stream-ring.webp`,
+                alt: "The chrome Stream ring on the sculptural set",
+                width: 1600,
+                height: 844,
+              },
+              {
+                src: `${media}/sandbar/dictation-set.webp`,
+                alt: "Mina Fahmi seated on the Dune-inspired Universal Dictation set",
+                width: 1600,
+                height: 844,
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -211,46 +243,59 @@ export const CASE_STUDIES: CaseStudy[] = [
         title: "Meme Booth Campaign",
         format: "Microsite & Distribution",
         result: "1M+ views, 13K sign-ups",
-        copy: "The Meme Booth started as a PATHETIC experiment. We trained AI on 1,000+ memes from five years of @pathetic, built on Google’s Nano Banana Pro, and made a web app that turns any photo into a personalised starter pack meme. After 20K generations in 24-hours, we licensed it: a free, co-branded experience with an Air signup flow, amplified with a creator campaign, original memes and distribution through @pathetic. Concept, design, development and distribution. End to end.",
+        copy: "The Meme Booth started as a PATHETIC experiment. We trained AI on 1,000+ memes from five years of @pathetic, built on Google’s Nano Banana Pro, and made a web app that turns any photo into a personalised starter pack meme. After 20K generations in 24-hours, we licensed it: a free, co-branded experience with an Air signup flow, amplified with a creator campaign, original memes and distribution through @pathetic.",
+        film: {
+          src: `${media}/air/mike-explainer.mp4`,
+          poster: `${media}/air/mike-explainer-poster.webp`,
+          width: 720,
+          height: 1280,
+          label: "Watch Mike’s explainer",
+        },
         link: { label: "Live experience", href: "https://air.inc/meme" },
-      },
-    ],
-    images: [
-      {
-        src: `${media}/air/meme-booth.webp`,
-        alt: "An Air Meme Booth starter pack shared to Instagram Stories",
-        width: 602,
-        height: 1308,
-      },
-      {
-        src: `${media}/air/booth-in-action.webp`,
-        alt: "A community member trying the Air Meme Booth",
-        width: 600,
-        height: 1066,
-      },
-      {
-        src: `${media}/air/community-style.webp`,
-        alt: "A pink-jacket outfit turned into an Air Meme Booth starter pack",
-        width: 600,
-        height: 1304,
-      },
-      {
-        src: `${media}/air/community.webp`,
-        alt: "A member of the community sharing their personalised starter pack and tagging Air",
-        width: 602,
-        height: 1308,
-      },
-      {
-        src: `${media}/air/community-starter-pack.webp`,
-        alt: "A community member sharing the starter pack made from her photo",
-        width: 600,
-        height: 1304,
-      },
-      {
-        src: `${media}/air/community-outfit.webp`,
-        alt: "An outfit photo and its personalised Air Meme Booth result",
-        width: 600,
-        height: 1304,
+        galleries: [
+          {
+            id: "meme-booth-community",
+            title: "Out in the wild",
+            images: [
+              {
+                src: `${media}/air/meme-booth.webp`,
+                alt: "An Air Meme Booth starter pack shared to Instagram Stories",
+                width: 602,
+                height: 1308,
+              },
+              {
+                src: `${media}/air/booth-in-action.webp`,
+                alt: "A community member trying the Air Meme Booth",
+                width: 600,
+                height: 1066,
+              },
+              {
+                src: `${media}/air/community-style.webp`,
+                alt: "A pink-jacket outfit turned into an Air Meme Booth starter pack",
+                width: 600,
+                height: 1304,
+              },
+              {
+                src: `${media}/air/community.webp`,
+                alt: "A member of the community sharing their personalised starter pack and tagging Air",
+                width: 602,
+                height: 1308,
+              },
+              {
+                src: `${media}/air/community-starter-pack.webp`,
+                alt: "A community member sharing the starter pack made from her photo",
+                width: 600,
+                height: 1304,
+              },
+              {
+                src: `${media}/air/community-outfit.webp`,
+                alt: "An outfit photo and its personalised Air Meme Booth result",
+                width: 600,
+                height: 1304,
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -281,7 +326,14 @@ export const CASE_STUDIES: CaseStudy[] = [
         title: "Viral Creative Producer",
         format: "Recruitment Ad",
         result: "100K+ views",
-        copy: "Ramp was hiring a Viral Creative Producer. Leaning into the iconic “Greatest job in the world” ad, we turned the job listing into content, seeding via LinkedIn creators and the @pathetic community. Video edit and distribution.",
+        copy: "Ramp was hiring a Viral Creative Producer. Leaning into the iconic “Greatest job in the world” ad, we turned the job listing into content, seeding via LinkedIn creators and the @pathetic community.",
+        film: {
+          src: `${media}/ramp/viral-creative-producer.mp4`,
+          poster: `${media}/ramp/viral-creative-producer-poster.webp`,
+          width: 1280,
+          height: 720,
+          label: "Watch the film",
+        },
       },
     ],
   },
@@ -306,7 +358,70 @@ export const CASE_STUDIES: CaseStudy[] = [
         title: "Keep It In The Neighborhood",
         format: "IRL + Meme Campaign",
         result: "4.5M+ views",
-        copy: "When you support a local business, you support your neighborhood, and we teamed up with LBA to build a Williamsburg activation around this. Creators visited Square merchants, branded pedicabs linked the participating shops, a PATHETIC merch drop at Larry’s Cà Phê took payment through Cash App, and a Brooklyn Coffee Shop collab plus neighborhood-archetype memes spread messaging online. Creative strategy, IRL pop-up, apparel, and distribution.",
+        copy: [
+          { type: "paragraph", content: [
+            { text: "We created a full cultural activation around one simple idea: ", strong: true },
+            { text: "when you support local businesses, you support your neighborhood.", strong: true, emphasis: true },
+          ] },
+          { type: "paragraph", content: [
+            { text: 'Alongside our partners, we brought "Keep It In The Neighborhood" to life with:' },
+          ] },
+          { type: "list", items: [
+            [
+              { text: "Creator content: ", strong: true },
+              { text: "TonyCash", href: "https://www.instagram.com/tonycashnyc/?hl=en" },
+              { text: ", " },
+              { text: "Pooja", href: "https://www.instagram.com/winnie_thepooj/?hl=en" },
+              { text: ", and other local creators visited participating Square merchants across Williamsburg." },
+            ],
+            [
+              { text: "Pedicab circuit: ", strong: true },
+              { text: "Branded pedicabs connected participating retailers." },
+            ],
+            [
+              { text: "IRL pop-up: ", strong: true },
+              { text: "A PATHETIC merch drop at Larry's Cà Phê, where followers showed up & bought tees with Cash App." },
+            ],
+            [
+              { text: "Brooklyn Coffee Shop collab: ", strong: true },
+              { text: "Partnered with the hit Instagram series to " },
+              { text: "embed Square & Cash App", href: "https://www.instagram.com/p/DRfKxLHDd8l/?hl=en" },
+              { text: " into a fast growing cultural staple." },
+            ],
+            [
+              { text: "Meme Content: ", strong: true },
+              { text: "Hyper-specific " },
+              { text: "neighborhood archetypes", href: "https://www.instagram.com/p/DRcVq2FDiKu/?img_index=1" },
+              { text: " that made locals feel seen, showed Square understands culture, and promoted the activation in a way people wanted to share, not scroll past." },
+            ],
+          ] },
+        ],
+        film: {
+          src: `${media}/square/neighborhood.mp4`,
+          poster: `${media}/square/neighborhood-poster.webp`,
+          width: 720,
+          height: 1280,
+          label: "Watch the campaign",
+        },
+        galleries: [
+          {
+            id: "neighborhood-activation",
+            images: [
+              {
+                src: `${media}/square/larrys-pop-up.webp`,
+                alt: "The PATHETIC merch pop-up at Larry’s Cà Phê in Williamsburg",
+                width: 768,
+                height: 1024,
+              },
+              {
+                src: `${media}/square/williamsburg-meme.webp`,
+                alt: "The Williamsburg Experience neighborhood archetype meme",
+                width: 820,
+                height: 958,
+              },
+            ],
+          },
+        ],
       },
     ],
   },

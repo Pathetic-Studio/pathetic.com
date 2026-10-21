@@ -1,12 +1,15 @@
 import * as THREE from "three";
 import { GPUComputationRenderer } from "three/addons/misc/GPUComputationRenderer.js";
-import { seededRandom, TAU } from "./credibility-universe-data";
+import { seededRandom, TAU, UNIVERSE_BRANDS } from "./credibility-universe-data";
 import type {
   UniverseBody,
   UniverseComet,
   UniversePointer,
 } from "./credibility-universe-physics";
 import { MAX_COMETS } from "./credibility-universe-physics";
+
+// Keep the GPU force buffers and shader loops in step with the client objects.
+const BRAND_COUNT = UNIVERSE_BRANDS.length;
 
 // The buffers store one independent displacement and velocity per star. The
 // only visible primitive is Points; the compute targets contain numerical
@@ -113,9 +116,9 @@ export async function createCredibilityGalaxy(
     cometVelocities: {
       value: Array.from({ length: MAX_COMETS }, () => new THREE.Vector2()),
     },
-    bodies: { value: Array.from({ length: 7 }, () => new THREE.Vector4()) },
+    bodies: { value: Array.from({ length: BRAND_COUNT }, () => new THREE.Vector4()) },
     bodyVelocities: {
-      value: Array.from({ length: 7 }, () => new THREE.Vector2()),
+      value: Array.from({ length: BRAND_COUNT }, () => new THREE.Vector2()),
     },
   };
   const velocity = compute.addVariable(
@@ -127,8 +130,8 @@ export async function createCredibilityGalaxy(
     uniform vec2 pointerVelocity;
     uniform vec4 comets[${MAX_COMETS}];
     uniform vec2 cometVelocities[${MAX_COMETS}];
-    uniform vec4 bodies[7];
-    uniform vec2 bodyVelocities[7];
+    uniform vec4 bodies[${BRAND_COUNT}];
+    uniform vec2 bodyVelocities[${BRAND_COUNT}];
     void main() {
       vec2 uv=gl_FragCoord.xy/resolution.xy;
       vec4 seed=texture2D(seeds,uv);
@@ -149,7 +152,7 @@ export async function createCredibilityGalaxy(
       // granular instead of piling points into the outline of a circular brush.
       acceleration.xy+=(radial*(pointer.w>0.?-.5:.8)+tangent*(pointer.w>0.?8.:3.)+pointerVelocity*.95+scatter*(pointer.w>0.?4.:2.))*influence*response;
       acceleration.z+=sin(seed.w*31.+time)*influence*.7;
-      for(int i=0;i<7;i++) {
+      for(int i=0;i<${BRAND_COUNT};i++) {
         vec2 away=p.xy-bodies[i].xy;
         float radius=bodies[i].z*1.15;
         float distanceSquared=dot(away,away);

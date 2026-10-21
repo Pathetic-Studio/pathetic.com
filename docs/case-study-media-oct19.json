@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-19",
+  "storage": "Local public assets; no Sanity mutations",
+  "videos": [
+    {
+      "file": "/media/case-studies/ramp/viral-creative-producer.mp4",
+      "source": "https://www.dropbox.com/scl/fi/e1izsp7cms22g3a9i3v84/Ramp-VCP-V1.mp4?rlkey=zzvj6gnbbwew6e2fy4d20czbd&dl=0",
+      "sourceBytes": 45400857,
+      "bytes": 4521374,
+      "poster": "/media/case-studies/ramp/viral-creative-producer-poster.webp",
+      "fastStart": true,
+      "encoding": "H.264 / AAC; 720p; click to load"
+    },
+    {
+      "file": "/media/case-studies/sandbar/whats-on-your-mind.mp4",
+      "source": "https://www.dropbox.com/scl/fi/8bnd12sfij47ixp8hbkpi/Brooke-03-Portrait.mp4?rlkey=gackpv8flq0uf0i572wty6tt9&dl=0",
+      "sourceBytes": 44964364,
+      "bytes": 7073131,
+      "poster": "/media/case-studies/sandbar/whats-on-your-mind-poster.webp",
+      "fastStart": true,
+      "encoding": "H.264 / AAC; 720p; click to load"
+    },
+    {
+      "file": "/media/case-studies/square/neighborhood.mp4",
+      "source": "https://drive.google.com/file/d/143Tqvpbm7zPg_9amNCZGThUHYEC6y2iQ/view",
+      "sourceBytes": 11437352,
+      "bytes": 11437547,
+      "poster": "/media/case-studies/square/neighborhood-poster.webp",
+      "fastStart": true,
+      "encoding": "H.264 / AAC; 720p; click to load (original streams retained)"
+    },
+    {
+      "file": "/media/case-studies/air/mike-explainer.mp4",
+      "source": "https://drive.google.com/file/d/1jUzWJBCofkCogge3CdmkbQ71G8GzSyyF/view",
+      "sourceBytes": 226563236,
+      "bytes": 11451001,
+      "poster": "/media/case-studies/air/mike-explainer-poster.webp",
+      "fastStart": true,
+      "encoding": "H.264 / AAC; 720p; click to load"
+    }
+  ],
+  "images": [
+    {
+      "file": "/media/case-studies/square/larrys-pop-up.webp",
+      "source": "https://drive.google.com/file/d/1VXjPAqyfCWhxhpt32OzkcMNFLxaIWK8H/view"
+    },
+    {
+      "file": "/media/case-studies/square/williamsburg-meme.webp",
+      "source": "https://drive.google.com/file/d/1Gyd5eKD-_K9WiNGLj_VW5xhfiL9tFsYP/view"
+    }
+  ],
+  "logos": [
+    {
+      "file": "/images/credibility/hinge.webp",
+      "source": "https://hinge.co/press-resources",
+      "asset": "https://files.hinge.co/942730a46478cc7dba9c705ec96dce4fab0933cb.zip/hinge_logos_64b5e8897d.zip"
+    },
+    {
+      "file": "/images/credibility/navan.svg",
+      "source": "https://navan.com/",
+      "asset": "Header wordmark SVG"
+    }
+  ],
+  "unavailable": [
+    {
+      "name": "Sandbar Universal Dictation BTS photos",
+      "source": "https://drive.google.com/drive/folders/1LtnE86F1UhhWVi4GJUhpuUyUh6y3flrH",
+      "reason": "Redirects to Google sign-in; user will supply access/assets later. Existing Sandbar gallery retained."
+    }
+  ]
+}

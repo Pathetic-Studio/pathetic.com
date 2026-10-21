@@ -15,9 +15,11 @@ const wrap = (value: number, count: number) =>
 export default function CaseStudyOrbitGallery({
   images,
   label,
+  showCaptions = true,
 }: {
   images: OrbitGalleryImage[];
   label: string;
+  showCaptions?: boolean;
 }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const cards = useRef<(HTMLButtonElement | null)[]>([]);
@@ -295,7 +297,7 @@ export default function CaseStudyOrbitGallery({
           ←
         </button>
         <p aria-live="polite" aria-atomic="true">
-          <strong>{images[current].caption || images[current].alt}</strong>
+          {showCaptions && <strong>{images[current].caption || images[current].alt}</strong>}
           <span>
             {String(current + 1).padStart(2, "0")} /{" "}
             {String(images.length).padStart(2, "0")}
@@ -309,7 +311,7 @@ export default function CaseStudyOrbitGallery({
           →
         </button>
       </div>
-      <CaseStudyLightbox image={selected} onClose={() => setSelected(null)} />
+      <CaseStudyLightbox image={selected} showCaption={showCaptions} onClose={() => setSelected(null)} />
     </div>
   );
 }

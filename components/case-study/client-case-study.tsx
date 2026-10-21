@@ -1,11 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { CASE_STUDIES, type CaseStudy } from "@/lib/case-studies";
+import {
+  CASE_STUDIES,
+  type CaseStudy,
+  type CaseStudyCampaign,
+  type CaseStudyGallery,
+  type CaseStudyText,
+} from "@/lib/case-studies";
 import CaseStudyVideo from "./case-study-video";
-import CaseStudyOrbitGallery from "./case-study-orbit-gallery";
+import CaseStudyImageGallery from "./case-study-image-gallery";
 import CaseStudyObject from "./case-study-object";
 import CaseStudyHeaderContrast from "./case-study-header-contrast";
+import InstagramPostLink from "./instagram-post-link";
+import { getInstagramPost } from "@/lib/instagram-posts";
 import styles from "./client-case-study.module.css";
 
 const showTitles: Record<
@@ -24,8 +32,34 @@ const showTitles: Record<
   },
 };
 
-function ProjectCopy({ copy }: { copy: string }) {
-  return copy.split(/(Hoso Basque|Selma Kaci)/).map((part, i) => {
+function CopySpans({ spans }: { spans: CaseStudyText[] }) {
+  return spans.map((span, i) => {
+    let content = <>{span.text}</>;
+    if (span.emphasis) content = <em>{content}</em>;
+    if (span.strong) content = <strong>{content}</strong>;
+    return span.href && getInstagramPost(span.href) ? (
+      <InstagramPostLink key={i} href={span.href}>{content}</InstagramPostLink>
+    ) : span.href ? (
+      <a key={i} href={span.href} target="_blank" rel="noopener noreferrer">
+        {content}
+      </a>
+    ) : <span key={i}>{content}</span>;
+  });
+}
+
+function ProjectCopy({ copy }: { copy: CaseStudyCampaign["copy"] }) {
+  if (Array.isArray(copy)) {
+    return copy.map((block, i) => block.type === "paragraph" ? (
+      <p key={i}><CopySpans spans={block.content} /></p>
+    ) : (
+      <ul key={i}>
+        {block.items.map((item, j) => (
+          <li key={j}><CopySpans spans={item} /></li>
+        ))}
+      </ul>
+    ));
+  }
+  return <p>{copy.split(/(Hoso Basque|Selma Kaci)/).map((part, i) => {
     const href =
       part === "Hoso Basque"
         ? "https://www.instagram.com/hosobasqueparis_/"
@@ -39,7 +73,31 @@ function ProjectCopy({ copy }: { copy: string }) {
     ) : (
       part
     );
-  });
+  })}</p>;
+}
+
+function ImageGalleries({ galleries, owner, placement }: {
+  galleries?: CaseStudyGallery[];
+  owner: string;
+  placement: "project" | "client";
+}) {
+  const Heading = placement === "project" ? "h3" : "h2";
+  return galleries?.filter((gallery) => gallery.images.length).map((gallery) => (
+    <section
+      key={gallery.id}
+      className={styles.gallery}
+      data-case-gallery-block={gallery.id}
+      data-case-gallery-placement={placement}
+      aria-label={`${owner} — ${gallery.title || "gallery"}`}
+    >
+      {gallery.title && <Heading className={styles.galleryTitle}>{gallery.title}</Heading>}
+      <CaseStudyImageGallery
+        images={gallery.images}
+        label={`${owner} — ${gallery.title || "gallery"}`}
+        framed={placement === "client"}
+      />
+    </section>
+  ));
 }
 
 export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
@@ -121,7 +179,7 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                       campaign.title
                     )}
                   </h2>
-                  <div
+                  {campaign.result && <div
                     className={styles.result}
                     style={
                       {
@@ -137,15 +195,13 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                       height={i % 2 ? 115.827 : 110.082}
                     />
                     <span>{campaign.result}</span>
-                  </div>
+                  </div>}
                 </div>
                 <div
                   className={`${styles.projectBody} ${!campaign.film && study.slug !== "air" ? styles.copyOnly : ""}`}
                 >
                   <div className={styles.copy}>
-                    <p>
-                      <ProjectCopy copy={campaign.copy} />
-                    </p>
+                    <ProjectCopy copy={campaign.copy} />
                     {campaign.link && (
                       <a
                         className={styles.link}
@@ -154,16 +210,6 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                         rel="noopener noreferrer"
                       >
                         {campaign.link.label}
-                      </a>
-                    )}
-                    {study.slug === "air" && (
-                      <a
-                        className={styles.link}
-                        href="https://www.instagram.com/p/DYBD07ksEpG/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Watch Mike’s explainer
                       </a>
                     )}
                   </div>
@@ -184,7 +230,7 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                       />
                     </figure>
                   )}
-                  {study.slug === "air" && (
+                  {study.slug === "air" && !campaign.film && (
                     <figure className={`${styles.media} ${styles.portrait}`}>
                       <Image
                         src={study.cover.src}
@@ -196,37 +242,11 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                     </figure>
                   )}
                 </div>
-                {campaign.images?.length ? (
-                  <div className={styles.bts}>
-                    {campaign.images.map((photo) => (
-                      <figure key={photo.src}>
-                        <Image
-                          src={photo.src}
-                          alt={photo.alt}
-                          width={photo.width}
-                          height={photo.height}
-                          sizes="(max-width: 760px) 80vw, 500px"
-                        />
-                        <figcaption>Behind the scenes</figcaption>
-                      </figure>
-                    ))}
-                  </div>
-                ) : null}
+                <ImageGalleries galleries={campaign.galleries} owner={campaign.title} placement="project" />
               </section>
             );
           })}
-          {!!study.images?.length && (
-            <section
-              className={styles.gallery}
-              aria-label={`${study.client} gallery`}
-            >
-              {study.slug === "air" && <h2>Out in the wild</h2>}
-              <CaseStudyOrbitGallery
-                images={study.images}
-                label={`${study.client} gallery`}
-              />
-            </section>
-          )}
+          <ImageGalleries galleries={study.galleries} owner={study.client} placement="client" />
         </div>
       </div>
       <section

@@ -115,8 +115,6 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
         if (wornRef.current === role.id) {
           const p = headPoint(role.id);
           if (p) api.place(role.id, p);
-          el.style.opacity = "1";
-          el.style.visibility = "visible";
           if (
             document.activeElement ===
             section.querySelector(`[data-hat-worn="${role.id}"]`)
@@ -129,10 +127,8 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
           // in the world and can be knocked away by the next one flying in.
           const direction =
             ROLES.findIndex((item) => item.id === role.id) % 2 ? 1 : -1;
-          api.release(
-            role.id,
-            activeRef.current ? { x: 0, y: -0.6 } : { x: direction * 3, y: -3 },
-          );
+          if (activeRef.current) api.eject(role.id, activeRef.current);
+          else api.release(role.id, { x: direction * 3, y: -3 });
           continue;
         }
         const end = headPoint(role.id);
@@ -142,11 +138,9 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
         }
         const pose = { ...api.get(role.id), angle: 0 };
         api.place(role.id, pose);
-        el.style.opacity = "1";
-        el.style.visibility = "visible";
         const complete = () => {
           moves.current.delete(role.id);
-          api.place(role.id, { ...end, angle: 0 });
+          api.place(role.id, { ...(headPoint(role.id) || end), angle: 0 });
           if (
             target === "head" &&
             activeRef.current === role.id &&
@@ -154,24 +148,31 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
           ) {
             if (document.activeElement === el) focusWornRef.current = role.id;
             setWorn(role.id);
-            el.style.opacity = "0";
-            el.style.visibility = "hidden";
           }
         };
         if (instant || reduced.current) complete();
-        else
+        else {
+          const progress = { value: 0 };
           moves.current.set(
             role.id,
-            gsap.to(pose, {
-              x: end.x,
-              y: end.y,
-              scale: end.scale,
+            gsap.to(progress, {
+              value: 1,
               duration: 0.38,
               ease: "power2.inOut",
-              onUpdate: () => api.place(role.id, pose, false, true),
+              onUpdate: () => {
+                const target = headPoint(role.id) || end;
+                const t = progress.value;
+                api.place(role.id, {
+                  x: pose.x + (target.x - pose.x) * t,
+                  y: pose.y + (target.y - pose.y) * t,
+                  scale: pose.scale + (target.scale - pose.scale) * t,
+                  angle: 0,
+                }, false, true);
+              },
               onComplete: complete,
             }),
           );
+        }
       }
     },
     [headPoint, proxy, sectionRef, setWorn],
@@ -205,12 +206,21 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
   }, [sectionRef, setWorn]);
 
   useLayoutEffect(() => {
+    // Switch both renderers in the same React commit, before the next paint.
+    // Hiding the flying hat inside a GSAP callback left a blank frame while
+    // React was still waiting to show its counterpart attached to the figure.
+    ROLES.forEach(({ id }) => {
+      const el = proxy(id);
+      if (!el) return;
+      el.style.opacity = worn === id ? "0" : "1";
+      el.style.visibility = worn === id ? "hidden" : "visible";
+    });
     if (!worn || focusWornRef.current !== worn) return;
     sectionRef.current
       ?.querySelector<HTMLButtonElement>(`[data-hat-worn="${worn}"]`)
       ?.focus({ preventScroll: true });
     focusWornRef.current = null;
-  }, [worn, sectionRef]);
+  }, [worn, sectionRef, proxy]);
   useLayoutEffect(() => {
     reconcile();
     const groups =
@@ -254,8 +264,6 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
     const pose = fromHead ? headPoint(role) : api.get(role);
     if (pose) api.place(role, { ...pose, angle: 0 });
     if (fromHead) setWorn(null);
-    el.style.opacity = "1";
-    el.style.visibility = "visible";
     el.style.zIndex = "10";
     const r = el.getBoundingClientRect();
     dragRef.current = {

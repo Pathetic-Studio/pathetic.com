@@ -256,6 +256,12 @@ html[data-home-loader-pending="true"] #page-content-root {
   will-change: transform;
 }
 
+[data-header-feature-image-rotator]:has([data-section-artwork="wardrobe"]) {
+  animation: none;
+  transform: none;
+  will-change: auto;
+}
+
 [data-header-logo-electric-aura],
 [data-header-logo-matrix],
 [data-header-feature-matrix-texture],
@@ -279,6 +285,50 @@ html[data-home-loader-pending="true"] #page-content-root {
     drop-shadow(0 0 9px var(--header-effect-accent))
     drop-shadow(0 0 18px var(--header-effect-accent));
   transition: opacity 180ms ease-out;
+}
+
+/* Section artwork uses the existing rotating Meme Booth slot. It sits beneath
+   the Matrix mask, so leaving the Matrix reveals the next section's artwork. */
+[data-header-feature-default-artwork],
+[data-header-section-star],
+[data-header-section-network],
+[data-header-section-hat] {
+  transition: opacity 180ms ease-out;
+}
+[data-header-section-star],
+[data-header-section-network],
+[data-header-section-hat] { opacity: 0; }
+[data-header-section-star] {
+  background: var(--header-section-star-colour);
+  mask: var(--header-star-mask) center / contain no-repeat;
+}
+[data-header-section-network] {
+  background: url("/images/network/blurred-star.svg") center / 100% auto no-repeat;
+}
+[data-header-section-hat] {
+  left: -12px;
+  right: -12px;
+  background: url("/images/what-we-are/wardrobe/hat-beret.webp") center / contain no-repeat;
+  transform-origin: 50% 50%;
+  transition: none;
+}
+[data-header-feature-root][data-header-section-artwork="wardrobe"] [data-header-nav-label] {
+  color: #fff !important;
+}
+[data-section-artwork]:not([data-section-artwork="default"]) [data-header-feature-default-artwork] { opacity: 0; }
+[data-section-artwork="services"] [data-header-section-star],
+[data-section-artwork="belief"] [data-header-section-star],
+[data-section-artwork="network"] [data-header-section-network],
+[data-section-artwork="wardrobe"] [data-header-section-hat] { opacity: 1; }
+#site-header-root[data-header-visual-mode="matrix"] :is(
+  [data-header-feature-default-artwork], [data-header-section-star],
+  [data-header-section-network], [data-header-section-hat]
+) { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  [data-header-feature-default-artwork],
+  [data-header-section-star],
+  [data-header-section-network],
+  [data-header-section-hat] { transition: none; }
 }
 
 #site-header-root[data-header-visual-mode="electric"] [data-header-logo-native],
@@ -447,6 +497,14 @@ html[data-lifecycle-environment] [data-lifecycle-environment-section] {
   opacity: var(--header-native-opacity);
 }
 
+/* The blurred Network artwork is wider than the sharp Matrix silhouette.
+   Occlude the whole incoming layer above the seam, including its halo. */
+#site-header-root[data-header-visual-mode="matrix"][data-header-matrix-exiting="true"]
+  [data-header-feature-image-native] {
+  clip-path: inset(var(--header-item-matrix-edge, var(--header-matrix-edge)) 0 0 0);
+  transition: none;
+}
+
 #site-header-root[data-header-visual-mode="matrix"] [data-header-logo-matrix],
 #site-header-root[data-header-visual-mode="matrix"] [data-header-feature-matrix-texture],
 #site-header-root[data-header-visual-mode="matrix"] [data-header-feature-matrix-streams] {
@@ -465,6 +523,69 @@ html[data-lifecycle-environment] [data-lifecycle-environment-section] {
 #site-header-root [data-header-right-box] {
   position: relative;
   isolation: isolate;
+}
+
+/* Windows 98 takeover: change the surface and type without moving the nav. */
+html[data-project-cta-ui="true"] #site-header-root [data-header-right-box] {
+  border-color: #808080;
+  background: #c0c0c0;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #171717,
+    inset 2px 2px #dfdfdf, inset -2px -2px #808080;
+}
+html[data-project-cta-ui="true"] #site-header-root [data-right-nav-item] {
+  width: var(--retro-nav-width);
+  flex-shrink: 0;
+  border-radius: 0;
+  color: #111;
+  font-family: "Pathetic CoFo Pixel", "CoFo Sans Pixel", monospace;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -.03em;
+  text-decoration: none;
+  transition: none;
+}
+html[data-project-cta-ui="true"] #site-header-root [data-right-nav-item]:is(:hover, :focus-visible, :active) {
+  color: #000;
+  background: #b8b8b8;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+  text-decoration: none;
+}
+
+/* Native cursors stay sharp and cost no animation frames. All use a 6px grid. */
+@media (hover: hover) and (pointer: fine) {
+  html[data-project-cta-ui="true"], html[data-project-cta-ui="true"] body {
+    cursor: url('/images/project-cta/cursor-98.png') 3 3, default;
+  }
+  html[data-project-cta-ui="true"] :is(a, button, [role="button"], select, input[type="checkbox"], input[type="radio"], input[type="submit"], input[type="button"]) {
+    cursor: url('/images/project-cta/cursors/pointer.png') 39 3, pointer !important;
+  }
+  html[data-project-cta-ui="true"] [data-project-cta-section-trigger] {
+    cursor: url('/images/project-cta/cursor-98.png') 3 3, default !important;
+  }
+  html[data-project-cta-ui="true"] :is(textarea, input:not([type]), input[type="text"], input[type="email"], input[type="tel"], input[type="search"], [contenteditable="true"]) {
+    cursor: url('/images/project-cta/cursors/text.png') 33 60, text !important;
+  }
+  html[data-project-cta-ui="true"] :is([draggable="true"], .cursor-grab, [style*="cursor: grab"]) {
+    cursor: url('/images/project-cta/cursors/grab.png') 60 60, grab !important;
+  }
+  html[data-project-cta-ui="true"] :is([draggable="true"]:active, .cursor-grabbing, [style*="cursor: grabbing"]) {
+    cursor: url('/images/project-cta/cursors/grabbing.png') 54 60, grabbing !important;
+  }
+  html[data-project-cta-ui="true"] .cursor-move {
+    cursor: url('/images/project-cta/cursors/move.png') 57 57, move !important;
+  }
+  html[data-project-cta-ui="true"] :is([aria-busy="true"], .cursor-wait) {
+    cursor: url('/images/project-cta/cursors/wait.png') 42 60, wait !important;
+  }
+  html[data-project-cta-ui="true"] :is(button:disabled, input:disabled, [aria-disabled="true"]) {
+    cursor: url('/images/project-cta/cursors/not-allowed.png') 51 51, not-allowed !important;
+  }
+  html[data-project-cta-ui="true"] .cursor-ew-resize {
+    cursor: url('/images/project-cta/cursors/resize-ew.png') 57 27, ew-resize !important;
+  }
+  html[data-project-cta-ui="true"] .cursor-ns-resize {
+    cursor: url('/images/project-cta/cursors/resize-ns.png') 27 57, ns-resize !important;
+  }
 }
 
 #site-header-root [data-header-right-box]::before {

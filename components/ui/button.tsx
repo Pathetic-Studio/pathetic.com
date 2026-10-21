@@ -14,6 +14,7 @@ import {
 import gsap from "gsap";
 import { Physics2DPlugin } from "gsap/Physics2DPlugin";
 import { HeaderFeatureMatrixTexture } from "@/components/header/visual-effects";
+import HeaderFeatureSectionArtwork from "@/components/header/feature-section-artwork";
 
 let physicsRegistered = false;
 
@@ -237,6 +238,7 @@ function Button({
     if (typeof window === "undefined") return;
 
     const el = bgImageRef.current;
+    if (el.dataset.sectionArtwork === "wardrobe") return;
 
     if (hoverAnimRef.current) {
       hoverAnimRef.current.kill();
@@ -308,6 +310,12 @@ function Button({
       hoverAnimRef.current = null;
     }
 
+    if (el.dataset.sectionArtwork === "wardrobe") {
+      spinStateRef.current.currentRotation = 0;
+      gsap.set(el, { rotation: 0, scaleX: 1, scaleY: 1 });
+      return;
+    }
+
     if (wasSpin) {
       const current = gsap.getProperty(el, "rotation") as number;
       const rot = Number.isFinite(current)
@@ -341,6 +349,7 @@ function Button({
   }, [backgroundImageHoverEffect]);
 
   const handleMouseEnter = (event: React.MouseEvent<HTMLElement>) => {
+    props.onMouseEnter?.(event as React.MouseEvent<HTMLButtonElement>);
     hoverRef.current = true;
     targetRef.current = event.currentTarget as HTMLElement;
 
@@ -361,7 +370,8 @@ function Button({
     startBackgroundImageHoverAnim();
   };
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = (event: React.MouseEvent<HTMLElement>) => {
+    props.onMouseLeave?.(event as React.MouseEvent<HTMLButtonElement>);
     hoverRef.current = false;
 
     if (intervalRef.current != null) {
@@ -385,12 +395,16 @@ function Button({
     };
   }, []);
 
+  // Keep the same effect for links and contact triggers, including their padding.
+  const hoverHandlers = {
+    onMouseEnter: handleMouseEnter,
+    onMouseLeave: handleMouseLeave,
+  };
+
   const renderInner = () => (
     <span
       data-button-root="true"
       className="relative inline-flex items-center justify-center gap-2"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       {hasBackgroundImage && backgroundImageUrl && (
         <span
@@ -410,13 +424,19 @@ function Button({
                 ref={bgImageRef}
                 data-header-feature-image-native
                 className="absolute inset-0 block will-change-transform"
-                style={{
-                  backgroundImage: `url(${backgroundImageUrl})`,
-                  backgroundSize: "contain",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "center",
-                }}
-              />
+              >
+                <span
+                  data-header-feature-default-artwork
+                  className="absolute inset-0 block"
+                  style={{
+                    backgroundImage: `url(${backgroundImageUrl})`,
+                    backgroundSize: "contain",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "center",
+                  }}
+                />
+                <HeaderFeatureSectionArtwork imageUrl={backgroundImageUrl} />
+              </span>
               <HeaderFeatureMatrixTexture imageUrl={backgroundImageUrl} />
             </span>
           ) : (
@@ -452,6 +472,7 @@ function Button({
     return (
       <ContactFormTrigger
         {...dataProps}
+        {...hoverHandlers}
         className={buttonClassName}
         label={typeof content === "string" ? content : undefined}
       >
@@ -464,6 +485,7 @@ function Button({
     return (
       <a
         {...dataProps}
+        {...hoverHandlers}
         href={url}
         className={buttonClassName}
         download={cmsLink?.downloadFilename || ""}
@@ -484,6 +506,7 @@ function Button({
       return (
         <button
           {...dataProps}
+          {...hoverHandlers}
           type="button"
           className={buttonClassName}
           onClick={(e) => {
@@ -505,6 +528,7 @@ function Button({
     return (
       <Link
         {...dataProps}
+        {...hoverHandlers}
         href={url}
         scroll={false}
         target={openInNewTab ? "_blank" : undefined}
@@ -520,6 +544,7 @@ function Button({
     return (
       <Link
         {...dataProps}
+        {...hoverHandlers}
         href={url}
         target={openInNewTab ? "_blank" : undefined}
         rel={openInNewTab ? "noopener noreferrer" : undefined}
@@ -533,7 +558,7 @@ function Button({
   const Comp = asChild ? Slot : "button";
 
   return (
-    <Comp data-slot="button" className={buttonClassName} {...props}>
+    <Comp data-slot="button" className={buttonClassName} {...props} {...hoverHandlers}>
       {renderInner()}
     </Comp>
   );

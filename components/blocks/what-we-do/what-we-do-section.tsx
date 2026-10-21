@@ -21,9 +21,11 @@ import TitleText from "@/components/ui/title-text";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import { cn } from "@/lib/utils";
+import { getInstagramPost } from "@/lib/instagram-posts";
 import {
   LOCAL_FLOATING_PROJECTS,
   WORK_MEDIA_FRAMES,
+  WORK_EXTERNAL_LINKS,
   type ResolvedFloatingProject,
 } from "@/lib/work-projects";
 import ProjectMedia from "./work-project-media";
@@ -299,7 +301,9 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         stegaClean(item.mediaType) === "video" ? "video" : "image";
       const destinationHref = stegaClean(item.destination?.href) || null;
       const referencedHref = getProjectHref(item.project);
+      const externalHref = WORK_EXTERNAL_LINKS[item._key];
       const href =
+        externalHref ||
         (item._key === "whatWeDoRamp" ? "/work/ramp" : null) ||
         destinationHref ||
         referencedHref ||
@@ -325,8 +329,8 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         _key: item._key,
         title,
         href,
-        target: item.destination?.target,
-        interactionMode,
+        target: Boolean(externalHref) || item.destination?.target,
+        interactionMode: externalHref ? "link" : interactionMode,
         revealTitle: stegaClean(item.revealTitle) || title,
         revealDescription: stegaClean(item.revealDescription) || undefined,
         expandedMediaType,
@@ -1255,8 +1259,6 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
               zIndex: 20 + index,
             };
             const title = item.title;
-            const comingSoon =
-              item._key === "whatWeDoDoorDash" || item._key === "whatWeDoAdidas";
             const href = item.href;
             const isRevealActive = activeRevealKey === item._key;
             const scrollSpeed = 0.15 + (index % 5) * 0.04;
@@ -1332,16 +1334,6 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                             className="!whitespace-nowrap"
                           />
                         )}
-                        {comingSoon && (
-                          <span
-                            className={cn(
-                              "mt-1 block text-center text-xs font-medium normal-case leading-normal text-neutral-500 transition-opacity md:text-sm",
-                              !touchLayout && "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
-                            )}
-                          >
-                            Coming soon
-                          </span>
-                        )}
                       </span>
                     )}
                   </div>
@@ -1357,23 +1349,6 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                 "group absolute left-[var(--item-mobile-x)] top-[var(--item-mobile-y)] w-[var(--item-mobile-width)] -translate-x-1/2 -translate-y-1/2 border-0 bg-transparent p-0 text-inherit focus-visible:outline-none md:left-[var(--item-tablet-x)] md:top-[var(--item-tablet-y)] md:w-[var(--item-tablet-width)] lg:left-[var(--item-x)] lg:top-[var(--item-y)] lg:w-[var(--item-width)]",
               );
 
-            if (comingSoon) {
-              return (
-                <button
-                  key={item._key}
-                  type="button"
-                  aria-disabled="true"
-                  aria-label={`${title}: Coming soon`}
-                  data-what-we-do-project
-                  data-typeon-hover={touchLayout ? undefined : "true"}
-                  className={projectClassName}
-                  style={style}
-                >
-                  {projectContent}
-                </button>
-              );
-            }
-
             if (item.interactionMode === "link" && href) {
               return (
                 <Link
@@ -1382,6 +1357,13 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
                   scroll={false}
                   target={item.target ? "_blank" : undefined}
                   rel={item.target ? "noopener noreferrer" : undefined}
+                  aria-haspopup={getInstagramPost(href) ? "dialog" : undefined}
+                  onClick={(event) => {
+                    const post = getInstagramPost(href);
+                    if (!post || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.button !== 0) return;
+                    event.preventDefault();
+                    setViewerContent(post);
+                  }}
                   data-what-we-do-project
                   data-typeon-hover={touchLayout ? undefined : "true"}
                   className={projectClassName}

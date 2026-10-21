@@ -23,6 +23,30 @@ import FlyingPigeonScene from "@/components/blocks/what-we-do-grid/flying-pigeon
 import PizzaRatScene from "@/components/blocks/what-we-do-grid/pizza-rat-scene";
 import CarouselDots from "@/components/ui/carousel-dots";
 
+// Local editorial copy; keep each service's existing CMS artwork and behaviour.
+const SERVICE_COPY = [
+  {
+    match: /insight|strategy/i,
+    title: "Insight & Strategy",
+    description: "We have a direct line to culture and consumer behaviour. We document our observations with memes and turn insights into creative strategies for brands.",
+  },
+  {
+    match: /content|production/i,
+    title: "Content Production",
+    description: "We create ownable IP for brands through serialised content and repeatable formats. We partner with world-class production studios to bring them to life.",
+  },
+  {
+    match: /campaign/i,
+    title: "Creative Campaigns",
+    description: "We help you find the next big idea which will change your growth trajectory, and execute through any channel: digital, social, IRL and beyond.",
+  },
+  {
+    match: /product|digital/i,
+    title: "Digital Experiences",
+    description: "Code is the new content. We build ephemeral apps and microsites designed to be shared and create a stronger connection between brands and their audience.",
+  },
+];
+
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 export type WhatWeDoGridBlock = Extract<
   PageBlock,
@@ -354,13 +378,11 @@ function ServiceCard({
   service,
   accent,
   touchActive = false,
-  desktopFill = false,
   onTouchActivate,
 }: {
   service: NonNullable<WhatWeDoGridBlock["services"]>[number];
   accent: string;
   touchActive?: boolean;
-  desktopFill?: boolean;
   onTouchActivate?: () => void;
 }) {
   const detectorRef = useRef<HTMLDivElement | null>(null);
@@ -394,6 +416,8 @@ function ServiceCard({
       aspectRatio: width / height,
     };
   })();
+  // The extra-wide trousers fill their frame regardless of the card's position.
+  const fillFrame = imageFrame.aspectRatio > 1;
   const mobileFrameWidth = `clamp(${12 * 16 * imageFrame.aspectRatio}px, ${28 * imageFrame.aspectRatio}svh, ${15 * 16 * imageFrame.aspectRatio}px)`;
   const tabletFrameWidth = `clamp(${15 * 16 * imageFrame.aspectRatio}px, ${26 * imageFrame.aspectRatio}svh, ${18 * 16 * imageFrame.aspectRatio}px)`;
 
@@ -433,6 +457,7 @@ function ServiceCard({
       <div
         ref={detectorRef}
         data-what-service-image
+        data-image-fit={fillFrame ? "cover" : "contain"}
         data-typeon-hover="true"
         onPointerEnter={(event) => {
           if (event.pointerType === "mouse" || event.pointerType === "pen") {
@@ -470,9 +495,7 @@ function ServiceCard({
               alt={stegaClean(service.image.alt) || stegaClean(service.title) || ""}
               fill
               sizes="(min-width: 1024px) 25vw, 50vw"
-              className={`object-contain object-bottom ${
-                desktopFill ? "object-cover object-center" : ""
-              }`}
+              className={fillFrame ? "object-cover object-center" : "object-contain object-bottom"}
             />
           </div>
         ) : (
@@ -490,9 +513,7 @@ function ServiceCard({
                 alt={stegaClean(service.hoverImage.alt) || stegaClean(service.title) || ""}
                 fill
                 sizes="(min-width: 1024px) 25vw, 50vw"
-                className={`object-contain object-bottom ${
-                  desktopFill ? "object-cover object-center" : ""
-                }`}
+                className={fillFrame ? "object-cover object-center" : "object-contain object-bottom"}
               />
               <div className="absolute inset-0 bg-[var(--service-accent)] opacity-30 mix-blend-soft-light" style={{ "--service-accent": accent } as CSSProperties} />
             </div>
@@ -594,7 +615,15 @@ export function WhatWeDoGridView({
   // the surrounding React tree, so their IDs stay consistent on hydration.
   const carouselId = `what-services-${encodeURIComponent(stegaClean(block._key))}`;
   const background = colorValue(block.backgroundColor, "#e7e7e2");
-  const services = (block.services || []).slice(0, 4);
+  const services = (block.services || []).slice(0, 4)
+    .map((service) => {
+      const copy = SERVICE_COPY.find(({ match }) =>
+        match.test(stegaClean(service.title) || ""),
+      );
+      return copy
+        ? { ...service, title: copy.title, description: copy.description }
+        : service;
+    });
   const rootRef = useRef<HTMLDivElement | null>(null);
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const scrollActiveFrameRef = useRef(0);
@@ -853,7 +882,6 @@ export function WhatWeDoGridView({
               touchActive={
                 touchLayout && touchActiveIndexes.includes(index)
               }
-              desktopFill={index === services.length - 1}
               onTouchActivate={() => activateTouchCard(index)}
             />
           </div>

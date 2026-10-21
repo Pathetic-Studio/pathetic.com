@@ -1,0 +1,239 @@
+{
+  "retrieved": "2026-10-19",
+  "source": "Public Instagram post embed metadata; images in original carousel order.",
+  "posts": {
+    "DWMCTqeAD4K": {
+      "title": "DoorDash",
+      "mediaType": "gallery",
+      "instagramHref": "https://www.instagram.com/p/DWMCTqeAD4K/",
+      "images": [
+        {
+          "src": "/media/instagram/doordash-1.webp",
+          "width": 1080,
+          "height": 1350,
+          "alt": "Sunday is a spectrum"
+        },
+        {
+          "src": "/media/instagram/doordash-2.webp",
+          "width": 1080,
+          "height": 1350,
+          "alt": "Sunday plans versus what actually happened"
+        },
+        {
+          "src": "/media/instagram/doordash-3.webp",
+          "width": 1282,
+          "height": 1600,
+          "alt": "Luxury then and luxury now"
+        },
+        {
+          "src": "/media/instagram/doordash-4.webp",
+          "width": 1280,
+          "height": 1600,
+          "alt": "Asking DoorDash to bring me whatever this is"
+        }
+      ]
+    },
+    "Dd9E8WsETcu": {
+      "title": "Adidas",
+      "mediaType": "gallery",
+      "instagramHref": "https://www.instagram.com/p/Dd9E8WsETcu/",
+      "images": [
+        {
+          "src": "/media/instagram/adidas-1.webp",
+          "width": 1340,
+          "height": 1600,
+          "alt": "Neighborhood gorp-casual creative starter pack"
+        },
+        {
+          "src": "/media/instagram/adidas-2.webp",
+          "width": 1340,
+          "height": 1600,
+          "alt": "Bass hunter and bass hunter"
+        },
+        {
+          "src": "/media/instagram/adidas-3.webp",
+          "width": 1340,
+          "height": 1600,
+          "alt": "Fixing the pain as a child and as an adult"
+        },
+        {
+          "src": "/media/instagram/adidas-4.webp",
+          "width": 1340,
+          "height": 1600,
+          "alt": "If sharks wore adidas, would they wear it like this?"
+        },
+        {
+          "src": "/media/instagram/adidas-5.webp",
+          "width": 1340,
+          "height": 1600,
+          "alt": "Fish wearing adidas shoes"
+        }
+      ]
+    },
+    "DRcVq2FDiKu": {
+      "title": "Square & Cash App — neighborhood memes",
+      "mediaType": "gallery",
+      "instagramHref": "https://www.instagram.com/p/DRcVq2FDiKu/",
+      "images": [
+        {
+          "src": "/media/instagram/square-memes-1.webp",
+          "width": 1392,
+          "height": 1600,
+          "alt": "How to support your neighbourhood"
+        },
+        {
+          "src": "/media/instagram/square-memes-2.webp",
+          "width": 1392,
+          "height": 1600,
+          "alt": "Justifying purchases by supporting local businesses"
+        },
+        {
+          "src": "/media/instagram/square-memes-3.webp",
+          "width": 1392,
+          "height": 1600,
+          "alt": "The Williamsburg experience"
+        },
+        {
+          "src": "/media/instagram/square-memes-4.webp",
+          "width": 1392,
+          "height": 1600,
+          "alt": "Saturday neighbourhood impulse purchases"
+        },
+        {
+          "src": "/media/instagram/square-memes-5.webp",
+          "width": 1392,
+          "height": 1600,
+          "alt": "Born just in time for the Cash App and Square pop-up"
+        }
+      ]
+    },
+    "DRfKxLHDd8l": {
+      "title": "Square & Cash App — Brooklyn Coffee Shop",
+      "mediaType": "video",
+      "instagramHref": "https://www.instagram.com/p/DRfKxLHDd8l/",
+      "videoUrl": "/media/instagram/square-coffee-shop.mp4",
+      "videoPosterUrl": "/media/instagram/square-coffee-shop-poster.webp"
+    }
+  },
+  "imageFiles": [
+    {
+      "code": "DWMCTqeAD4K",
+      "index": 1,
+      "path": "/media/instagram/doordash-1.webp",
+      "width": 1080,
+      "height": 1350,
+      "bytes": 180224
+    },
+    {
+      "code": "DWMCTqeAD4K",
+      "index": 2,
+      "path": "/media/instagram/doordash-2.webp",
+      "width": 1080,
+      "height": 1350,
+      "bytes": 114782
+    },
+    {
+      "code": "DWMCTqeAD4K",
+      "index": 3,
+      "path": "/media/instagram/doordash-3.webp",
+      "width": 1282,
+      "height": 1600,
+      "bytes": 222858
+    },
+    {
+      "code": "DWMCTqeAD4K",
+      "index": 4,
+      "path": "/media/instagram/doordash-4.webp",
+      "width": 1280,
+      "height": 1600,
+      "bytes": 203586
+    },
+    {
+      "code": "Dd9E8WsETcu",
+      "index": 1,
+      "path": "/media/instagram/adidas-1.webp",
+      "width": 1340,
+      "height": 1600,
+      "bytes": 180954
+    },
+    {
+      "code": "Dd9E8WsETcu",
+      "index": 2,
+      "path": "/media/instagram/adidas-2.webp",
+      "width": 1340,
+      "height": 1600,
+      "bytes": 104174
+    },
+    {
+      "code": "Dd9E8WsETcu",
+      "index": 3,
+      "path": "/media/instagram/adidas-3.webp",
+      "width": 1340,
+      "height": 1600,
+      "bytes": 165860
+    },
+    {
+      "code": "Dd9E8WsETcu",
+      "index": 4,
+      "path": "/media/instagram/adidas-4.webp",
+      "width": 1340,
+      "height": 1600,
+      "bytes": 90556
+    },
+    {
+      "code": "Dd9E8WsETcu",
+      "index": 5,
+      "path": "/media/instagram/adidas-5.webp",
+      "width": 1340,
+      "height": 1600,
+      "bytes": 248738
+    },
+    {
+      "code": "DRcVq2FDiKu",
+      "index": 1,
+      "path": "/media/instagram/square-memes-1.webp",
+      "width": 1392,
+      "height": 1600,
+      "bytes": 182720
+    },
+    {
+      "code": "DRcVq2FDiKu",
+      "index": 2,
+      "path": "/media/instagram/square-memes-2.webp",
+      "width": 1392,
+      "height": 1600,
+      "bytes": 141982
+    },
+    {
+      "code": "DRcVq2FDiKu",
+      "index": 3,
+      "path": "/media/instagram/square-memes-3.webp",
+      "width": 1392,
+      "height": 1600,
+      "bytes": 180418
+    },
+    {
+      "code": "DRcVq2FDiKu",
+      "index": 4,
+      "path": "/media/instagram/square-memes-4.webp",
+      "width": 1392,
+      "height": 1600,
+      "bytes": 143144
+    },
+    {
+      "code": "DRcVq2FDiKu",
+      "index": 5,
+      "path": "/media/instagram/square-memes-5.webp",
+      "width": 1392,
+      "height": 1600,
+      "bytes": 313798
+    }
+  ],
+  "video": {
+    "source": "DRfKxLHDd8l",
+    "width": 720,
+    "height": 1280,
+    "duration": 79.156,
+    "processing": "Existing web encode retained; MP4 remuxed for fast-start playback."
+  }
+}

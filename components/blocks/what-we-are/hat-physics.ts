@@ -13,6 +13,7 @@ type HatState = {
   height: number;
   scale: number;
   free: boolean;
+  clearingHeadUntil?: number;
 };
 const clamp = (n: number, low: number, high: number) =>
   Math.max(low, Math.min(high, n));
@@ -271,6 +272,12 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
     }
     const delta = Math.min(previous ? time - previous : 16.67, 32);
     previous = time;
+    states.forEach((state) => {
+      if (state.clearingHeadUntil && time >= state.clearingHeadUntil) {
+        state.clearingHeadUntil = undefined;
+        state.body.collisionFilter.mask = state.free ? 0xffffffff : 0x0002;
+      }
+    });
     updateFigure();
     // Released hats regain their free-object size where they actually are.
     // Keep this in the physics loop so their position remains collision-driven.
@@ -363,6 +370,7 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
     hold(role: RoleId) {
       const s = states.get(role)!;
       s.free = false;
+      s.clearingHeadUntil = undefined;
       Body.setStatic(s.body, true);
       // A controlled hat passes over the drawing/text but still pushes hats.
       s.body.collisionFilter.mask = 0x0002;
@@ -398,6 +406,29 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
       Sleeping.set(s.body, false);
       contain(s);
       paint(s);
+    },
+    eject(role: RoleId, incoming: RoleId) {
+      const outgoing = states.get(role)!;
+      const next = states.get(incoming)!;
+      const dx = outgoing.body.position.x - next.body.position.x;
+      const direction = Math.abs(dx) > 3
+        ? Math.sign(dx)
+        : ROLES.findIndex((item) => item.id === role) % 2 ? 1 : -1;
+      this.release(role, { x: direction * 7, y: -4 });
+      if (motion.matches) {
+        Body.setPosition(outgoing.body, {
+          x: outgoing.body.position.x + direction * (outgoing.width + next.width) * 0.65,
+          y: outgoing.body.position.y - outgoing.height / 2,
+        });
+        contain(outgoing);
+        paint(outgoing);
+        return;
+      }
+      // An outgoing hat starts inside the head collider. Let it clear the
+      // drawing briefly, while still colliding with the arriving/loose hats.
+      // An explicit impulse also works when two held hats overlapped on drop.
+      outgoing.clearingHeadUntil = performance.now() + 220;
+      outgoing.body.collisionFilter.mask = 0x0002;
     },
     dispose() {
       disposed = true;

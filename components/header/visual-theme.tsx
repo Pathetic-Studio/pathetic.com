@@ -88,6 +88,7 @@ function syncBoundaryToHeaderItems(header: HTMLElement, boundary: number) {
       "[data-header-feature-root]",
       "[data-header-feature-effects]",
       "[data-header-feature-image-rotator]",
+      "[data-header-feature-image-native]",
       "[data-header-feature-matrix-texture]",
       "[data-header-feature-matrix-streams]",
       "[data-header-right-box]",
@@ -131,6 +132,7 @@ function applyClaimToHeader(claim: HeaderVisualClaim | null) {
   if (!claim) {
     header.dataset.headerVisualMode = "default";
     delete header.dataset.headerVisualSource;
+    delete header.dataset.headerMatrixExiting;
     header.style.setProperty("--header-theme-progress", "0");
     header.style.setProperty("--header-effect-intensity", "0");
     header.style.setProperty("--header-electric-opacity", "0");
@@ -146,6 +148,7 @@ function applyClaimToHeader(claim: HeaderVisualClaim | null) {
 
   header.dataset.headerVisualMode = claim.mode;
   header.dataset.headerVisualSource = claim.sourceId;
+  header.dataset.headerMatrixExiting = String(claim.mode === "matrix" && claim.boundary > 0);
   header.style.setProperty("--header-theme-progress", String(claim.progress));
   header.style.setProperty("--header-effect-intensity", String(claim.intensity));
   header.style.setProperty(

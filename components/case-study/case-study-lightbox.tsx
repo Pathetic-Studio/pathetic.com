@@ -10,9 +10,11 @@ import styles from "./case-study-galleries.module.css";
 export default function CaseStudyLightbox({
   image,
   onClose,
+  showCaption = true,
 }: {
   image: CaseStudyImage | null;
   onClose: () => void;
+  showCaption?: boolean;
 }) {
   const opener = useRef<HTMLElement | null>(null);
   return (
@@ -50,7 +52,7 @@ export default function CaseStudyLightbox({
               />
             </div>
           )}
-          <p>{image?.alt}</p>
+          {showCaption && <p>{image?.alt}</p>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

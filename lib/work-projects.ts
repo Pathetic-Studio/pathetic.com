@@ -37,6 +37,11 @@ export type ResolvedFloatingProject = {
   aspectRatio?: "landscape" | "portrait";
 };
 
+export const WORK_EXTERNAL_LINKS: Record<string, string> = {
+  whatWeDoDoorDash: "https://www.instagram.com/p/DWMCTqeAD4K/?img_index=1",
+  whatWeDoAdidas: "https://www.instagram.com/p/Dd9E8WsETcu/?img_index=1",
+};
+
 // Tight artwork bounds keep labels beside the object while preserving its size.
 export const WORK_MEDIA_FRAMES: Record<
   string,
@@ -175,7 +180,8 @@ export const WORK_COLLECTION: ResolvedFloatingProject[] = [
   {
     _key: "whatWeDoAdidas",
     title: "ADIDAS",
-    href: null,
+    href: WORK_EXTERNAL_LINKS.whatWeDoAdidas,
+    target: true,
     interactionMode: "link",
     mediaType: "image",
     imageUrl: "/images/what-we-do/trimmed/adidas.webp",
@@ -185,7 +191,8 @@ export const WORK_COLLECTION: ResolvedFloatingProject[] = [
   {
     _key: "whatWeDoDoorDash",
     title: "DOORDASH",
-    href: null,
+    href: WORK_EXTERNAL_LINKS.whatWeDoDoorDash,
+    target: true,
     interactionMode: "link",
     mediaType: "image",
     imageUrl: "/images/what-we-do/trimmed/doordash.webp",

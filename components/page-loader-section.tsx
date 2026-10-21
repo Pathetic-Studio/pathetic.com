@@ -81,6 +81,9 @@ const LOGO_FLIP_EVENT = "logo-flip-done-change";
 const HEADER_LOGO_NATIVE_SELECTOR = '[data-header-logo-native="true"]';
 
 const PATHETIC_INTRO_TITLE = "Who controls the Memes controls the Universe";
+const INTRO_BUTTON_PARTICLES = [1, 2, 3].map((number) => ({
+  url: `/images/project-cta/memebooth-star-${number}.png`,
+}));
 const PATHETIC_INTRO_SPRITES: SpriteImage[] = [
   { _key: "intro-red-boot", url: "/images/page-loader/red-boot.webp" },
   { _key: "intro-silver-ring", url: "/images/page-loader/silver-ring.webp" },
@@ -227,9 +230,19 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const oncePerSession = !!data.oncePerSession;
   const usePatheticIntroPreset = data.usePatheticIntroPreset !== false;
   const { tagLine, body, links, feature } = data;
-  const visibleLinks = links?.filter(
-    (link) => !/^learn\s+more$/i.test(stegaClean(link.title || "").trim()),
+  const contentLinks = (links ?? []).filter(
+    (link) => !/^(learn\s+more|see\s+work)$/i.test(stegaClean(link.title || "").trim()),
   );
+  const visibleLinks = [
+    {
+      _key: "intro-see-work",
+      title: "See Work",
+      href: "/#work",
+      linkType: "anchor-link" as const,
+      buttonVariant: contentLinks.find((link) => link.linkType === "contact")?.buttonVariant ?? "outline",
+    },
+    ...contentLinks,
+  ];
   const title = usePatheticIntroPreset ? PATHETIC_INTRO_TITLE : data.title;
 
   const shouldRender = pathname === "/" && enabled;
@@ -585,6 +598,9 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
                   animation="none"
                   animationSpeed={1.2}
                   fontWeight="bold"
+                  textOutline
+                  outlineColor="#fff"
+                  outlinePosition="outside"
                   className={cn(styles.title, "[&_h2]:tracking-[-.035em]")}
                 >
                   {title}
@@ -616,6 +632,9 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
                     animationSpeed={1.2}
                     typeOnTrigger="immediate"
                     fontWeight="bold"
+                    textOutline
+                    outlineColor="#fff"
+                    outlinePosition="outside"
                     className={cn(styles.title, "[&_h2]:tracking-[-.035em]")}
                   >
                     {title}
@@ -631,14 +650,15 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
             )}
 
             {visibleLinks && visibleLinks.length > 0 && (
-              <div className="z-10 mt-10 flex flex-wrap gap-4 justify-center">
+              <div className="z-10 mt-10 lg:mt-6 flex flex-wrap gap-3 sm:gap-4 justify-center">
                 {visibleLinks.map((link) => (
                   <Button
                     key={link._key ?? link.title ?? ""}
                     data-loader-btn
-                    link={link}
+                    link={{ ...link, particlesEnabled: true, particleImages: INTRO_BUTTON_PARTICLES }}
                     variant={stegaClean((link.buttonVariant as any) ?? "default") as any}
                     size="lg"
+                    className="max-sm:px-4"
                   >
                     {link.title}
                   </Button>

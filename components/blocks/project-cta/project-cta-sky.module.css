@@ -30,26 +30,36 @@
   box-shadow: inset 1px 1px #fff, inset -1px -1px #171717, inset 2px 2px #dfdfdf, inset -2px -2px #808080;
   color: #111; font: inherit; font-size: 18px; line-height: 1;
 }
-.close:hover { background: #000; color: #fff; }
+.close:hover, .close:active {
+  background: #b8b8b8; color: #111;
+  box-shadow: inset 1px 1px #171717, inset -1px -1px #fff, inset 2px 2px #808080;
+}
 .content { position: absolute; inset: 28px 3px 3px; overflow: hidden; }
 .title { position: absolute; left: 0; top: 0; width: max-content; pointer-events: none; will-change: transform; }
 .portal[data-layout="stationary"] .title { will-change: auto; }
 .titleText { width: max-content !important; }
 .titleText h2 { line-height: .78; letter-spacing: -.055em; paint-order: stroke fill; }
 .fortune {
-  position: absolute; display: inline-flex; align-items: center; justify-content: center;
+  position: absolute; z-index: 5; display: inline-flex; align-items: center; justify-content: center;
   left: 50%; height: 2.5rem; padding: 0 1.5rem; background: #c0c0c0; color: #080808; border: 1px solid #808080;
   box-shadow: inset 2px 2px #fff, inset -2px -2px #171717, inset 3px 3px #dfdfdf, inset -3px -3px #808080;
   font-size: 1rem; line-height: 1; white-space: nowrap; opacity: 0; transform: translate(-50%, 0) scale(0); pointer-events: none;
 }
-.fortune::after { content: ""; position: absolute; inset: 5px; border: 1px dotted #272727; }
+.fortune::after { content: ""; position: absolute; inset: 5px; border: 1px dotted #272727; pointer-events: none; }
+.portal[data-active="true"] .fortune, .portal[data-layout="stationary"] .fortune { pointer-events: auto; }
+.fortune:hover, .fortune:active, .fortune:focus-visible {
+  background: #b8b8b8;
+  box-shadow: inset 2px 2px #171717, inset -2px -2px #fff, inset 3px 3px #808080;
+}
+.fortune:is(:hover, :active) > span { position: relative; left: 1px; top: 1px; }
 .portal[data-layout="stationary"] .fortune { opacity: 1; transform: translate(-50%, 0) scale(1); }
 .trigger { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; border: 0; background: transparent; }
 .trigger:focus-visible { outline: 3px dashed #000; outline-offset: -8px; }
 .anchor:has(.trigger:active) .fortune { box-shadow: inset 2px 2px #171717, inset -2px -2px #fff; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (hover: hover) and (pointer: fine) {
-  .anchor, .trigger { cursor: url('/images/project-cta/cursor-98.png') 3 3, pointer; }
+  .anchor, .trigger { cursor: url('/images/project-cta/cursor-98.png') 3 3, default; }
+  .fortune, .close { cursor: url('/images/project-cta/cursors/pointer.png') 39 3, pointer; }
 }
 @media (max-width: 1023px) {
   .section { margin: 1rem; height: clamp(20rem, 44vw, 28rem); }

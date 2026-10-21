@@ -586,12 +586,14 @@ export default function MobileNav({
       >
         <XButton
           aria-label={open ? "Close Menu" : "Open Menu"}
+          aria-expanded={open}
           onClick={toggleMenu}
           className={cn(
             "relative z-[70] h-10 w-10 rounded-none",
             "!p-0",
             "!inline-flex !items-center !justify-center",
-            "!leading-none"
+            "!leading-none",
+            icon === "menu" && "border-0 bg-transparent hover:bg-transparent hover:text-black hover:opacity-65"
           )}
           style={{ lineHeight: 0 }}
         >

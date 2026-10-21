@@ -248,6 +248,17 @@
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+.copy > p + p,
+.copy > ul {
+  margin-top: 1em;
+}
+.copy > ul {
+  list-style: disc;
+  padding-left: 1.1em;
+}
+.copy li + li {
+  margin-top: 0.75em;
+}
 .link {
   display: table;
   margin-top: 24px;
@@ -278,29 +289,10 @@
   width: 100%;
   height: auto;
 }
-.bts {
-  display: flex;
-  justify-content: flex-start;
-  gap: 28px;
-  padding-top: 50px;
-}
-.bts figure {
-  margin: 0;
-  width: min(35%, 250px);
-}
-.bts img {
-  width: 100%;
-  height: auto;
-}
-.bts figcaption {
-  margin-top: 10px;
-  text-align: center;
-  font-size: 16px;
-}
 .gallery {
   padding-top: 50px;
 }
-.gallery > h2 {
+.galleryTitle {
   font-size: clamp(36px, 4vw, 58px);
   text-transform: uppercase;
   text-align: center;
@@ -461,11 +453,8 @@
   .copyOnly {
     text-align: left;
   }
-  .bts {
+  .gallery {
     padding-top: 32px;
-  }
-  .bts figure {
-    width: 100%;
   }
   .next {
     min-height: 340px;

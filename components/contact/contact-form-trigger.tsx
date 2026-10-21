@@ -1,7 +1,7 @@
 // components/contact/contact-form-trigger.tsx
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useContactModal } from "@/components/contact/contact-modal-context";
 
@@ -12,17 +12,18 @@ type ContactFormTriggerProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "ch
     children?: ReactNode;
 };
 
-export default function ContactFormTrigger({
+const ContactFormTrigger = forwardRef<HTMLButtonElement, ContactFormTriggerProps>(function ContactFormTrigger({
     className,
     label,
     children,
     onClick,
     ...buttonProps
-}: ContactFormTriggerProps) {
+}, ref) {
     const { open } = useContactModal();
 
     return (
         <button
+            ref={ref}
             {...buttonProps}
             type="button"
             onClick={(event) => {
@@ -34,4 +35,6 @@ export default function ContactFormTrigger({
             {children ?? label ?? "Contact"}
         </button>
     );
-}
+});
+
+export default ContactFormTrigger;

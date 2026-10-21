@@ -13,6 +13,7 @@ import gsap from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
 import { CASE_STUDIES } from "@/lib/case-studies";
 import { WORK_COLLECTION, WORK_MEDIA_FRAMES } from "@/lib/work-projects";
+import { getInstagramPost } from "@/lib/instagram-posts";
 import TitleText from "@/components/ui/title-text";
 import ProjectMedia from "@/components/blocks/what-we-do/work-project-media";
 import WorkContentViewer, {
@@ -222,9 +223,7 @@ export default function WorkCollection() {
               const href = item.caseStudyHref || item.href;
               const slug = href?.split("/").at(-1)?.split("#")[0];
               const study = CASE_STUDIES.find((study) => study.slug === slug);
-              const comingSoon =
-                item._key === "whatWeDoDoorDash" ||
-                item._key === "whatWeDoAdidas";
+              const isCaseStudy = href?.startsWith("/work/");
               const content = (
                 <>
                   <div
@@ -250,9 +249,6 @@ export default function WorkCollection() {
                   </div>
                   <span className={styles.label} data-work-label>
                     {item.title}
-                    {comingSoon && (
-                      <span className={styles.soon}>Coming soon</span>
-                    )}
                   </span>
                 </>
               );
@@ -271,7 +267,7 @@ export default function WorkCollection() {
                         : "clients"
                   }
                   data-case-object={
-                    href && !href.includes("#") ? "" : undefined
+                    isCaseStudy && !href?.includes("#") ? "" : undefined
                   }
                   data-case-object-key={item.imageUrl}
                   style={
@@ -292,9 +288,18 @@ export default function WorkCollection() {
                           <Link
                             className={styles.link}
                             href={href}
+                            target={item.target ? "_blank" : undefined}
+                            rel={item.target ? "noopener noreferrer" : undefined}
+                            aria-haspopup={getInstagramPost(href) ? "dialog" : undefined}
+                            onClick={(event) => {
+                              const post = getInstagramPost(href);
+                              if (!post || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.button !== 0) return;
+                              event.preventDefault();
+                              setViewer(post);
+                            }}
                             data-work-collection-link
                             data-case-study-link={
-                              !href.includes("#") ? slug : undefined
+                              isCaseStudy && !href.includes("#") ? slug : undefined
                             }
                             data-case-accent={study?.accent}
                           >
@@ -304,14 +309,8 @@ export default function WorkCollection() {
                           <button
                             className={styles.link}
                             type="button"
-                            aria-disabled={comingSoon || undefined}
-                            aria-label={
-                              comingSoon
-                                ? `${item.title}: Coming soon`
-                                : `Play ${item.title}`
-                            }
+                            aria-label={`Play ${item.title}`}
                             onClick={() => {
-                              if (comingSoon) return;
                               setViewer({
                                 title: item.title,
                                 mediaType: "video",

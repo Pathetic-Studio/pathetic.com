@@ -46,7 +46,7 @@ const FOOTER_OBJECTS: Record<string, { src: string; position: number }> = {
     position: 8,
   },
   INSTA: { src: "/images/network/profile-logo.svg", position: 4 },
-  CONTACT: { src: "/images/basket-links/computer.png", position: 5 },
+  CONTACT: { src: "/images/project-cta/cursor-98.svg", position: 5 },
   SHOP: {
     src: "/images/lifecycle/slide-2/pathetic/rhinestone-tee.webp",
     position: 7,
