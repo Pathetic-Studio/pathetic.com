@@ -3,6 +3,8 @@ export type WorkGalleryImage = {
   width: number;
   height: number;
   alt: string;
+  /** Visible content rectangle, in source pixels; originals remain untouched. */
+  crop?: { x: number; y: number; width: number; height: number };
 };
 
 export type InstagramPost = {

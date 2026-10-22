@@ -10,7 +10,7 @@ export async function createUniverseLabel(
 ) {
   const image = await universeLogo(file);
   const canvas = document.createElement("canvas");
-  canvas.width = style === "button" ? 1024 : 512;
+  canvas.width = style !== "on-object" ? 1024 : 512;
   canvas.height = image?.naturalWidth
     ? Math.round((canvas.width * image.naturalHeight) / image.naturalWidth)
     : canvas.width / 4;
@@ -31,7 +31,7 @@ export async function createUniverseLabel(
       canvas.width,
     );
   }
-  if (style === "button") {
+  if (style !== "on-object") {
     // Trim the artwork, not just its SVG viewBox. Different source files have
     // different invisible margins, which otherwise become uneven button padding.
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -71,11 +71,11 @@ export async function createUniverseLabel(
       );
     const croppedWordmarkHeight =
       (wordmarkHeight * canvas.height) / mark.height;
-    const fittedHeight = Math.min(34, 13 / croppedWordmarkHeight);
-    const markWidth = Math.min(140, (fittedHeight * mark.width) / mark.height);
+    const fittedHeight = Math.min(style === "tech" ? 29 : 34, 13 / croppedWordmarkHeight);
+    const markWidth = Math.min(style === "tech" ? 108 : 140, (fittedHeight * mark.width) / mark.height);
     const markHeight = (markWidth * mark.height) / mark.width;
-    const width = Math.ceil(markWidth + 16);
-    const height = Math.ceil(markHeight + 12);
+    const width = Math.ceil(markWidth + (style === "tech" ? 0 : 16));
+    const height = Math.ceil(markHeight + (style === "tech" ? 0 : 12));
     const element = document.createElement("span");
     element.dataset.universeLabel = "";
     element.setAttribute("aria-hidden", "true");
@@ -92,8 +92,8 @@ export async function createUniverseLabel(
       width: `${width}px`,
       height: `${height}px`,
       padding: "0",
-      background: "#fff",
-      border: "1.5px solid #000",
+      background: style === "tech" ? "transparent" : "#fff",
+      border: style === "tech" ? "0" : "1.5px solid #000",
       borderRadius: "0",
       lineHeight: "0",
       pointerEvents: "none",

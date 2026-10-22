@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import TitleText from "@/components/ui/title-text";
@@ -17,6 +17,10 @@ import {
   preloadUniverseObjects,
 } from "./credibility-universe-assets";
 import styles from "./credibility-universe.module.css";
+import {
+  spaceRange,
+  type SpaceTransition,
+} from "./credibility-space-transition";
 
 let sceneModule: Promise<typeof import("./credibility-universe-scene")> | null =
   null;
@@ -32,14 +36,46 @@ function preloadScene() {
 type PageBlock = NonNullable<NonNullable<PAGE_QUERYResult>["blocks"]>[number];
 type CredibilityBlock = Extract<PageBlock, { _type: "credibility-section" }>;
 
+function SpaceInspection({ glasses = false }: { glasses?: boolean }) {
+  return (
+    <>
+      <span className={styles.techHud} aria-hidden="true" />
+      <svg className={styles.techConnector} aria-hidden="true">
+        <polyline
+          data-space-line
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+        <rect data-space-endpoint width="4" height="4" fill="currentColor" />
+      </svg>
+      <span
+        className={styles.techCallout}
+        data-space-callout
+        aria-hidden="true"
+      >
+        {glasses ? (
+          <span className={styles.techMessage} data-space-message />
+        ) : (
+          <span data-space-logo />
+        )}
+        <span className={styles.techCoordinates} data-space-coordinates />
+      </span>
+    </>
+  );
+}
+
 export default function CredibilityUniverseSection(
   props: CredibilityBlock & {
     labelStyle?: UniverseLabelStyle;
     objectStyle?: UniverseObjectStyle;
+    transition?: RefObject<SpaceTransition>;
   },
 ) {
   const labelStyle = props.labelStyle ?? UNIVERSE_LABEL_STYLE;
   const objectStyle = props.objectStyle ?? UNIVERSE_OBJECT_STYLE;
+  const transition = props.transition;
+  const tech = labelStyle === "tech";
   const panelRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<UniverseScene | null>(null);
@@ -74,11 +110,26 @@ export default function CredibilityUniverseSection(
       moved: boolean;
       brand: number;
     } | null = null;
-    const draw = (dt: number) => sceneRef.current?.render(dt, reduced.matches);
+    const draw = (dt: number) => {
+      const progress = transition
+        ? spaceRange(transition.current.progress, 0.52, 0.95)
+        : 1;
+      sceneRef.current?.setPresented(visible && progress > 0);
+      sceneRef.current?.setReveal(progress);
+      sceneRef.current?.render(dt, reduced.matches);
+    };
     const tick = (time: number) => {
       frame = 0;
       if (!visible || document.hidden || lost || reduced.matches) {
         lastTime = 0;
+        return;
+      }
+      // The old and new scene share a pinned viewport. Warm the renderer early,
+      // but spend no GPU frames on the galaxy before its scroll reveal begins.
+      if (transition && transition.current.progress < 0.5) {
+        sceneRef.current?.setPresented(false);
+        lastTime = 0;
+        frame = requestAnimationFrame(tick);
         return;
       }
       const interval =
@@ -140,7 +191,7 @@ export default function CredibilityUniverseSection(
           () => {
             if (visible && reduced.matches) draw(0);
           },
-          { labelStyle, objectStyle },
+          { labelStyle, objectStyle, transition },
         );
         if (controller.signal.aborted) {
           pendingScene.dispose();
@@ -215,7 +266,11 @@ export default function CredibilityUniverseSection(
       sceneRef.current?.setPointer(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
         1 - ((event.clientY - rect.top) / rect.height) * 2,
-        true,
+        event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom,
+        event.pointerType === "mouse",
       );
     };
     const down = (event: PointerEvent) => {
@@ -264,6 +319,16 @@ export default function CredibilityUniverseSection(
       if (!gesture || gesture.id !== event.pointerId) return;
       const current = gesture;
       gesture = null;
+      point(event);
+      if (tech && current.brand < 0) sceneRef.current?.clearInspection();
+      if (
+        tech &&
+        event.pointerType !== "mouse" &&
+        event.type === "pointerup" &&
+        !current.moved &&
+        current.brand >= 0
+      )
+        sceneRef.current?.toggleInspection(current.brand);
       if (
         event.type === "pointerup" &&
         !current.moved &&
@@ -280,16 +345,44 @@ export default function CredibilityUniverseSection(
       }
       if (reduced.matches) draw(0);
     };
-    const leave = () => {
-      if (gesture) return;
+    const leave = (event: PointerEvent) => {
+      // Touch synthesizes pointerleave when the finger lifts; keep its tapped
+      // inspection open until another tap, navigation or Escape dismisses it.
+      if (gesture || event.pointerType !== "mouse") return;
       lastInteraction = 0;
       sceneRef.current?.setPointer(0, 0, false);
+      sceneRef.current?.clearInspection();
+      if (reduced.matches) draw(0);
+    };
+    const focus = (event: FocusEvent) => {
+      if (!tech) return;
+      const button = (event.target as HTMLElement).closest<HTMLElement>(
+        "[data-universe-brand]",
+      );
+      if (button?.matches(":focus-visible")) {
+        sceneRef.current?.setHovered(Number(button.dataset.universeBrand));
+        lastInteraction = performance.now();
+        draw(0);
+      }
+    };
+    const blur = () => {
+      if (!tech) return;
+      sceneRef.current?.setHovered(-1);
+      draw(0);
     };
     const keyboard = (event: KeyboardEvent) => {
       const button = (event.target as HTMLElement).closest<HTMLElement>(
         "[data-universe-brand]",
       );
       if (!button) return;
+      if (tech && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        sceneRef.current?.toggleInspection(
+          Number(button.dataset.universeBrand),
+        );
+        draw(0);
+        return;
+      }
       const directions: Record<string, [number, number]> = {
         ArrowLeft: [-2, 0],
         ArrowRight: [2, 0],
@@ -311,6 +404,16 @@ export default function CredibilityUniverseSection(
         ...direction,
       );
       if (reduced.matches) draw(0);
+    };
+    const clearInteraction = () => {
+      sceneRef.current?.release();
+      gesture = null;
+      sceneRef.current?.setPointer(0, 0, false);
+      sceneRef.current?.clearInspection();
+      if (visible) draw(0);
+    };
+    const outside = (event: PointerEvent) => {
+      if (!panel.contains(event.target as Node)) clearInteraction();
     };
     const contextLost = (event: Event) => {
       event.preventDefault();
@@ -360,7 +463,7 @@ export default function CredibilityUniverseSection(
       sync();
     };
     preloadUniverseLogos();
-    if (objectStyle === "images") preloadUniverseObjects();
+    if (objectStyle === "images") preloadUniverseObjects(tech);
     // Warm the code chunk during the intro, before proximity starts WebGL.
     const warmModule = () => {
       void preloadScene().catch(() => {});
@@ -379,11 +482,15 @@ export default function CredibilityUniverseSection(
     panel.addEventListener("lostpointercapture", finish);
     panel.addEventListener("pointerleave", leave);
     panel.addEventListener("keydown", keyboard);
+    panel.addEventListener("focusin", focus);
+    panel.addEventListener("focusout", blur);
     canvas.addEventListener("webglcontextlost", contextLost);
     canvas.addEventListener("webglcontextrestored", contextRestored);
     reduced.addEventListener("change", sync);
     document.addEventListener("visibilitychange", resume);
+    document.addEventListener("pointerdown", outside);
     window.addEventListener("online", resume);
+    window.addEventListener("blur", clearInteraction);
     return () => {
       controller.abort();
       if (useIdle) window.cancelIdleCallback(idle);
@@ -400,21 +507,30 @@ export default function CredibilityUniverseSection(
       panel.removeEventListener("lostpointercapture", finish);
       panel.removeEventListener("pointerleave", leave);
       panel.removeEventListener("keydown", keyboard);
+      panel.removeEventListener("focusin", focus);
+      panel.removeEventListener("focusout", blur);
       canvas.removeEventListener("webglcontextlost", contextLost);
       canvas.removeEventListener("webglcontextrestored", contextRestored);
       reduced.removeEventListener("change", sync);
       document.removeEventListener("visibilitychange", resume);
+      document.removeEventListener("pointerdown", outside);
       window.removeEventListener("online", resume);
+      window.removeEventListener("blur", clearInteraction);
       sceneRef.current?.dispose();
       sceneRef.current = null;
     };
-  }, [labelStyle, objectStyle]);
+  }, [labelStyle, objectStyle, tech, transition]);
 
   return (
     <section
-      id={stegaClean(props.anchor?.anchorId) || `credibility-${props._key}`}
+      id={
+        transition
+          ? undefined
+          : stegaClean(props.anchor?.anchorId) || `credibility-${props._key}`
+      }
       className={styles.section}
-      data-credibility-version="universe"
+      data-credibility-version={tech ? "space" : "universe"}
+      data-space-embedded={transition ? "true" : undefined}
       data-universe-label-style={labelStyle}
       data-universe-object-style={objectStyle}
       aria-labelledby={`universe-title-${props._key}`}
@@ -435,19 +551,38 @@ export default function CredibilityUniverseSection(
                 type="button"
                 className={styles.brand}
                 data-universe-brand={i}
-                aria-label={`${brand.name}: drag or use the arrow keys to move`}
+                aria-label={`${brand.name}: ${tech ? "inspect, or drag to move" : "drag or use the arrow keys to move"}`}
                 aria-describedby={instructionId}
-              />
+              >
+                {tech && <SpaceInspection />}
+              </button>
             </li>
           ))}
+          {tech && transition && (
+            <li>
+              <button
+                type="button"
+                className={styles.brand}
+                data-universe-brand={UNIVERSE_BRANDS.length}
+                data-space-glasses
+                aria-label="Pathetic glasses: drag or use the arrow keys to move"
+                aria-describedby={instructionId}
+              >
+                <SpaceInspection glasses />
+              </button>
+            </li>
+          )}
         </ul>
-        <div id={`universe-title-${props._key}`} className={styles.headline}>
+        <div
+          id={`universe-title-${props._key}`}
+          className={styles.headline}
+          data-space-headline={tech ? "true" : undefined}
+        >
           <TitleText
             as="h2"
             variant="stretched"
-            size="what-we-do"
+            size="display"
             animation="none"
-            stretchScaleX={0.62}
             overallScale={1}
             maxChars={0}
             textColor="#ffffff"
@@ -458,8 +593,7 @@ export default function CredibilityUniverseSection(
             fontWeight="bold"
           >
             WORKING WITH THE BIGGEST
-            <br />
-            BRANDS IN THE UNIVERSE
+            <br /> BRANDS IN THE UNIVERSE
           </TitleText>
         </div>
         <p id={instructionId} className="sr-only">

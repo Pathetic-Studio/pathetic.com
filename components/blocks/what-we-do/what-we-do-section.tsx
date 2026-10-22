@@ -22,6 +22,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import { cn } from "@/lib/utils";
 import { getInstagramPost } from "@/lib/instagram-posts";
+import { ADIDAS_OBJECT, RAMP_OBJECT } from "@/lib/work-assets";
 import {
   LOCAL_FLOATING_PROJECTS,
   WORK_MEDIA_FRAMES,
@@ -335,12 +336,16 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         revealDescription: stegaClean(item.revealDescription) || undefined,
         expandedMediaType,
         expandedImageUrl:
-          item.expandedImage?.asset?.url || image?.asset?.url || undefined,
+          item._key === "whatWeDoRamp"
+            ? RAMP_OBJECT.src
+            : item.expandedImage?.asset?.url || image?.asset?.url || undefined,
         expandedImageAlt:
-          item.expandedImage?.alt ||
-          item.image?.alt ||
-          item.project?.image?.alt ||
-          "",
+          item._key === "whatWeDoRamp"
+            ? RAMP_OBJECT.alt
+            : item.expandedImage?.alt ||
+              item.image?.alt ||
+              item.project?.image?.alt ||
+              "",
         expandedVideoUrl:
           item.expandedVideo?.asset?.url || item.video?.asset?.url || undefined,
         expandedVideoPosterUrl:
@@ -350,11 +355,18 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         mediaType,
         imageUrl:
           item._key === "whatWeDoRamp"
-            ? "/media/case-studies/ramp/card.webp"
+            ? RAMP_OBJECT.src
+            : item._key === "whatWeDoAdidas"
+              ? ADIDAS_OBJECT.src
             : item._key === "whatWeDoDoorDash"
               ? "/images/case-studies/objects/doordash-bag.webp"
               : image?.asset?.url || undefined,
-        imageAlt: item.image?.alt || item.project?.image?.alt || "",
+        imageAlt:
+          item._key === "whatWeDoRamp"
+            ? RAMP_OBJECT.alt
+            : item._key === "whatWeDoAdidas"
+              ? ADIDAS_OBJECT.alt
+            : item.image?.alt || item.project?.image?.alt || "",
         videoUrl: item.video?.asset?.url || undefined,
         videoPosterUrl: item.videoPoster?.asset?.url || undefined,
         mediaFit: stegaClean(item.mediaFit) === "cover" ? "cover" : "contain",

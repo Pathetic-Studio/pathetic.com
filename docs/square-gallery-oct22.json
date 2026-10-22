@@ -1,0 +1,75 @@
+{
+  "sourceArchive": "Square-20261022T124653Z-1-001.zip",
+  "totalBytes": 696734,
+  "images": [
+    {
+      "source": "362D6CA1-663D-43BC-A8FE-08DCD134D974_1_105_c.jpeg",
+      "file": "/images/case-studies/bts/square-cash-app/square-cash-app-01.webp",
+      "width": 768,
+      "height": 1024,
+      "bytes": 138156
+    },
+    {
+      "source": "495C2E4F-6EF3-43F8-ACAE-1E458638946F_1_105_c.jpeg",
+      "file": "/images/case-studies/bts/square-cash-app/square-cash-app-02.webp",
+      "width": 768,
+      "height": 1024,
+      "bytes": 137466
+    },
+    {
+      "source": "5C1064FF-F8E0-4CB8-ACD2-5C570EAD888B_1_105_c.jpeg",
+      "file": "/images/case-studies/bts/square-cash-app/square-cash-app-03.webp",
+      "width": 768,
+      "height": 1024,
+      "bytes": 102240
+    },
+    {
+      "source": "8730E478-E4E7-4244-BA16-9D89275FF898_1_105_c.jpeg",
+      "file": "/images/case-studies/bts/square-cash-app/square-cash-app-04.webp",
+      "width": 768,
+      "height": 1024,
+      "bytes": 41654
+    },
+    {
+      "source": "A3804238-6945-4C54-BB1A-18643DF6E039_1_105_c.jpeg",
+      "file": "/images/case-studies/bts/square-cash-app/square-cash-app-05.webp",
+      "width": 820,
+      "height": 958,
+      "bytes": 79190
+    },
+    {
+      "source": "BE0EFEE4-E5A3-4DA3-9BB1-38E0C1D08CF8_1_105_c.jpeg",
+      "file": "/images/case-studies/bts/square-cash-app/square-cash-app-06.webp",
+      "width": 768,
+      "height": 1024,
+      "bytes": 132216
+    },
+    {
+      "source": "D50164B9-01A2-45E6-A99F-378CE4FCB484_1_105_c.jpeg",
+      "file": "/images/case-studies/bts/square-cash-app/square-cash-app-07.webp",
+      "width": 768,
+      "height": 1024,
+      "bytes": 65812
+    }
+  ],
+  "videoAlreadyOnPage": true,
+  "videoNote": "Same footage as square/neighborhood.mp4, which is already compressed and embedded; no duplicate added.",
+  "videoFrameComparison": [
+    {
+      "time": 2,
+      "meanPixelError": 0
+    },
+    {
+      "time": 18,
+      "meanPixelError": 0
+    },
+    {
+      "time": 30,
+      "meanPixelError": 0
+    },
+    {
+      "time": 50,
+      "meanPixelError": 0
+    }
+  ]
+}

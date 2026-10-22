@@ -17,6 +17,8 @@ export type TitleTextSize =
   | "md"
   | "display"
   | "display-compact"
+  | "case-client"
+  | "case-project"
   | "what-we-do"
   | "matrix-eyebrow"
   | "matrix-accent"
@@ -33,6 +35,7 @@ export type TitleTextSize =
 type Breakpoint = "mobile" | "tablet" | "desktop";
 
 interface TitleTextProps {
+  id?: string;
   children: React.ReactNode;
   as?: "h1" | "h2" | "h3" | "h4" | "p";
   variant?: TitleTextVariant;
@@ -89,6 +92,8 @@ export const SIZE_TEXT_CLASSES: Record<TitleTextSize, string> = {
   xxl: "text-5xl lg:text-8xl",
   display: "text-[2rem] sm:text-[2.5rem] lg:text-[3.5rem] lg:leading-[.95]",
   "display-compact": "text-[1.65rem] sm:text-[2.4rem] lg:text-[2.9rem]",
+  "case-client": "text-[length:var(--case-client-size,min(44vw,67svh))] leading-[.82] tracking-[-.055em]",
+  "case-project": "text-[length:var(--case-project-title-size)] leading-[.98] tracking-[-.045em]",
   "what-we-do": "text-[clamp(3.25rem,6.6vw,7.2rem)] sm:text-[clamp(5.5rem,10vw,10.5rem)] lg:text-[clamp(3.25rem,6.6vw,7.2rem)]",
   "matrix-eyebrow": "text-[clamp(1.3rem,2vw,2.15rem)]",
   "matrix-accent": "text-[clamp(2.6rem,4vw,4.5rem)]",
@@ -136,6 +141,16 @@ export const SCALE_CONFIG: Record<
     mobile: { stretchScaleX: 0.8, overallScale: 1 },
     tablet: { stretchScaleX: 0.8, overallScale: 1 },
     desktop: { stretchScaleX: 0.8, overallScale: 1 },
+  },
+  "case-client": {
+    mobile: { stretchScaleX: 0.62, overallScale: 1 },
+    tablet: { stretchScaleX: 0.62, overallScale: 1 },
+    desktop: { stretchScaleX: 0.62, overallScale: 1 },
+  },
+  "case-project": {
+    mobile: { stretchScaleX: 0.65, overallScale: 1 },
+    tablet: { stretchScaleX: 0.65, overallScale: 1 },
+    desktop: { stretchScaleX: 0.65, overallScale: 1 },
   },
   "what-we-do": {
     mobile: { stretchScaleX: 0.8, overallScale: 1 },
@@ -206,6 +221,7 @@ function getBreakpoint(width: number): Breakpoint {
 }
 
 export default function TitleText({
+  id,
   children,
   as = "h2",
   variant = "normal",
@@ -347,6 +363,7 @@ export default function TitleText({
   if (!isStretched) {
     return (
       <Tag
+        id={id}
         className={cn(
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],
@@ -378,6 +395,7 @@ export default function TitleText({
       }}
     >
       <Tag
+        id={id}
         className={cn(
           BASE_TEXT_CLASSES,
           SIZE_TEXT_CLASSES[size],

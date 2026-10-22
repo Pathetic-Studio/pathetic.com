@@ -17,6 +17,10 @@ const MATRIX_ROWS = [
 
 export function HeaderLogoVisualEffects() {
   return (
+    <>
+    <span data-header-logo-space aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 items-center justify-center">
+      <LogoAnimated className="h-8 w-auto" />
+    </span>
     <span
       data-header-logo-effects
       aria-hidden="true"
@@ -36,6 +40,7 @@ export function HeaderLogoVisualEffects() {
         <span data-header-logo-matrix-scan className="absolute inset-0" />
       </span>
     </span>
+    </>
   );
 }
 

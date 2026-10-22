@@ -61,11 +61,14 @@
       "asset": "Header wordmark SVG"
     }
   ],
-  "unavailable": [
+  "unavailable": [],
+  "resolved": [
     {
       "name": "Sandbar Universal Dictation BTS photos",
       "source": "https://drive.google.com/drive/folders/1LtnE86F1UhhWVi4GJUhpuUyUh6y3flrH",
-      "reason": "Redirects to Google sign-in; user will supply access/assets later. Existing Sandbar gallery retained."
+      "reason": "Redirects to Google sign-in; user will supply access/assets later. Existing Sandbar gallery retained.",
+      "resolved": "2026-10-22",
+      "resolution": "User supplied the Dictation BTS ZIP locally. Six photos converted to WebP and added to Universal Dictation. See case-study-bts-oct22.json."
     }
   ]
 }

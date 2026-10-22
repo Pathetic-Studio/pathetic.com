@@ -17,6 +17,9 @@ import {
 } from "./lifecycle-slide-two-assets";
 import { useHeaderVisualTheme } from "@/components/header/visual-theme";
 import styles from "./lifecycle-slideshow.module.css";
+import CredibilitySpaceSection, { type SpaceCredibilityBlock } from "../credibility/credibility-space-section";
+import { spaceRadial, spaceRange } from "../credibility/credibility-space-transition";
+import { radialRevealGradient } from "@/lib/radial-reveal";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -169,7 +172,7 @@ function createMemeCascade(images: HTMLElement[], surface: HTMLElement, revealSc
   };
 }
 
-export default function LifecycleSlideshow(props: LifecycleBlock) {
+export default function LifecycleSlideshow(props: LifecycleBlock & { space?: SpaceCredibilityBlock }) {
   const {
     _key,
     anchor,
@@ -180,11 +183,13 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
     memeSlide,
     orbitSlide,
     objectSlide,
+    space,
   } = props;
   const rootRef = useRef<HTMLElement | null>(null);
   const objectArticleRef = useRef<HTMLElement | null>(null);
   const [boosted, setBoosted] = useState(false);
   const glassesEntryRef = useRef({ progress: 0 });
+  const spaceTransitionRef = useRef({ progress: 0 });
   const [memeResetKey, setMemeResetKey] = useState(0);
   const boostedRef = useRef(false);
   const objectSlideActiveRef = useRef(false);
@@ -196,6 +201,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
   const cleanColor = (stegaClean(colorVariant) || "background") as ColorVariant;
   const cleanAnchor = stegaClean(anchor?.anchorId) || undefined;
   const duration = Math.min(8.5, Math.max(5.5, (pinDuration || 7) - 1.5));
+  const spaceDuration = space ? 2.1 : 0;
   const objectHeaderEffect = (
     objectSlide as
       | (typeof objectSlide & { headerEffect?: LifecycleObjectHeaderEffect | null })
@@ -209,6 +215,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
     Math.min(1, stegaClean(objectHeaderEffect?.idleIntensity) ?? 1),
   );
   const headerThemeSource = `lifecycle:${stegaClean(_key) || _key}`;
+  const spaceHeaderSource = `${headerThemeSource}:space`;
 
   useEffect(() => {
     boostedRef.current = boosted;
@@ -279,22 +286,58 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
         const reveals = images.map(image => image.querySelector<HTMLElement>("[data-lifecycle-meme-reveal]")!);
         const titleChars = [...object.querySelectorAll<HTMLElement>("[data-lifecycle-title-char]")];
         const compact = !conditions?.desktop;
+        const spaceLayer = root.querySelector<HTMLElement>("[data-space-takeover]");
+        const radialLayer = root.querySelector<HTMLElement>("[data-space-radial]");
+        const objectCopy = object.querySelector<HTMLElement>("[data-lifecycle-copy]");
         const revealScreens = compact ? 0.85 : MEME_REVEAL_SCROLL_SCREENS;
         const gatherStart = revealScreens + (compact ? 0.18 : 0.35);
         const gatherDuration = compact ? 0.8 : 1.5;
         const glassesArrived = gatherStart + gatherDuration;
         const glassesTextStart = glassesArrived + (compact ? 0.06 : 0.08);
         const entryDelay = compact ? 0.03 : 0.08;
-        const scrollScreens = compact ? COMPACT_SCROLL_SCREENS : duration;
+        const baseScreens = compact ? COMPACT_SCROLL_SCREENS : duration;
+        const extraScreens = space ? compact ? 1.55 : spaceDuration : 0;
+        const scrollScreens = baseScreens + extraScreens;
+        const spaceStart = baseScreens - .05;
+        const renderSpace = () => {
+          if (!spaceLayer || !radialLayer) return;
+          const p = spaceTransitionRef.current.progress;
+          const bounds = surface.getBoundingClientRect();
+          const radial = spaceRadial(p, surface.clientWidth, surface.clientHeight);
+          radialLayer.style.background = radialRevealGradient(radial, "16 18 14");
+          radialLayer.style.opacity = p > 0 ? "1" : "0";
+          spaceLayer.style.setProperty("--space-scene-visible", p > .5 ? "1" : "0");
+          spaceLayer.style.setProperty("--space-title-opacity", String(spaceRange(p, .67, .86)));
+          spaceLayer.style.setProperty("--space-title-y", `${(1 - spaceRange(p, .67, .86)) * 24}px`);
+          spaceLayer.inert = p < .78;
+          spaceLayer.style.setProperty("--space-pointer-events", p >= .78 ? "auto" : "none");
+          if (p > .001 && bounds.bottom > 0 && bounds.top < innerHeight) {
+            setHeaderVisualTheme(spaceHeaderSource, {
+              mode: "space", priority: 20,
+              radial: { ...radial, x: radial.x + bounds.left, y: radial.y + bounds.top, bottom: bounds.bottom },
+            });
+          } else clearHeaderVisualTheme(spaceHeaderSource);
+        };
 
         if (conditions?.reduced) {
           glassesEntryRef.current.progress = 1;
           gsap.set([meme, object, button, ...reveals, ...arrivals, ...root.querySelectorAll("[data-lifecycle-title-char]")], { autoAlpha: 1, scale: 1 });
           objectSlideActiveRef.current = true;
-          return;
+          spaceTransitionRef.current.progress = 1;
+          if (spaceLayer) { spaceLayer.style.setProperty("--space-scene-visible", "1"); spaceLayer.inert = false; }
+          if (spaceLayer) spaceLayer.style.setProperty("--space-pointer-events", "auto");
+          const syncReducedHeader = () => {
+            if (!spaceLayer) return;
+            const bounds = spaceLayer.getBoundingClientRect();
+            if (bounds.top <= 0 && bounds.bottom > 0) setHeaderVisualTheme(spaceHeaderSource, { mode: "space", priority: 20, radial: { ...spaceRadial(1, bounds.width, bounds.height, bounds.top), x: bounds.left + bounds.width / 2 } });
+            else clearHeaderVisualTheme(spaceHeaderSource);
+          };
+          const staticEdge = spaceLayer ? ScrollTrigger.create({ trigger: spaceLayer, start: "top bottom", end: "bottom top", onUpdate: syncReducedHeader, onToggle: syncReducedHeader }) : null;
+          return () => { staticEdge?.kill(); clearHeaderVisualTheme(spaceHeaderSource); };
         }
 
         glassesEntryRef.current.progress = 0;
+        spaceTransitionRef.current.progress = 0;
         gsap.set(meme, { autoAlpha: 1 });
         gsap.set(meme.querySelectorAll("[data-lifecycle-title-char]"), { autoAlpha: 1 });
         gsap.set(arrivals, { x: 0, y: 0, scale: 1, rotation: 0, autoAlpha: 1 });
@@ -321,7 +364,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             meme.inert = collecting;
             setMemeResetKey(current => current + 1);
           }
-          const ready = screens >= glassesTextStart;
+          const ready = screens >= glassesTextStart && (!space || screens < spaceStart);
           object.inert = !ready;
           objectSlideActiveRef.current = ready;
           if (!ready && boostedRef.current) {
@@ -329,6 +372,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             setBoosted(false);
             clearHeaderVisualTheme(headerThemeSource);
           }
+          renderSpace();
         };
         const timeline = gsap.timeline({
           defaults: { ease: "none" },
@@ -337,7 +381,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             id: "lifecycle-meme-to-glasses",
             trigger: root,
             start: "top top",
-            end: () => `+=${(compact ? surface.clientHeight : innerHeight) * scrollScreens}`,
+            end: () => `+=${(compact || nativePin ? surface.clientHeight : innerHeight) * scrollScreens}`,
             scrub: compact ? 0.16 : 0.25,
             invalidateOnRefresh: true,
             ...(nativePin ? { pin: surface, pinSpacing: true, anticipatePin: 1 } : {}),
@@ -386,6 +430,25 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           stagger: { amount: compact ? 0.22 : 0.3 }, ease: "power2.out",
         }, glassesTextStart);
         timeline.to(button, { autoAlpha: 1, scale: 1, duration: 0.24, ease: "back.out(1.7)" }, glassesTextStart + (compact ? 0.22 : 0.3));
+        if (space) {
+          const transferDuration = compact ? 1.05 : 1.55;
+          timeline.to(spaceTransitionRef.current, { progress: 1, duration: transferDuration }, spaceStart);
+          timeline.to([objectCopy, button], { autoAlpha: 0, duration: .22 }, spaceStart);
+        }
+        // Track the hard bottom edge after the pin has ended as well as the
+        // scrubbed entrance. Header masks use viewport coordinates throughout.
+        const syncEdge = (trigger: ScrollTrigger) => {
+          if (trigger.isActive) renderSpace();
+          else clearHeaderVisualTheme(spaceHeaderSource);
+        };
+        const edgeTrigger = space ? ScrollTrigger.create({ trigger: root, start: "top bottom", end: "bottom top", onUpdate: syncEdge, onToggle: syncEdge }) : null;
+        // Intersection runs after the smoother has moved the pinned surface.
+        // It also clears a claim after a fast jump skips the last scroll frame.
+        const spaceVisibility = spaceLayer ? new IntersectionObserver(([entry]) => {
+          if (!entry.isIntersecting) clearHeaderVisualTheme(spaceHeaderSource);
+          else renderSpace();
+        }, { threshold: [0, .001] }) : null;
+        if (spaceLayer) spaceVisibility?.observe(spaceLayer);
         sync();
 
         // Fonts and the swarm's safe-zone layout settle before caching the
@@ -400,6 +463,9 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
           cancelAnimationFrame(frame);
           timeline.scrollTrigger?.kill();
           timeline.kill();
+          edgeTrigger?.kill();
+          spaceVisibility?.disconnect();
+          clearHeaderVisualTheme(spaceHeaderSource);
           cascade.dispose();
           meme.inert = false;
           object.inert = false;
@@ -411,10 +477,11 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
     return () => {
       objectSlideActiveRef.current = false;
       clearHeaderVisualTheme(headerThemeSource);
+      clearHeaderVisualTheme(spaceHeaderSource);
       media.revert();
       context.revert();
     };
-  }, [clearHeaderVisualTheme, duration, headerThemeSource]);
+  }, [clearHeaderVisualTheme, setHeaderVisualTheme, duration, headerThemeSource, spaceHeaderSource, space, spaceDuration]);
 
   const modelAsset = objectSlide?.model?.asset;
   // Keep the refined source export local; no CMS asset replacement is needed.
@@ -446,11 +513,13 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
       data-lifecycle-root="true"
       data-lifecycle-fun-active={boosted ? "true" : undefined}
       data-pin-to-viewport="true"
-      data-pin-duration={duration}
+      data-pin-duration={duration + spaceDuration}
       data-pin-spacing="true"
       className={cn(styles.root, "relative motion-safe:lg:-mt-[50svh]", getSectionSurfaceClass(cleanColor), "!bg-transparent")}
-      style={{ "--lifecycle-scroll-length": COMPACT_SCROLL_SCREENS + 1 } as CSSProperties}
+      data-lifecycle-space={space ? "true" : undefined}
+      style={{ "--lifecycle-scroll-length": COMPACT_SCROLL_SCREENS + 1 + (space ? 1.55 : 0), "--space-anchor-desktop": duration + 1.5, "--space-anchor-compact": COMPACT_SCROLL_SCREENS + 1 } as CSSProperties}
     >
+      {space && <div id={stegaClean(space.anchor?.anchorId) || "our-clients"} data-space-anchor className={styles.spaceAnchor} aria-hidden="true" />}
       <div
         data-pin-target="true"
         className={cn(styles.viewport, "relative h-[100svh] overflow-x-clip overflow-y-visible lg:min-h-[680px] motion-reduce:!h-auto motion-reduce:min-h-0")}
@@ -508,6 +577,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
               boosted={boosted}
               entryProgress={glassesEntryRef}
               desktopDrop={DESKTOP_GLASSES_DROP}
+              spaceTransition={space ? spaceTransitionRef : undefined}
               environmentRoot={rootRef}
             />
           </div>
@@ -545,6 +615,11 @@ export default function LifecycleSlideshow(props: LifecycleBlock) {
             Fun Button
           </button>
         </article>
+
+        {space && <div className={styles.spaceTakeover} data-space-takeover data-lifecycle-environment-preserve>
+          <div className={styles.spaceRadial} data-space-radial aria-hidden="true" />
+          <CredibilitySpaceSection {...space} transition={spaceTransitionRef} />
+        </div>}
 
       </div>
     </section>

@@ -5,12 +5,13 @@ import { Bodies, Body, Engine, Sleeping, World } from "matter-js";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import ScrollSmoother from "gsap/ScrollSmoother";
+import { SANDBAR_OBJECT } from "@/lib/work-assets";
 import styles from "./basket-section-shortcuts.module.css";
 
 const SHORTCUTS = [
   { title: "Our Story", id: "our-story", selector: "[data-lifecycle-root]", image: "/images/lifecycle/memes/coffee-brick.webp" },
-  { title: "Our Clients", id: "our-clients", selector: "[data-credibility-version]", image: "/images/credibility/objects/saturn.webp" },
-  { title: "Our Work", id: "work", selector: "#work", image: "/images/what-we-do/trimmed/sandbar.webp" },
+  { title: "Our Clients", id: "our-clients", selector: "[data-space-anchor], [data-credibility-version]", image: "/images/credibility/objects/saturn.webp" },
+  { title: "Our Work", id: "work", selector: "#work", image: SANDBAR_OBJECT.src },
   { title: "Our Services", id: "what-we-do", selector: "#what-we-do", image: "/images/what-we-do/cloud.png" },
   { title: "Talent Matrix", id: "talent-matrix", selector: "[data-sequence-talent],#talent-matrix", image: null, kind: "matrix" },
   { title: "Our Network", id: "our-network", selector: "[data-network-intro]", image: null, kind: "eye" },

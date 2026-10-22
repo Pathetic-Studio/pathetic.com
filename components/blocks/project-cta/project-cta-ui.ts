@@ -1,5 +1,5 @@
 // Preserve the navigation's normal measurements while its type and bevels change.
-// This also keeps the retro controls available when moving from the window to nav.
+// The caller activates this only while the sky takeover is active.
 export function createProjectCtaUi() {
   const root = document.documentElement;
   let active = false;

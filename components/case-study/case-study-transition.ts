@@ -164,28 +164,37 @@ export function prepareCaseStudyTransition(link: HTMLAnchorElement) {
 export function leaveCaseStudy(page: HTMLElement, next: () => void) {
   if (!flight) return null;
   const current = flight;
-  const inset = Math.max(12, Math.min(32, innerWidth * 0.0155));
-  const width = Math.min(1440, innerWidth - inset * 2);
-  const top =
-    document.getElementById("site-header-root")?.getBoundingClientRect()
-      .bottom ?? (innerWidth < 1280 ? 72 : 96);
+  // Client backgrounds now bleed to every viewport edge. Expand once to that
+  // surface, not the former inset panel and then the destination's document
+  // height. Percentages keep the cover fitted if mobile browser UI resizes.
+  const destination = {
+    left: 0,
+    top: 0,
+    width: "100%",
+    height: "100%",
+    borderColor: "transparent",
+  };
   if (current.panel.firstElementChild) {
-    const lift = top - current.panel.getBoundingClientRect().top;
-    // Keep the departing page visible until the rising sheet covers it. Its
-    // title and object travel with it, so a slow route never exposes a blank.
+    const lift = -current.panel.getBoundingClientRect().top;
+    // Clear the old title before the sheet expands. Fade both the overlay's
+    // frozen copy and the original, so no duplicate shows through afterwards.
+    const outgoingCopy = page.querySelector(
+      `[data-case-next="${current.slug}"]`,
+    );
+    const copies = [current.panel.firstElementChild, outgoingCopy].filter(
+      (element): element is Element => !!element,
+    );
     const timeline = gsap.timeline({ onComplete: next });
+    timeline.to(copies, { opacity: 0, duration: 0.12, ease: "power1.out" }, 0);
     timeline.to(
       current.panel,
       {
-        left: (innerWidth - width) / 2,
-        top,
-        width,
-        height: innerHeight - top,
+        ...destination,
         duration: 0.42,
         ease: "power3.inOut",
         overwrite: "auto",
       },
-      0,
+      0.12,
     );
     timeline.to(
       current.objects,
@@ -194,18 +203,15 @@ export function leaveCaseStudy(page: HTMLElement, next: () => void) {
         duration: 0.42,
         ease: "power3.inOut",
       },
-      0,
+      0.12,
     );
-    timeline.to(page, { opacity: 0, duration: 0.06 }, 0.36);
+    timeline.to(page, { opacity: 0, duration: 0.06 }, 0.48);
     return () => timeline.kill();
   }
   // Begin lifting the next coloured panel, then route early. The real hero
   // determines the object's only flight path; there is no guessed midpoint.
   gsap.to(current.panel, {
-    left: (innerWidth - width) / 2,
-    top,
-    width,
-    height: innerHeight - top,
+    ...destination,
     opacity: 1,
     duration: 0.5,
     ease: "power3.inOut",
@@ -224,6 +230,7 @@ export function enterCaseStudy(page: HTMLElement, next: () => void) {
   if (!flight) return null;
   const current = flight;
   const panel = page.querySelector<HTMLElement>("[data-case-study-panel]");
+  const hero = panel?.querySelector<HTMLElement>("[data-case-client]") || panel;
   const targets = Array.from(
     panel?.querySelectorAll<HTMLElement>("[data-case-study-hero-object]") || [],
   );
@@ -266,7 +273,9 @@ export function enterCaseStudy(page: HTMLElement, next: () => void) {
   const settle = () => {
     if (flight !== current) return;
     alignScroll();
-    const bounds = panel.getBoundingClientRect();
+    // Below-the-fold media can still affect the full page height. Only the
+    // hero's scroll position and height matter for this object hand-off.
+    const bounds = hero!.getBoundingClientRect();
     const unchanged =
       lastBounds &&
       Math.abs(bounds.top - lastBounds.top) < 0.5 &&
@@ -294,16 +303,8 @@ export function enterCaseStudy(page: HTMLElement, next: () => void) {
         next();
       },
     });
-    timeline.to(
-      current.panel,
-      {
-        ...rectStyle(bounds),
-        duration: 0.42,
-        ease: "power3.out",
-        overwrite: "auto",
-      },
-      0,
-    );
+    // The background has already reached its final viewport bounds. Reveal
+    // the matching page beneath it without starting a second geometry tween.
     pairs.forEach(({ object, target }) => {
       if (
         object.hasAttribute("data-work-artwork-flight") &&

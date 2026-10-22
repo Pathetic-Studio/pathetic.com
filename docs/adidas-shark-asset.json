@@ -1,0 +1,9 @@
+{
+  "source": "/Users/jono/Desktop/Screenshot 2026-10-22 at 1.39.49 PM.png",
+  "tool": "built-in imagegen",
+  "prompt": "Remove only the white background; preserve the original left-facing shark, fins, tail, proportions, colours and two blue-and-cream sneakers. No redesign, added elements, text or floor. Preserve pale subject details and use true alpha transparency.",
+  "output": "public/images/what-we-do/trimmed/adidas-shark.webp",
+  "width": 1100,
+  "height": 479,
+  "bytes": 101704
+}

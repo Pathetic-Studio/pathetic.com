@@ -4,6 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Matter, { Engine, World, Bodies, Body, Vector } from "matter-js";
 import gsap from "gsap";
+import { createIntroObjectInteraction } from "./intro-object-interaction";
 
 type ImageExplodeImage = { _key?: string; url?: string | null };
 
@@ -38,6 +39,7 @@ type RenderItem = {
 
 const DEFAULT_IMAGE_SIZE = 250;
 const FORCE_SCALE = 0.005;
+const GRAVITY = 3;
 
 type Point = { x: number; y: number };
 
@@ -212,6 +214,7 @@ export default function ImageExplodeLoader({
   const bodiesRef = useRef<Body[]>([]);
   const spriteNodesRef = useRef(new Map<string, HTMLDivElement>());
   const mouseRef = useRef<Vector | null>(null);
+  const effectsRef = useRef<HTMLDivElement | null>(null);
 
   // animate-once tracking
   const animatedIdsRef = useRef<Set<string>>(new Set());
@@ -258,10 +261,15 @@ export default function ImageExplodeLoader({
     let previousTime = 0;
     let previousScroll = window.scrollY;
     let scrollImpulse = 0;
+    let interaction: ReturnType<typeof createIntroObjectInteraction> | null =
+      null;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const viewportObserver = new IntersectionObserver(([entry]) => {
       visible = entry?.isIntersecting ?? false;
-      if (!visible) mouseRef.current = null;
+      if (!visible) {
+        mouseRef.current = null;
+        interaction?.cancelHold();
+      }
     });
     viewportObserver.observe(container);
     const onScroll = () => {
@@ -322,13 +330,9 @@ export default function ImageExplodeLoader({
       let worldWidth = width;
       let worldHeight = height;
 
-      let gravityY = 3;
-      if (isTablet) gravityY = 0.35;
-      if (isMobile) gravityY = 0.75;
-
       const engine = Engine.create();
       engineRef.current = engine;
-      engine.world.gravity.y = gravityY;
+      engine.world.gravity.y = GRAVITY;
 
       const createWalls = (nextWidth: number, nextHeight: number) => {
         const wallThickness = Math.max(
@@ -395,6 +399,19 @@ export default function ImageExplodeLoader({
 
       bodiesRef.current = bodies;
       World.add(engine.world, bodies);
+      if (effectsRef.current) {
+        interaction = createIntroObjectInteraction({
+          engine,
+          bodies,
+          container,
+          effects: effectsRef.current,
+          nodes: spriteNodesRef.current,
+          isVisible: () => visible,
+          clearAttractor: () => {
+            mouseRef.current = null;
+          },
+        });
+      }
 
       // seed render items once so ids exist immediately (prevents late first paint)
       setRenderItems(
@@ -422,11 +439,7 @@ export default function ImageExplodeLoader({
         const nextLayout = resolveLayout(nextWidth);
         const nextImageSize = nextLayout.imageSize;
         const sizeScale = nextImageSize / Math.max(currentImageSize, 1);
-        engine.world.gravity.y = nextLayout.isMobile
-          ? 0.75
-          : nextLayout.isTablet
-            ? 0.35
-            : 3;
+        interaction?.cancelHold();
         walls.forEach((wall) => World.remove(engine.world, wall));
         walls = createWalls(nextWidth, nextHeight);
         World.add(engine.world, walls);
@@ -488,14 +501,16 @@ export default function ImageExplodeLoader({
           return;
         }
         const delta = previousTime
-          ? Math.min(1000 / 60, now - previousTime)
+          ? Math.min(1000 / 30, now - previousTime)
           : 1000 / 60;
         previousTime = now;
         const mouse = mouseRef.current;
         const impulse = scrollImpulse;
         scrollImpulse = 0;
+        interaction?.tick(now);
 
         bodiesRef.current.forEach((body, index) => {
+          if (interaction?.isUnavailable(body)) return;
           if (mouse) {
             const dir = Vector.sub(mouse, body.position);
             const dist = Math.max(Vector.magnitude(dir), 30);
@@ -535,7 +550,11 @@ export default function ImageExplodeLoader({
             );
           }
         });
-        Engine.update(eng, delta);
+        // Keep gravity running in real time at 30fps without using oversized
+        // Matter steps; otherwise a busy phone makes everything feel floaty.
+        const steps = Math.ceil(delta / (1000 / 60));
+        for (let step = 0; step < steps; step++)
+          Engine.update(eng, delta / steps);
         bodiesRef.current.forEach((body, index) => {
           const node = spriteNodesRef.current.get(`img-${index}`);
           if (node)
@@ -558,11 +577,23 @@ export default function ImageExplodeLoader({
 
     const handlePointerMove = (e: PointerEvent) => {
       if (!visible || document.hidden) return;
+      if (
+        interaction?.isHolding() ||
+        (e.pointerType !== "mouse" && e.buttons === 0)
+      ) {
+        mouseRef.current = null;
+        return;
+      }
       const elAtPoint = document.elementFromPoint(
         e.clientX,
         e.clientY,
       ) as HTMLElement | null;
-      if (!elAtPoint || elAtPoint.closest("#site-header-root")) {
+      if (
+        !elAtPoint ||
+        elAtPoint.closest(
+          "#site-header-root, a, button, input, textarea, [role='button']",
+        )
+      ) {
         mouseRef.current = null;
         return;
       }
@@ -592,6 +623,9 @@ export default function ImageExplodeLoader({
     const handleBlur = () => {
       mouseRef.current = null;
     };
+    const handlePointerUp = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") mouseRef.current = null;
+    };
     const handlePointerOut = (event: PointerEvent) => {
       // Moving into browser chrome does not necessarily blur the window.
       // A null destination means the pointer has left this document entirely.
@@ -608,6 +642,7 @@ export default function ImageExplodeLoader({
       passive: true,
     });
     window.addEventListener("blur", handleBlur);
+    window.addEventListener("pointerup", handlePointerUp);
     window.addEventListener("pointerout", handlePointerOut);
     window.addEventListener("pointercancel", handleBlur);
     document.documentElement.addEventListener("pointerleave", handleBlur);
@@ -615,6 +650,7 @@ export default function ImageExplodeLoader({
 
     return () => {
       cancelled = true;
+      interaction?.dispose();
       resizeObserver.disconnect();
       viewportObserver.disconnect();
       window.removeEventListener("scroll", onScroll);
@@ -623,6 +659,7 @@ export default function ImageExplodeLoader({
       window.removeEventListener("pointermove", handlePointerMove as any);
       window.removeEventListener("pointerdown", handlePointerDown as any);
       window.removeEventListener("blur", handleBlur as any);
+      window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointerout", handlePointerOut);
       window.removeEventListener("pointercancel", handleBlur);
       document.documentElement.removeEventListener("pointerleave", handleBlur);
@@ -710,6 +747,11 @@ export default function ImageExplodeLoader({
       className="pointer-events-none absolute inset-0 z-[5]"
       aria-hidden="true"
     >
+      <div
+        ref={effectsRef}
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        aria-hidden="true"
+      />
       {renderItems.map((item) => (
         <div
           key={item.id}

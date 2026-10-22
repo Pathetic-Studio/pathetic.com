@@ -13,6 +13,7 @@ import gsap from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
 import { CASE_STUDIES } from "@/lib/case-studies";
 import { WORK_COLLECTION, WORK_MEDIA_FRAMES } from "@/lib/work-projects";
+import { WORK_PROJECT_PREVIEWS } from "@/lib/work-project-previews";
 import { getInstagramPost } from "@/lib/instagram-posts";
 import TitleText from "@/components/ui/title-text";
 import ProjectMedia from "@/components/blocks/what-we-do/work-project-media";
@@ -36,16 +37,22 @@ const OBJECT_LAYOUT = [
     offset: 76,
     nudge: 2,
   },
+  { key: "project-whats-on-your-mind", size: 52, mobileSize: 68, offset: 10, nudge: -2 },
   { key: "local-sandbar", size: 90, mobileSize: 100, offset: 34, nudge: -3 },
+  { key: "project-viral-creative-producer", size: 90, mobileSize: 90, offset: 24, nudge: -2 },
   { key: "whatWeDoAdidas", size: 94, mobileSize: 88, offset: 92, nudge: 3 },
-  { key: "whatWeDoDoorDash", size: 66, mobileSize: 70, offset: 72, nudge: 3 },
   { key: "local-square", size: 94, mobileSize: 100, offset: 12, nudge: -3 },
-  { key: "local-cash-app", size: 94, mobileSize: 100, offset: 98, nudge: 2 },
+  { key: "project-birthday-bakery", size: 53, mobileSize: 70, offset: 70, nudge: 2 },
+  { key: "whatWeDoDoorDash", size: 66, mobileSize: 70, offset: 72, nudge: 3 },
+  { key: "project-universal-dictation", size: 90, mobileSize: 94, offset: 16, nudge: -3 },
   { key: "local-yom", size: 45, mobileSize: 62, offset: 44, nudge: -2 },
+  { key: "local-cash-app", size: 94, mobileSize: 100, offset: 98, nudge: 2 },
+  { key: "project-keep-it-in-the-neighborhood", size: 55, mobileSize: 72, offset: 66, nudge: -2 },
   { key: "air", size: 100, mobileSize: 100, offset: 16, nudge: 0 },
+  { key: "project-meme-booth", size: 50, mobileSize: 66, offset: 82, nudge: 3 },
   { key: "sizzle", size: 100, mobileSize: 100, offset: 0, nudge: 0 },
 ];
-const WORK_ITEMS = WORK_COLLECTION.map((item, index) => {
+const WORK_ITEMS = [...WORK_COLLECTION, ...WORK_PROJECT_PREVIEWS].map((item, index) => {
   const order = OBJECT_LAYOUT.findIndex((layout) => layout.key === item._key);
   const layout = OBJECT_LAYOUT[order] ?? {
     size: 80,
@@ -232,7 +239,7 @@ export default function WorkCollection() {
                     style={
                       {
                         "--ratio":
-                          frame?.ratio ||
+                          frame?.ratio || item.mediaAspectRatio ||
                           (item.aspectRatio === "portrait"
                             ? 9 / 16
                             : item._key === "sizzle"
@@ -244,7 +251,7 @@ export default function WorkCollection() {
                   >
                     <ProjectMedia
                       item={item}
-                      suspended={!!viewer || stage === "leaving"}
+                      suspended={playing || busy || !!viewer || stage === "leaving"}
                     />
                   </div>
                   <span className={styles.label} data-work-label>

@@ -1,0 +1,96 @@
+[
+  {
+    "id": "birthday-bakery",
+    "source": "media/case-studies/deel/birthday-bakery.mp4",
+    "starts": [
+      1,
+      16,
+      34
+    ],
+    "duration": 7.5,
+    "width": 360,
+    "height": 640,
+    "bytes": 749315,
+    "card": "public/media/work/birthday-bakery-card.webp",
+    "cardTime": 35.8,
+    "cardSource": "Unaltered frame extracted from the supplied project film",
+    "cardBytes": 29936
+  },
+  {
+    "id": "whats-on-your-mind",
+    "source": "media/case-studies/sandbar/whats-on-your-mind.mp4",
+    "starts": [
+      4,
+      11,
+      22
+    ],
+    "duration": 7.5,
+    "width": 360,
+    "height": 640,
+    "bytes": 342815,
+    "card": "public/media/work/whats-on-your-mind-card.webp",
+    "cardTime": 1.2,
+    "cardSource": "Unaltered frame extracted from the supplied project film",
+    "cardBytes": 49618
+  },
+  {
+    "id": "viral-creative-producer",
+    "source": "media/case-studies/ramp/viral-creative-producer.mp4",
+    "starts": [
+      1,
+      9,
+      21
+    ],
+    "duration": 7.5,
+    "width": 640,
+    "height": 360,
+    "bytes": 335599,
+    "card": "public/media/work/viral-creative-producer-card.webp",
+    "cardTime": 1,
+    "cardSource": "Unaltered frame extracted from the supplied project film",
+    "cardBytes": 33226
+  },
+  {
+    "id": "meme-booth",
+    "source": "media/case-studies/air/mike-explainer.mp4",
+    "starts": [
+      2,
+      12,
+      37
+    ],
+    "duration": 7.5,
+    "width": 360,
+    "height": 640,
+    "bytes": 280395,
+    "card": "public/media/work/meme-booth-card.webp",
+    "cardTime": 13.2,
+    "cardSource": "Unaltered frame extracted from the supplied project film",
+    "cardBytes": 47098
+  },
+  {
+    "id": "keep-it-in-the-neighborhood",
+    "source": "media/case-studies/square/neighborhood.mp4",
+    "starts": [
+      15,
+      33,
+      49
+    ],
+    "duration": 7.5,
+    "width": 360,
+    "height": 640,
+    "bytes": 517284,
+    "card": "public/media/work/keep-it-in-the-neighborhood-card.webp",
+    "cardTime": 17.2,
+    "cardSource": "Unaltered frame extracted from the supplied project film",
+    "cardBytes": 78098
+  },
+  {
+    "id": "universal-dictation",
+    "source": "media/case-studies/sandbar/dictation.mp4",
+    "preview": "Existing dictation-preview.mp4",
+    "card": "public/media/work/universal-dictation-card.webp",
+    "cardTime": 1.8,
+    "cardSource": "Unaltered frame extracted from the supplied project film",
+    "cardBytes": 10340
+  }
+]

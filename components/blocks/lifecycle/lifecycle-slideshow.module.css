@@ -28,8 +28,8 @@
   /* Keep TitleText's shared stretch and height measurement. Only the type size,
      leading and measure change for these two compact slide compositions. */
   .slideTitle h2 {
-    font-size: clamp(2.25rem, 11.5vw, 3.5rem);
-    line-height: 0.92;
+    font-size: var(--story-mobile-title-size);
+    line-height: var(--story-mobile-title-leading);
     text-wrap: wrap;
   }
 
@@ -53,7 +53,7 @@
 
 @media (max-width: 1023px) and (max-height: 520px) and (orientation: landscape) {
   .slideTitle h2 {
-    font-size: clamp(1.75rem, 8.5lvh, 2.25rem);
+    font-size: var(--story-mobile-title-size);
   }
 
   .funButton {
@@ -71,4 +71,22 @@
     position: sticky;
     top: 0;
   }
+}
+
+.spaceTakeover {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  isolation: isolate;
+  pointer-events: none;
+}
+@media (any-pointer: coarse) and (prefers-reduced-motion: no-preference) {
+  .root .viewport { height: 100lvh; }
+}
+.spaceRadial { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.spaceAnchor { position: absolute; top: calc(var(--space-anchor-desktop) * 100svh); width: 1px; height: 1px; pointer-events: none; }
+@media (max-width: 1023px) { .spaceAnchor { top: calc(var(--space-anchor-compact) * 100lvh); } }
+@media (prefers-reduced-motion: reduce) {
+  .spaceTakeover { position: relative; height: 100lvh; background: #10120e; }
+  .spaceAnchor { top: 200lvh; }
 }

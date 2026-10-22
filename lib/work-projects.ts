@@ -1,5 +1,8 @@
 import {
+  ADIDAS_OBJECT,
   CASH_APP_OBJECT,
+  RAMP_OBJECT,
+  SANDBAR_OBJECT,
   SQUARE_OBJECT,
   WORK_TITLE_CARDS,
 } from "./work-assets";
@@ -35,6 +38,7 @@ export type ResolvedFloatingProject = {
   floatAmount?: number | null;
   floatDuration?: number | null;
   aspectRatio?: "landscape" | "portrait";
+  mediaAspectRatio?: number;
 };
 
 export const WORK_EXTERNAL_LINKS: Record<string, string> = {
@@ -48,10 +52,9 @@ export const WORK_MEDIA_FRAMES: Record<
   { src?: string; ratio: number; width: number }
 > = {
   whatWeDoDoorDash: { src: "doordash", ratio: 599 / 935, width: 599 / 800 },
-  whatWeDoAdidas: { src: "adidas", ratio: 304 / 137, width: 304 / 329 },
+  whatWeDoAdidas: { ratio: ADIDAS_OBJECT.width / ADIDAS_OBJECT.height, width: 1 },
   "local-sandbar": {
-    src: "sandbar",
-    ratio: 990 / 1070,
+    ratio: SANDBAR_OBJECT.width / SANDBAR_OBJECT.height,
     width: (0.75 * 990) / 1254,
   },
   "local-square": {
@@ -74,8 +77,8 @@ export const LOCAL_FLOATING_PROJECTS: ResolvedFloatingProject[] = [
     href: "/work/stream-by-sandbar",
     interactionMode: "link",
     mediaType: "image",
-    imageUrl: "/images/case-studies/objects/stream-ring-hires.webp",
-    imageAlt: "Sandbar smart ring",
+    imageUrl: SANDBAR_OBJECT.src,
+    imageAlt: SANDBAR_OBJECT.alt,
     mediaFit: "contain",
     positionX: 57,
     positionY: 46,
@@ -173,7 +176,8 @@ export const WORK_COLLECTION: ResolvedFloatingProject[] = [
     href: "/work/ramp",
     interactionMode: "link",
     mediaType: "image",
-    imageUrl: "/media/case-studies/ramp/card.webp",
+    imageUrl: RAMP_OBJECT.src,
+    imageAlt: RAMP_OBJECT.alt,
     mediaFit: "contain",
   },
   LOCAL_FLOATING_PROJECTS[1],
@@ -184,7 +188,8 @@ export const WORK_COLLECTION: ResolvedFloatingProject[] = [
     target: true,
     interactionMode: "link",
     mediaType: "image",
-    imageUrl: "/images/what-we-do/trimmed/adidas.webp",
+    imageUrl: ADIDAS_OBJECT.src,
+    imageAlt: ADIDAS_OBJECT.alt,
     mediaFit: "contain",
   },
   LOCAL_FLOATING_PROJECTS[0],

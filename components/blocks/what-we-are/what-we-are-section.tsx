@@ -75,18 +75,6 @@ export default function WhatWeAre({ _key }: WhatWeAreSectionBlock) {
     if (mobile && !active) wardrobe.select(ROLES[selectedRef.current].id);
   }, [mobile]);
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    const figure = figureRef.current;
-    if (!section || !figure) return;
-
-    const observer = new IntersectionObserver(([entry]) => {
-      section.dataset.inView = String(entry.isIntersecting);
-    });
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <section
       ref={sectionRef}

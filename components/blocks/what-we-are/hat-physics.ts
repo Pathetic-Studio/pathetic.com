@@ -311,11 +311,19 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
     if (visible && !document.hidden && !motion.matches)
       frame = requestAnimationFrame(tick);
   };
-  const observer = new IntersectionObserver(([entry]) => {
-    if (!visible && entry.isIntersecting) enteredAt = performance.now();
-    visible = entry.isIntersecting;
+  const updateVisibility = () => {
+    // A transformed ScrollSmoother wrapper can leave an early intersection
+    // delivery stale after anchor placement. Use the rendered bounds on scroll,
+    // refresh and interaction as well, so a visible hat never stays asleep.
+    const rect = section.getBoundingClientRect();
+    const next = rect.bottom > 0 && rect.top < window.innerHeight && rect.width > 0;
+    section.dataset.inView = String(next);
+    if (visible === next) return;
+    if (next) enteredAt = performance.now();
+    visible = next;
     sync();
-  });
+  };
+  const observer = new IntersectionObserver(updateVisibility);
   let resizeFrame = 0;
   const resized = new ResizeObserver(() => {
     cancelAnimationFrame(resizeFrame);
@@ -326,7 +334,10 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
     trigger: section,
     start: "top bottom",
     end: "bottom top",
+    onRefresh: updateVisibility,
+    onToggle: updateVisibility,
     onUpdate: (self) => {
+      updateVisibility();
       const now = performance.now();
       if (
         !visible ||
@@ -356,6 +367,7 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
     state.element.style.visibility = "visible";
   });
   observer.observe(section);
+  window.addEventListener("initial-hash-ready", updateVisibility);
   resized.observe(section);
   document.fonts.ready.then(() => {
     if (!disposed) rebuild();
@@ -368,6 +380,7 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
       return { ...s.body.position, angle: s.body.angle, scale: s.scale };
     },
     hold(role: RoleId) {
+      updateVisibility();
       const s = states.get(role)!;
       s.free = false;
       s.clearingHeadUntil = undefined;
@@ -392,6 +405,7 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
       paint(s);
     },
     release(role: RoleId, velocity = { x: 0, y: 0 }, angularVelocity = 0) {
+      updateVisibility();
       const s = states.get(role)!;
       s.free = true;
       Body.setStatic(s.body, false);
@@ -435,6 +449,7 @@ export function createHatPhysics(section: HTMLElement, onLayout: () => void) {
       cancelAnimationFrame(frame);
       cancelAnimationFrame(resizeFrame);
       observer.disconnect();
+      window.removeEventListener("initial-hash-ready", updateVisibility);
       resized.disconnect();
       turbulence.kill();
       document.removeEventListener("visibilitychange", sync);

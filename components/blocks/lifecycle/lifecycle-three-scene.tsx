@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createLifecycleEnvironment } from "./lifecycle-environment";
 import { createGogglesReflector } from "./goggles-reflector";
+import { spaceRange, type SpaceTransition } from "../credibility/credibility-space-transition";
 
 type LifecycleThreeSceneProps = {
   modelUrl?: string | null;
@@ -13,6 +14,7 @@ type LifecycleThreeSceneProps = {
   /** Downward offset as a fraction of the desktop canvas height. */
   desktopDrop?: number;
   environmentRoot: RefObject<HTMLElement | null>;
+  spaceTransition?: RefObject<SpaceTransition>;
 };
 
 export default function LifecycleThreeScene({
@@ -23,6 +25,7 @@ export default function LifecycleThreeScene({
   entryProgress,
   desktopDrop = 0,
   environmentRoot,
+  spaceTransition,
 }: LifecycleThreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const visibleRef = useRef(false);
@@ -55,7 +58,7 @@ export default function LifecycleThreeScene({
         entry.intersectionRect.width > 0 &&
         entry.intersectionRect.height > 0;
       syncVisibility();
-    });
+    }, { threshold: [0, .001] });
     viewportObserver.observe(canvas);
     // Desktop slides overlap: intersection alone also sees the hidden slides.
     // GSAP changes their visibility as the slideshow advances or reverses.
@@ -704,6 +707,10 @@ export default function LifecycleThreeScene({
       let headerArcTargetsAvailable = false;
       let entryTravelY = 0;
       let restingY = 0;
+      const spaceDestination = new THREE.Vector3();
+      const movingSpaceDestination = new THREE.Vector3();
+      const glassesCorner = new THREE.Vector3();
+      const silhouetteSamples = new WeakMap<import("three").BufferGeometry, Float32Array>();
       let lastSceneSize = "";
       const resize = () => {
         const bounds = targetCanvas.getBoundingClientRect();
@@ -728,6 +735,10 @@ export default function LifecycleThreeScene({
           camera.clearViewOffset();
         }
         camera.updateProjectionMatrix();
+        camera.updateMatrixWorld();
+        spaceDestination.set(window.innerWidth < 700 ? -.06 : -.1, .54, .5).unproject(camera);
+        spaceDestination.sub(camera.position);
+        spaceDestination.multiplyScalar(-camera.position.z / spaceDestination.z).add(camera.position);
         // Move only the model, keeping the full canvas and lightning edges
         // in place. The slideshow uses the same offset for gathered images.
         restingY = window.innerWidth >= 1024
@@ -840,6 +851,8 @@ export default function LifecycleThreeScene({
       let surgeIntensity = 0;
       let powerCharge = 0;
       let backgroundCharge = 0;
+      let previousSpace = 0, spaceRotationStart = 0, spaceRotationEnd = 0;
+      let lastDrawnSpace = -1, lastDrawnSize = "", lastGlassesVersion = -1;
       let wasLightningActive = false;
       const lastLightningUpdates = [-1, -1, -1, -1];
       const prefersReducedMotion = window.matchMedia(
@@ -857,10 +870,20 @@ export default function LifecycleThreeScene({
         targetCanvas,
       );
 
+      if (process.env.NODE_ENV === "development") {
+        (targetCanvas as HTMLCanvasElement & { __inspectGoggles?: () => unknown }).__inspectGoggles = () => ({ position: root.position.toArray(), rotation: root.rotation.toArray(), scale: root.scale.toArray(), destination: spaceDestination.toArray(), visible: visibleRef.current, entry: entryProgress.current.progress, space: spaceTransition?.current.progress });
+      }
       const render = () => {
         const transitionDelta = Math.min(clock.getDelta(), 0.25);
         const delta = Math.min(transitionDelta, 0.05);
         const entrance = prefersReducedMotion ? 1 : entryProgress.current.progress;
+        const space = prefersReducedMotion ? 0 : spaceTransition?.current.progress || 0;
+        const travel = THREE.MathUtils.smoothstep(spaceRange(space, .1, .76), 0, 1);
+        if (space > 0 && previousSpace === 0) {
+          spaceRotationStart = idleRotationY;
+          spaceRotationEnd = Math.ceil((idleRotationY - .35) / (Math.PI * 2)) * Math.PI * 2 + Math.PI * 2 + .35;
+        }
+        previousSpace = space;
         // Preserve the current pose when reversing out of the idle spin. A new
         // entrance starts from the same authored angle, even after Fun mode.
         if (entrance <= 0.001) idleRotationY = 0;
@@ -877,8 +900,15 @@ export default function LifecycleThreeScene({
           animationFrame = window.requestAnimationFrame(render);
           return;
         }
+        const glassesPose = spaceTransition?.current.glasses;
+        // Follow the space simulation's cadence (30fps idle / 60fps interacting)
+        // rather than running a second, independent full-rate animation loop.
+        if (travel >= 1 && lastDrawnSpace >= .76 && lastDrawnSize === lastSceneSize && lastGlassesVersion === (glassesPose?.version ?? -1) && backgroundCharge < .001) {
+          animationFrame = window.requestAnimationFrame(render);
+          return;
+        }
         const elapsed = clock.elapsedTime;
-        const boostActive = boostedRef.current && !prefersReducedMotion;
+        const boostActive = boostedRef.current && !prefersReducedMotion && space === 0;
 
         // Immediate response, with a progressive 4.5-second build to full speed.
         surgeIntensity = boostActive
@@ -908,8 +938,17 @@ export default function LifecycleThreeScene({
         );
         // Let the gathering images remain behind the chrome while it rises.
         // The full scene background takes over only once they enter the lenses.
-        renderer.setClearColor(currentSceneBackground, entrance >= 1 ? 1 : 0);
-        root.position.y = restingY - entryTravelY * (1 - entrance);
+        renderer.setClearColor(currentSceneBackground, entrance >= 1 && space === 0 ? 1 : 0);
+        movingSpaceDestination.copy(spaceDestination);
+        if (glassesPose && space > 0) {
+          movingSpaceDestination.set(glassesPose.x * 2 - 1, 1 - glassesPose.y * 2, .5).unproject(camera);
+          movingSpaceDestination.sub(camera.position);
+          movingSpaceDestination.multiplyScalar(-camera.position.z / movingSpaceDestination.z).add(camera.position);
+          movingSpaceDestination.lerp(spaceDestination, 1 - THREE.MathUtils.smoothstep(spaceRange(space, .4, .78), 0, 1));
+        }
+        root.position.x = movingSpaceDestination.x * travel;
+        root.position.y = THREE.MathUtils.lerp(restingY - entryTravelY * (1 - entrance), movingSpaceDestination.y, travel);
+        root.scale.setScalar(THREE.MathUtils.lerp(1, window.innerWidth < 700 ? .23 : .25, travel));
 
         const lightningActive = boostActive && powerCharge > 0.78;
         if (lightningActive && !wasLightningActive) {
@@ -925,10 +964,17 @@ export default function LifecycleThreeScene({
             1.7,
           );
           const multiplier = 1 + surgeRamp * 115;
-          if (entrance >= 1) idleRotationY += delta * (rotationSpeed || 0.35) * multiplier;
+          if (entrance >= 1 && space === 0) idleRotationY += delta * (rotationSpeed || 0.35) * multiplier;
           root.rotation.y = THREE.MathUtils.lerp(-Math.PI * 0.95, idleRotationY, entrance);
           root.rotation.x = THREE.MathUtils.lerp(0.95, THREE.MathUtils.degToRad(25), entrance);
           root.rotation.z = THREE.MathUtils.lerp(-0.24, 0, entrance);
+          if (space > 0) {
+            root.rotation.y = THREE.MathUtils.lerp(spaceRotationStart, spaceRotationEnd, travel);
+            root.rotation.x = THREE.MathUtils.lerp(THREE.MathUtils.degToRad(25), .3, travel) + Math.sin(travel * Math.PI) * .6;
+            const drift = glassesPose?.angle || 0;
+            root.rotation.y += Math.sin(drift) * .3 * travel;
+            root.rotation.z = Math.sin(travel * Math.PI) * -.65 - travel * .1 + Math.sin(drift * .7) * .2 * travel;
+          }
 
           const flicker = THREE.MathUtils.clamp(
             0.72 +
@@ -1000,7 +1046,7 @@ export default function LifecycleThreeScene({
             );
           }
         }
-        const usingBloom = !prefersReducedMotion && powerCharge > 0.012;
+        const usingBloom = !prefersReducedMotion && powerCharge > 0.012 && space === 0;
         if (usingBloom) {
           bloomComposer.render();
         } else {
@@ -1012,14 +1058,51 @@ export default function LifecycleThreeScene({
           .copy(currentSceneBackground)
           .convertLinearToSRGB();
         environment.update(
-          backgroundProgress,
+          space > 0 ? 0 : backgroundProgress,
           displaySceneBackground.r,
         );
+        if (glassesPose && travel >= 1) {
+          // A small cached sample of the actual surface gives a tight screen
+          // outline. Projecting bounding-box corners adds empty space as it turns.
+          root.updateMatrixWorld(true);
+          let left = 1, right = -1, top = -1, bottom = 1;
+          visibleObject.traverse((object) => {
+            const mesh = object as import("three").Mesh;
+            if (!mesh.isMesh || !mesh.visible) return;
+            let samples = silhouetteSamples.get(mesh.geometry);
+            if (!samples) {
+              const position = mesh.geometry.getAttribute("position");
+              if (!position) return;
+              const count = Math.min(512, position.count);
+              samples = new Float32Array(count * 3);
+              for (let n = 0; n < count; n++) {
+                const vertex = Math.floor(n * (position.count - 1) / Math.max(1, count - 1));
+                samples[n * 3] = position.getX(vertex);
+                samples[n * 3 + 1] = position.getY(vertex);
+                samples[n * 3 + 2] = position.getZ(vertex);
+              }
+              silhouetteSamples.set(mesh.geometry, samples);
+            }
+            for (let n = 0; n < samples.length; n += 3) {
+              glassesCorner.fromArray(samples, n).applyMatrix4(mesh.matrixWorld).project(camera);
+              left = Math.min(left, glassesCorner.x); right = Math.max(right, glassesCorner.x);
+              top = Math.max(top, glassesCorner.y); bottom = Math.min(bottom, glassesCorner.y);
+            }
+          });
+          glassesPose.width = (right - left) / 2;
+          glassesPose.height = (top - bottom) / 2;
+          glassesPose.offsetX = .5 + (left + right) / 4 - glassesPose.x;
+          glassesPose.offsetY = .5 - (top + bottom) / 4 - glassesPose.y;
+        }
+        lastGlassesVersion = glassesPose?.version ?? -1;
+        lastDrawnSpace = space;
+        lastDrawnSize = lastSceneSize;
         animationFrame = window.requestAnimationFrame(render);
       };
       render();
 
       cleanUpScene = () => {
+        delete (targetCanvas as HTMLCanvasElement & { __inspectGoggles?: () => unknown }).__inspectGoggles;
         environment.dispose();
         window.cancelAnimationFrame(animationFrame);
         resizeObserver?.disconnect();
@@ -1050,7 +1133,7 @@ export default function LifecycleThreeScene({
       cancelled = true;
       cleanUpScene();
     };
-  }, [desktopDrop, entryProgress, environmentRoot, modelScale, modelUrl, rotationSpeed]);
+  }, [desktopDrop, entryProgress, environmentRoot, modelScale, modelUrl, rotationSpeed, spaceTransition]);
 
   if (webglUnavailable) {
     return (

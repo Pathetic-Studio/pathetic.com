@@ -4,6 +4,7 @@ import {
   seededRandom,
   TAU,
 } from "./credibility-universe-data";
+import { SPACE_POSITIONS } from "./credibility-space-transition";
 
 export type UniverseBody = {
   x: number;
@@ -13,6 +14,7 @@ export type UniverseBody = {
   radius: number;
   labelHalfWidth?: number;
   labelBottom?: number;
+  visualHalfWidth?: number;
   angle: number;
   spin: number;
 };
@@ -60,11 +62,13 @@ export type UniverseComet = {
 };
 
 /** Bodies share one XY plane; only their meshes and lighting have depth. */
-export function createUniversePhysics() {
+export function createUniversePhysics(constellation = false, includeGlasses = false) {
   let width = 20,
     height = 11,
-    scale = 1;
-  const bodies: UniverseBody[] = UNIVERSE_BRANDS.map((b) => ({
+    scale = 1,
+    edgePadding = .12;
+  const definitions = includeGlasses ? [...UNIVERSE_BRANDS, { radius: 1.1, angle: Math.PI / 2 }] : UNIVERSE_BRANDS;
+  const bodies: UniverseBody[] = definitions.map((b) => ({
     x: 0,
     y: 0,
     vx: 0,
@@ -151,25 +155,48 @@ export function createUniversePhysics() {
     }
   };
   let launches = 0;
+  let orbitTime = 0;
+  const berth = (i: number) => {
+    const angle = orbitTime * .045;
+    if (width / height < .85) {
+      // Equal angular spacing on a compact oval around the headline. The
+      // glasses take the top berth; all bodies still respond to physics.
+      const slot = [1, 9, 8, 7, 2, 5, 4, 3, 6, 0][i];
+      const phase = Math.PI / 2 + slot * TAU / 10 + angle;
+      const rx = width * .40, ry = Math.min(height * .32, width * .68);
+      return {
+        x: Math.cos(phase) * rx, y: Math.sin(phase) * ry,
+        vx: -Math.sin(phase) * rx * .045, vy: Math.cos(phase) * ry * .045,
+      };
+    }
+    const [x, y] = SPACE_POSITIONS[i] || [.45, .23];
+    const nx = (x - .5) * Math.cos(angle) - (.5 - y) * Math.sin(angle);
+    const ny = (x - .5) * Math.sin(angle) + (.5 - y) * Math.cos(angle);
+    return { x: nx * width, y: ny * height, vx: -ny * width * .045, vy: nx * height * .045 };
+  };
   const reset = () => {
     clearEffects();
+    orbitTime = 0;
     bodies.forEach((body, i) => {
-      const angle = UNIVERSE_BRANDS[i].angle;
-      body.radius = UNIVERSE_BRANDS[i].radius * scale;
+      const angle = definitions[i].angle;
+      body.radius = definitions[i].radius * scale;
       body.x = Math.cos(angle) * width * 0.35;
       body.y = Math.sin(angle) * height * 0.34;
       body.vx = -Math.sin(angle) * 0.22;
       body.vy = Math.cos(angle) * 0.22;
       body.angle = 0;
       body.spin = 0;
+      if (constellation) {
+        Object.assign(body, berth(i));
+      }
       contain(body);
     });
   };
   const contain = (body: UniverseBody) => {
     const x =
       width / 2 -
-      Math.max(body.radius * 1.78, (body.labelHalfWidth || 0) * scale) -
-      0.12;
+      Math.max(body.radius * (constellation ? 1.18 : 1.78), (body.labelHalfWidth || 0) * scale, (body.visualHalfWidth || 0) * scale) -
+      edgePadding;
     const y =
       height / 2 -
       Math.max(body.radius * 1.78, (body.labelBottom || 0) * scale) -
@@ -183,17 +210,18 @@ export function createUniversePhysics() {
       body.vy *= -0.7;
     }
   };
-  const resize = (w: number, h: number, s: number) => {
+  const resize = (w: number, h: number, s: number, inset = .12) => {
     const oldW = width,
       oldH = height;
     width = w;
     height = h;
     scale = s;
+    edgePadding = inset;
     clearEffects();
     bodies.forEach((body, i) => {
       body.x *= width / oldW;
       body.y *= height / oldH;
-      body.radius = UNIVERSE_BRANDS[i].radius * scale;
+      body.radius = definitions[i].radius * scale;
       contain(body);
     });
   };
@@ -227,6 +255,7 @@ export function createUniversePhysics() {
     offsetX = 0,
     offsetY = 0,
   ) => {
+    orbitTime += dt;
     for (let i = 0; i < bodies.length; i++) {
       const b = bodies[i];
       if (i === dragged) {
@@ -239,8 +268,16 @@ export function createUniversePhysics() {
           ny = b.y / (height * 0.34);
         const r = Math.max(0.1, Math.hypot(nx, ny));
         // A gentle circulating current, not a prescribed animation path.
-        b.vx += (-ny * 0.24 - nx * (r - 1) * 0.7) * dt;
-        b.vy += (nx * 0.24 - ny * (r - 1) * 0.7) * dt;
+        if (constellation) {
+          const home = berth(i);
+          // Carry the initial arrangement around the scene with inertia. The
+          // moving current restores circulation after dragging or comet hits.
+          b.vx += ((home.x - b.x) * .9 + home.vx * .9) * dt;
+          b.vy += ((home.y - b.y) * .9 + home.vy * .9) * dt;
+        } else {
+          b.vx += (-ny * 0.24 - nx * (r - 1) * 0.7) * dt;
+          b.vy += (nx * 0.24 - ny * (r - 1) * 0.7) * dt;
+        }
         if (pointer.active) {
           const dx = b.x - pointer.x,
             dy = b.y - pointer.y;
@@ -257,7 +294,7 @@ export function createUniversePhysics() {
             dt;
           b.spin += pointer.vx * force * dt * 0.08;
         }
-        const damping = Math.exp(-0.42 * dt);
+        const damping = Math.exp(-(constellation ? .9 : .42) * dt);
         b.vx = clamp(b.vx * damping, -12, 12);
         b.vy = clamp(b.vy * damping, -12, 12);
         b.x += b.vx * dt;

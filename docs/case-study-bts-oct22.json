@@ -1,0 +1,188 @@
+{
+  "date": "2026-10-22",
+  "storage": "Local WebP assets; no Sanity mutations",
+  "maxDimension": 1440,
+  "totalBytes": 1928090,
+  "images": [
+    {
+      "project": "dictation",
+      "sourceArchive": "sandbar _ stream dictation-20261022T114843Z-1-001.zip",
+      "sourceFile": "412860D7-1302-412B-9582-B032986477F0.JPG",
+      "file": "/images/case-studies/bts/dictation/dictation-bts-01.webp",
+      "width": 960,
+      "height": 1440,
+      "bytes": 31784
+    },
+    {
+      "project": "dictation",
+      "sourceArchive": "sandbar _ stream dictation-20261022T114843Z-1-001.zip",
+      "sourceFile": "IMG_4715_DSLR.JPG",
+      "file": "/images/case-studies/bts/dictation/dictation-bts-02.webp",
+      "width": 1440,
+      "height": 960,
+      "bytes": 39284
+    },
+    {
+      "project": "dictation",
+      "sourceArchive": "sandbar _ stream dictation-20261022T114843Z-1-001.zip",
+      "sourceFile": "IMG_4720_DSLR.JPG",
+      "file": "/images/case-studies/bts/dictation/dictation-bts-03.webp",
+      "width": 960,
+      "height": 1440,
+      "bytes": 43618
+    },
+    {
+      "project": "dictation",
+      "sourceArchive": "sandbar _ stream dictation-20261022T114843Z-1-001.zip",
+      "sourceFile": "IMG_4731_DSLR.JPG",
+      "file": "/images/case-studies/bts/dictation/dictation-bts-04.webp",
+      "width": 1440,
+      "height": 960,
+      "bytes": 50226
+    },
+    {
+      "project": "dictation",
+      "sourceArchive": "sandbar _ stream dictation-20261022T114843Z-1-001.zip",
+      "sourceFile": "IMG_4736_DSLR (1).JPG",
+      "file": "/images/case-studies/bts/dictation/dictation-bts-05.webp",
+      "width": 1440,
+      "height": 960,
+      "bytes": 31908
+    },
+    {
+      "project": "dictation",
+      "sourceArchive": "sandbar _ stream dictation-20261022T114843Z-1-001.zip",
+      "sourceFile": "IMG_4750_DSLR.JPG",
+      "file": "/images/case-studies/bts/dictation/dictation-bts-06.webp",
+      "width": 1440,
+      "height": 960,
+      "bytes": 57654
+    },
+    {
+      "project": "youre-on-mute",
+      "sourceArchive": "You're on Mute Site BTS-20261022T114905Z-1-001.zip",
+      "sourceFile": "IMG_3402.jpeg",
+      "file": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-01.webp",
+      "width": 960,
+      "height": 1280,
+      "bytes": 229292
+    },
+    {
+      "project": "youre-on-mute",
+      "sourceArchive": "You're on Mute Site BTS-20261022T114905Z-1-001.zip",
+      "sourceFile": "IMG_3425.jpeg",
+      "file": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-02.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 98466
+    },
+    {
+      "project": "youre-on-mute",
+      "sourceArchive": "You're on Mute Site BTS-20261022T114905Z-1-001.zip",
+      "sourceFile": "IMG_3426.jpeg",
+      "file": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-03.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 109304
+    },
+    {
+      "project": "youre-on-mute",
+      "sourceArchive": "You're on Mute Site BTS-20261022T114905Z-1-001.zip",
+      "sourceFile": "IMG_3431.jpeg",
+      "file": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-04.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 71244
+    },
+    {
+      "project": "youre-on-mute",
+      "sourceArchive": "You're on Mute Site BTS-20261022T114905Z-1-001.zip",
+      "sourceFile": "IMG_3461.jpeg",
+      "file": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-05.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 123616
+    },
+    {
+      "project": "youre-on-mute",
+      "sourceArchive": "You're on Mute Site BTS-20261022T114905Z-1-001.zip",
+      "sourceFile": "IMG_3471.jpeg",
+      "file": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-06.webp",
+      "width": 1152,
+      "height": 1440,
+      "bytes": 116474
+    },
+    {
+      "project": "youre-on-mute",
+      "sourceArchive": "You're on Mute Site BTS-20261022T114905Z-1-001.zip",
+      "sourceFile": "IMG_3485.jpeg",
+      "file": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-07.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 113202
+    },
+    {
+      "project": "bless-this-desk",
+      "sourceArchive": "Bless this desk _ Site BTS-20261022T114859Z-1-001.zip",
+      "sourceFile": "IMG_3834.jpeg",
+      "file": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-01.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 134392
+    },
+    {
+      "project": "bless-this-desk",
+      "sourceArchive": "Bless this desk _ Site BTS-20261022T114859Z-1-001.zip",
+      "sourceFile": "IMG_3859.jpeg",
+      "file": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-02.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 134294
+    },
+    {
+      "project": "bless-this-desk",
+      "sourceArchive": "Bless this desk _ Site BTS-20261022T114859Z-1-001.zip",
+      "sourceFile": "IMG_3952.jpeg",
+      "file": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-03.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 98452
+    },
+    {
+      "project": "bless-this-desk",
+      "sourceArchive": "Bless this desk _ Site BTS-20261022T114859Z-1-001.zip",
+      "sourceFile": "IMG_3972.jpeg",
+      "file": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-04.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 114422
+    },
+    {
+      "project": "bless-this-desk",
+      "sourceArchive": "Bless this desk _ Site BTS-20261022T114859Z-1-001.zip",
+      "sourceFile": "IMG_3992.jpeg",
+      "file": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-05.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 153996
+    },
+    {
+      "project": "bless-this-desk",
+      "sourceArchive": "Bless this desk _ Site BTS-20261022T114859Z-1-001.zip",
+      "sourceFile": "IMG_4087.jpeg",
+      "file": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-06.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 76894
+    },
+    {
+      "project": "bless-this-desk",
+      "sourceArchive": "Bless this desk _ Site BTS-20261022T114859Z-1-001.zip",
+      "sourceFile": "IMG_4117.jpeg",
+      "file": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-07.webp",
+      "width": 1080,
+      "height": 1440,
+      "bytes": 99568
+    }
+  ]
+}

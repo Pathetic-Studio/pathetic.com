@@ -51,7 +51,6 @@ export default function ProjectCtaSkySection({
     scrollActivatedRef.current = stationary;
     portal.dataset.layout = stationary ? "stationary" : "bouncing";
     let disposed = false, visible = false, active = false, measured = false, prepared = false;
-    let uiActive = false;
     const ui = createProjectCtaUi();
     let weather: ReturnType<typeof createProjectObjectWeather> = null;
     let fuzzy: ReturnType<typeof createProjectFuzzyStar> = null;
@@ -77,6 +76,7 @@ export default function ProjectCtaSkySection({
       if (next === active) return;
       if (!next) { bounce.x = titleX; bounce.y = titleY; }
       active = next; portal.dataset.active = String(next);
+      ui.setActive(next);
       button.tabIndex = next || stationary ? 0 : -1;
       window.dispatchEvent(new CustomEvent("app:project-cta-active", { detail: { active: next } }));
       if (next) prepare();
@@ -174,8 +174,6 @@ export default function ProjectCtaSkySection({
     const observer = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       intersectionRatio = entry.intersectionRatio;
-      uiActive = visible && intersectionRatio > (uiActive ? .3 : .55);
-      ui.setActive(uiActive);
       portal.style.visibility = visible ? "visible" : "hidden";
       portal.inert = !visible;
       weather?.setVisible(visible && progress.value > .001);

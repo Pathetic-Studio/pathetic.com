@@ -100,7 +100,10 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
         if (!el) continue;
         const target = activeRef.current === role.id ? "head" : "free";
         const previous = destination.current.get(role.id);
-        if (previous === target && (!instant || target === "free")) continue;
+        if (
+          previous === target && (!instant || target === "free") &&
+          (target === "free" || wornRef.current === role.id || moves.current.has(role.id))
+        ) continue;
         destination.current.set(role.id, target);
         // Untouched hats remain in the Matter world, wherever they have landed.
         if (target === "free" && previous === undefined) continue;
@@ -282,7 +285,9 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
       velocity: { x: 0, y: 0 },
     };
     destination.current.set(role, "free");
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // Keep capture on the permanent flight button. The worn button is hidden
+    // during pickup, which can cancel touch capture before the drop arrives.
+    el.setPointerCapture(event.pointerId);
     if (fromHead) clear();
     setDragging(role);
   };
@@ -359,6 +364,7 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
       section = sectionRef.current,
       api = physics.current;
     if (!drag || drag.pointerId !== event.pointerId || !section || !api) return;
+    if (event.type === "lostpointercapture" && event.currentTarget !== proxy(drag.role)) return;
     event.stopPropagation();
     // Pointer-up can arrive ahead of the final move event on a fast release.
     if (
@@ -369,6 +375,9 @@ export function useHatWardrobe(sectionRef: RefObject<HTMLElement | null>) {
       move(event);
     const snap =
       !cancelled && (drag.moved ? nearHead(drag.role, event) : !drag.fromHead);
+    // A replacement always gets a fresh flight, even if the previous one was
+    // interrupted or finished while another hat was being dragged.
+    if (snap) destination.current.delete(drag.role);
     dragRef.current = null;
     delete section.dataset.hatNearHead;
     const el = proxy(drag.role);

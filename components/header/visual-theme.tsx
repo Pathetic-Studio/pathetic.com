@@ -8,8 +8,11 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import { radialRevealGradient, type RadialReveal } from "@/lib/radial-reveal";
 
-export type HeaderVisualMode = "default" | "electric" | "matrix";
+export type HeaderVisualMode = "default" | "electric" | "matrix" | "space";
+
+export type HeaderRadialReveal = RadialReveal;
 
 export type HeaderVisualTheme = {
   mode: Exclude<HeaderVisualMode, "default">;
@@ -19,6 +22,7 @@ export type HeaderVisualTheme = {
   progress?: number;
   boundary?: number;
   priority?: number;
+  radial?: HeaderRadialReveal | null;
 };
 
 type HeaderVisualClaim = Required<HeaderVisualTheme> & {
@@ -76,6 +80,7 @@ function normaliseClaim(
     boundary: clamp01(theme.boundary, 0),
     priority: theme.priority ?? 0,
     order,
+    radial: theme.radial ?? null,
   };
 }
 
@@ -124,12 +129,37 @@ function syncBoundaryToHeaderItems(header: HTMLElement, boundary: number) {
   });
 }
 
+let radialMeasurements: { header: HTMLElement; width: number; height: number; items: { target: HTMLElement; bounds: DOMRect }[] } | null = null;
+function syncRadialToHeader(header: HTMLElement, radial: HeaderRadialReveal) {
+  // Header geometry is fixed during this transition. Read once, then update
+  // masks with the exact same oval/feather as the scene, without layout reads.
+  if (!radialMeasurements || radialMeasurements.header !== header ||
+    radialMeasurements.width !== innerWidth || radialMeasurements.height !== innerHeight) {
+    radialMeasurements = { header, width: innerWidth, height: innerHeight, items:
+      Array.from(header.querySelectorAll<HTMLElement>(
+        "[data-header-logo-space], [data-header-right-box], [data-header-nav-label], [data-header-social-matrix], [data-mobile-header-role=nav]",
+      )).map(target => ({ target, bounds: target.getBoundingClientRect() })) };
+  }
+  for (const { target, bounds } of radialMeasurements.items) {
+    const x = radial.x - bounds.left, y = radial.y - bounds.top;
+    target.style.setProperty("--header-space-mask", radialRevealGradient({ ...radial, x, y }, "0 0 0"));
+    // CSS clamps the clip to the element's current height. Capping it to a
+    // cached entrance-animation height can leave half the mobile logo black.
+    target.style.setProperty("--header-space-bottom", `${Math.max(0, radial.bottom - bounds.top)}px`);
+    const distance = Math.hypot((bounds.left + bounds.width / 2 - radial.x) / radial.stretchX, bounds.top + bounds.height / 2 - radial.y);
+    const covered = Math.max(0, Math.min(1, (radial.radius + radial.feather - distance) / Math.max(.01, radial.feather * 2)));
+    const amount = radial.bottom > bounds.top ? covered * covered * (3 - 2 * covered) : 0;
+    target.style.setProperty("--header-space-ink", String(Math.round(amount * 255)));
+  }
+}
+
 function applyClaimToHeader(claim: HeaderVisualClaim | null) {
   if (typeof document === "undefined") return;
   const header = document.getElementById("site-header-root");
   if (!header) return;
 
   if (!claim) {
+    radialMeasurements = null;
     header.dataset.headerVisualMode = "default";
     delete header.dataset.headerVisualSource;
     delete header.dataset.headerMatrixExiting;
@@ -148,6 +178,10 @@ function applyClaimToHeader(claim: HeaderVisualClaim | null) {
 
   header.dataset.headerVisualMode = claim.mode;
   header.dataset.headerVisualSource = claim.sourceId;
+  if (claim.mode === "space" && claim.radial) {
+    syncRadialToHeader(header, claim.radial);
+    return;
+  }
   header.dataset.headerMatrixExiting = String(claim.mode === "matrix" && claim.boundary > 0);
   header.style.setProperty("--header-theme-progress", String(claim.progress));
   header.style.setProperty("--header-effect-intensity", String(claim.intensity));

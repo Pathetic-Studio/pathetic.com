@@ -120,9 +120,7 @@ export default function CaseStudyObject({
               y:
                 placement === "next"
                   ? height * (compact ? 0.67 : 0.4)
-                  : compact
-                    ? 155
-                    : height * 0.4,
+                  : height * 0.73,
             };
           return placement === "next"
             ? {
@@ -130,8 +128,8 @@ export default function CaseStudyObject({
                 y: height * (compact ? 0.62 : 0.4),
               }
             : {
-                x: compact ? width / 2 : width * 0.19,
-                y: compact ? 155 : height * 0.4,
+                x: width * (compact ? 0.72 : 0.82),
+                y: height * 0.73,
               };
         };
         const states = elements.map((element, index) => {

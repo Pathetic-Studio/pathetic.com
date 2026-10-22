@@ -100,7 +100,7 @@ export default function WorkContentViewer({
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const panel = panelRef.current;
     const selected = Math.max(0, Math.min((content.images?.length || 1) - 1, content.initialIndex || 0));
-    const photo = panel.querySelector<HTMLImageElement>(`[data-work-gallery-slide="${selected}"] img`);
+    const photo = panel.querySelector(`[data-work-gallery-slide="${selected}"] [data-gallery-art]`);
     let scale = reduced ? 1 : 0.94, x = 0, y = reduced ? 0 : 18;
     if (!reduced && content.origin && photo) {
       const source = content.origin, target = photo.getBoundingClientRect(), frame = panel.getBoundingClientRect();

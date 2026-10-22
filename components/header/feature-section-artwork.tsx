@@ -28,7 +28,12 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
     let lastTransform = "";
     let lastScroll = -1, settleUntil = 0;
     let current = "";
-    const hat = root.querySelector<HTMLElement>("[data-header-section-hat]");
+    const imageArtwork = {
+      services: root.querySelector<HTMLElement>("[data-header-section-matcha]"),
+      wardrobe: root.querySelector<HTMLElement>("[data-header-section-hat]"),
+    };
+    const images = Object.values(imageArtwork).filter((image): image is HTMLElement => !!image);
+    const imageFor = (artwork?: string) => imageArtwork[artwork as keyof typeof imageArtwork];
     const reduced = matchMedia("(prefers-reduced-motion: reduce)");
     let artworkTween: gsap.core.Timeline | undefined;
     let ctaActive = !!document.querySelector('[data-project-cta-sky-portal][data-active="true"]');
@@ -38,33 +43,38 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
       if (next === current) return;
       current = next;
       artworkTween?.kill();
-      const previous = native.dataset.sectionArtwork;
+      const previousImage = imageFor(native.dataset.sectionArtwork);
+      const nextImage = imageFor(next);
       const apply = () => {
         native.dataset.sectionArtwork = next;
+        native.dataset.sectionImage = String(!!nextImage);
         feature.dataset.headerSectionArtwork = next;
         native.style.setProperty("--header-section-star-colour", section?.colour || "transparent");
-        if (next === "wardrobe") {
-          // A hover spin from the preceding star must not carry into the hat.
+        if (nextImage) {
+          // All photographic nav objects stay upright, including a star's
+          // in-progress hover spin when the section changes underneath it.
           gsap.killTweensOf(native);
           gsap.set(native, { rotation: 0, scaleX: 1, scaleY: 1 });
         }
       };
-      if (!hat || reduced.matches) {
+      if (reduced.matches) {
         apply();
-        if (hat) gsap.set(hat, { clearProps: "transform,opacity,visibility" });
+        gsap.set(images, { clearProps: "transform,opacity,visibility" });
         return;
       }
       artworkTween = gsap.timeline();
-      if (next === "wardrobe") {
+      if (previousImage && previousImage !== nextImage) {
+        artworkTween.to(previousImage, { scale: 0, autoAlpha: 0, duration: 0.16, ease: "back.in(1.2)" });
+      }
+      artworkTween.call(() => {
         apply();
-        if (previous !== "wardrobe") gsap.set(hat, { scale: 0, autoAlpha: 0 });
-        artworkTween.to(hat, { scale: 1, autoAlpha: 1, duration: 0.32, ease: "back.out(1.8)" })
-          .set(hat, { clearProps: "transform,opacity,visibility" });
-      } else if (previous === "wardrobe") {
-        artworkTween.to(hat, { scale: 0, autoAlpha: 0, duration: 0.16, ease: "back.in(1.2)" })
-          .call(apply)
-          .set(hat, { clearProps: "transform,opacity,visibility" });
-      } else apply();
+        gsap.set(images.filter(image => image !== nextImage), { clearProps: "transform,opacity,visibility" });
+        if (nextImage && previousImage !== nextImage) gsap.set(nextImage, { scale: 0, autoAlpha: 0 });
+      });
+      if (nextImage) {
+        artworkTween.to(nextImage, { scale: 1, autoAlpha: 1, duration: 0.32, ease: "back.out(1.8)" })
+          .set(nextImage, { clearProps: "transform,opacity,visibility" });
+      }
     };
     const discover = () => {
       sections = [];
@@ -154,9 +164,10 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
       window.removeEventListener("app:project-cta-active", ctaChanged);
       document.removeEventListener("scroll", scrollChanged, true);
       delete native.dataset.sectionArtwork;
+      delete native.dataset.sectionImage;
       delete feature.dataset.headerSectionArtwork;
       artworkTween?.kill();
-      if (hat) gsap.set(hat, { clearProps: "transform,opacity,visibility" });
+      gsap.set(images, { clearProps: "transform,opacity,visibility" });
       native.style.removeProperty("--header-section-star-colour");
     };
   }, [pathname]);
@@ -164,8 +175,9 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
   return (
     <span ref={rootRef} data-header-section-artwork aria-hidden="true" className="pointer-events-none absolute inset-0">
       <span data-header-section-star className="absolute inset-0" style={{ "--header-star-mask": `url("${imageUrl}")` } as CSSProperties} />
+      <span data-header-section-matcha data-header-section-image className="absolute inset-0" />
       <span data-header-section-network className="absolute inset-0" />
-      <span data-header-section-hat className="absolute inset-0" />
+      <span data-header-section-hat data-header-section-image className="absolute inset-0" />
     </span>
   );
 }

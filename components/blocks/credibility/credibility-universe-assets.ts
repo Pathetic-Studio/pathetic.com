@@ -1,4 +1,4 @@
-import { UNIVERSE_BRANDS } from "./credibility-universe-data";
+import { UNIVERSE_BRANDS, universeArtwork } from "./credibility-universe-data";
 
 // Shared by the lightweight section and the deferred WebGL scene. Fetch marks
 // early; a slow mark must never hold up the galaxy or the other six objects.
@@ -35,6 +35,8 @@ export function preloadUniverseLogos() {
   UNIVERSE_BRANDS.forEach((brand) => void universeLogo(brand.file));
 }
 
-export function preloadUniverseObjects() {
-  UNIVERSE_BRANDS.forEach((brand) => void universeObjectImage(brand.image));
+export function preloadUniverseObjects(tech = false) {
+  UNIVERSE_BRANDS.forEach(
+    (_, i) => void universeObjectImage(universeArtwork(i, tech).image),
+  );
 }

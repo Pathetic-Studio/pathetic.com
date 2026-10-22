@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   UNIVERSE_BRANDS,
+  universeArtwork,
   TAU,
   clamp,
   seededRandom,
@@ -19,6 +20,12 @@ import { createCometTail } from "./credibility-comet";
 import { createCometEffects } from "./credibility-comet-effects";
 import { universeObjectImage } from "./credibility-universe-assets";
 import { createUniverseLabel } from "./credibility-universe-label";
+import { createSpaceCallout } from "./credibility-space-callout";
+import type { RefObject } from "react";
+import {
+  spaceRange,
+  type SpaceTransition,
+} from "./credibility-space-transition";
 
 export type UniverseScene = Awaited<ReturnType<typeof createUniverseScene>>;
 
@@ -87,9 +94,11 @@ export async function createUniverseScene(
   {
     labelStyle = UNIVERSE_LABEL_STYLE,
     objectStyle = UNIVERSE_OBJECT_STYLE,
+    transition,
   }: {
     labelStyle?: UniverseLabelStyle;
     objectStyle?: UniverseObjectStyle;
+    transition?: RefObject<SpaceTransition>;
   } = {},
 ) {
   const renderer = new THREE.WebGLRenderer({
@@ -98,12 +107,14 @@ export async function createUniverseScene(
     antialias: false,
     powerPreference: "low-power",
   });
+  const tech = labelStyle === "tech";
   let galaxy: Awaited<ReturnType<typeof createCredibilityGalaxy>>;
   try {
     galaxy = await createCredibilityGalaxy(
       renderer,
       signal,
       canvas.clientWidth < 700,
+      tech,
     );
   } catch (error) {
     renderer.dispose();
@@ -126,7 +137,9 @@ export async function createUniverseScene(
   const rim = new THREE.DirectionalLight(0x8888ff, 2.8);
   rim.position.set(6, -3, -2);
   scene.add(rim);
-  const physics = createUniversePhysics();
+  const glassesIndex = UNIVERSE_BRANDS.length;
+  const movingGlasses = tech && Boolean(transition);
+  const physics = createUniversePhysics(tech, movingGlasses);
   // Paint the additive starfield before the cutouts so it cannot wash through
   // their opaque faces. The strike comet and its effects keep their own depth.
   if (objectStyle === "images") galaxy.group.renderOrder = -1;
@@ -305,6 +318,46 @@ export async function createUniverseScene(
   let renderedFrames = 0;
   let presented = false,
     appearanceTime = 0;
+  let reveal = 1,
+    hovered = -1,
+    selected = -1;
+  let pointerHover = false;
+  const callouts = tech ? hitAreas.map(createSpaceCallout) : [];
+  const hitBounds = hitAreas.map(() => ({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    enabled: false,
+  }));
+  function clearInspection() {
+    hovered = selected = -1;
+  }
+  function inspectionIndex() {
+    if (!tech || !presented || reveal < 0.25) return -1;
+    if (pointerHover && pointer.active) {
+      if (dragged >= 0) return dragged;
+      const x = ((ndc.x + 1) * width) / 2,
+        y = ((1 - ndc.y) * height) / 2;
+      let nearest = -1,
+        distance = Infinity;
+      hitBounds.forEach((box, i) => {
+        if (
+          !box.enabled ||
+          Math.abs(x - box.x) > box.width / 2 ||
+          Math.abs(y - box.y) > box.height / 2
+        )
+          return;
+        const d = Math.hypot(x - box.x, y - box.y);
+        if (d < distance) {
+          nearest = i;
+          distance = d;
+        }
+      });
+      return nearest;
+    }
+    return hovered >= 0 ? hovered : selected;
+  }
   let grabOffsetX = 0,
     grabOffsetY = 0;
   let compact = false,
@@ -362,14 +415,16 @@ export async function createUniverseScene(
     lastSize = size;
     width = Math.max(1, w);
     height = Math.max(1, h);
-    compact = width < 700;
+    compact = width < 700 || (tech && width / height < 0.85);
     spanY = compact ? 16.5 : 10.8;
     spanX = (spanY * width) / height;
-    bodyScale = compact ? 0.82 : 1;
+    bodyScale = tech ? (compact ? 0.56 : 0.7) : compact ? 0.82 : 1;
+    const highDensity =
+      tech && (width < 1024 || matchMedia("(pointer: coarse)").matches);
     const dpr = Math.min(
       window.devicePixelRatio || 1,
-      1.25,
-      Math.sqrt(1500000 / (width * height)),
+      highDensity ? 2 : 1.25,
+      Math.sqrt((highDensity ? 2400000 : 1500000) / (width * height)),
     );
     sceneDpr.value = dpr;
     renderer.setPixelRatio(dpr);
@@ -380,7 +435,13 @@ export async function createUniverseScene(
     camera.top = spanY / 2;
     camera.bottom = -spanY / 2;
     camera.updateProjectionMatrix();
-    physics.resize(spanX, spanY, bodyScale);
+    // Keep moving wordmarks clear of the custom scrollbar on narrow screens.
+    physics.resize(
+      spanX,
+      spanY,
+      bodyScale,
+      tech ? (10 * spanY) / height : 0.12,
+    );
     brands.forEach((_, i) => sizeLogo(i));
     if (initial) {
       physics.reset();
@@ -388,7 +449,9 @@ export async function createUniverseScene(
     }
     wake.forEach((p) => p.set(physics.bodies[1].x, physics.bodies[1].y));
   }
-  function setPointer(x: number, y: number, active: boolean) {
+  function setPointer(x: number, y: number, active: boolean, mouse = false) {
+    pointerHover = active && mouse;
+    if (pointerHover) clearInspection();
     const previousX = pointer.x,
       previousY = pointer.y;
     const wasActive = pointer.active;
@@ -459,10 +522,16 @@ export async function createUniverseScene(
     sceneTime.value = elapsed;
     if (presented && !quiet) appearanceTime += dt;
     galaxy.setReveal(
-      presented ? (quiet ? 1 : clamp(appearanceTime / 0.65, 0, 1)) : 0,
+      presented
+        ? tech
+          ? 0.8 * reveal
+          : quiet
+            ? 1
+            : clamp(appearanceTime / 0.65, 0, 1)
+        : 0,
     );
     // The field stays in place while individual stars respond to the pointer.
-    world.rotation.set(-0.12, 0, -0.035);
+    world.rotation.set(tech ? 0 : -0.12, 0, tech ? 0 : -0.035);
     updatePointer();
     const pointerDamping = Math.exp(
       -Math.max(0, performance.now() - lastMoveTime - 20) / 45,
@@ -485,6 +554,9 @@ export async function createUniverseScene(
       group.scale.setScalar(comet.radius);
       group.rotation.z = Math.atan2(comet.vy, comet.vx);
     });
+    const inspectedIndex = inspectionIndex();
+    const pointerX = ((ndc.x + 1) * width) / 2,
+      pointerY = ((1 - ndc.y) * height) / 2;
     brands.forEach((brand, i) => {
       const { group, mesh, flame, tail, logo } = brand;
       const b = physics.bodies[i];
@@ -496,12 +568,16 @@ export async function createUniverseScene(
       group.position.set(b.x, b.y, 0);
       if (presented && brand.ready && brand.appearedAt < 0)
         brand.appearedAt = Math.max(appearanceTime, i * 0.055);
-      const progress =
+      const assetProgress =
         presented && brand.ready
           ? quiet
             ? 1
             : clamp((appearanceTime - brand.appearedAt) / 0.48, 0, 1)
           : 0;
+      const progress = Math.min(
+        assetProgress,
+        tech ? spaceRange(reveal, i * 0.035, 0.65 + i * 0.035) : 1,
+      );
       brand.reveal = progress;
       const pop =
         1 + 2.6 * Math.pow(progress - 1, 3) + 1.6 * Math.pow(progress - 1, 2);
@@ -511,7 +587,7 @@ export async function createUniverseScene(
       );
       hitAreas[i].style.visibility = progress > 0 ? "visible" : "hidden";
       hitAreas[i].style.pointerEvents = progress > 0.75 ? "auto" : "none";
-      const kind = UNIVERSE_BRANDS[i].kind;
+      const kind = universeArtwork(i, tech && objectStyle === "images").kind;
       if (kind === "rocket") {
         mesh.rotation.set(0, 0, brand.heading - Math.PI / 2);
         // The mark stays camera-facing and follows the middle of the hull.
@@ -542,6 +618,15 @@ export async function createUniverseScene(
         .applyMatrix4(world.matrixWorld)
         .project(camera);
       const hit = hitAreas[i];
+      const inspected = inspectedIndex === i;
+      hit.dataset.inspected = String(inspected);
+      if (tech) {
+        hit.setAttribute("aria-pressed", String(selected === i));
+        if (brand.image)
+          (
+            mesh as THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>
+          ).material.color.set(inspected ? "#b3ffb0" : "#ffffff");
+      }
       const unit = (b.radius * height) / spanY;
       let hitWidth =
         unit *
@@ -566,7 +651,7 @@ export async function createUniverseScene(
         hitWidth = unit * (mesh.scale.x * c + mesh.scale.y * s);
         hitHeight = unit * (mesh.scale.x * s + mesh.scale.y * c);
       }
-      if (labelStyle === "button") {
+      if (labelStyle !== "on-object" && !tech) {
         const labelHeight = logo.scale.y * unit;
         const gap = compact ? 3 : 5;
         logo.position.set(
@@ -577,6 +662,11 @@ export async function createUniverseScene(
         hitWidth = Math.max(hitWidth, logo.scale.x * unit);
         labelOffset = (gap + labelHeight) / 2;
         hitHeight += gap + labelHeight;
+        if (tech)
+          hit.style.setProperty(
+            "--space-label-height",
+            `${gap + labelHeight}px`,
+          );
       }
       if (hit.style.width !== `${hitWidth}px`) {
         hit.style.width = `${hitWidth}px`;
@@ -587,7 +677,96 @@ export async function createUniverseScene(
       const hitScale = Math.max(0.0001, pop) * (i === dragged ? 1.08 : 1);
       hit.style.transform = `translate(${(((projected.x + 1) * width) / 2).toFixed(2)}px,${(((1 - projected.y) * height) / 2 + labelOffset * hitScale).toFixed(2)}px) translate(-50%,-50%) scale(${hitScale})`;
       hit.dataset.grabbed = String(i === dragged);
+      const centerX = ((projected.x + 1) * width) / 2;
+      const centerY = ((1 - projected.y) * height) / 2;
+      if (tech)
+        b.visualHalfWidth = (hitWidth * spanY) / (2 * height * bodyScale);
+      Object.assign(hitBounds[i], {
+        x: centerX,
+        y: centerY,
+        width: hitWidth * hitScale,
+        height: hitHeight * hitScale,
+        enabled: progress > 0.75,
+      });
+      if (tech)
+        callouts[i]({
+          width: hitWidth,
+          height: hitHeight,
+          centerX,
+          centerY,
+          viewportWidth: width,
+          viewportHeight: height,
+          labelWidth: logo.scale.x * unit,
+          labelHeight: logo.scale.y * unit,
+          inspected,
+          compact,
+          time: elapsed,
+          dt,
+          quiet,
+          pointerX,
+          pointerY,
+          pointerActive: pointerHover && pointer.active,
+        });
     });
+    if (movingGlasses && transition) {
+      const body = physics.bodies[glassesIndex];
+      const pose = (transition.current.glasses ||= {
+        x: 0.45,
+        y: 0.23,
+        angle: 0,
+        version: 0,
+      });
+      pose.x = 0.5 + body.x / spanX;
+      pose.y = 0.5 - body.y / spanY;
+      pose.angle = body.angle;
+      pose.version++;
+      if (pose.width && pose.height) {
+        body.labelHalfWidth = (pose.width * spanX) / (2 * bodyScale);
+        body.labelBottom = (pose.height * spanY) / (2 * bodyScale);
+      }
+      const hit = hitAreas[glassesIndex];
+      const enabled = !quiet && transition.current.progress >= 0.78;
+      hit.style.visibility = enabled ? "visible" : "hidden";
+      hit.style.pointerEvents = enabled ? "auto" : "none";
+      // The original renderer supplies tight projected mesh bounds and their
+      // centre offset as the frames turn. No oversized world-axis hover box.
+      const hitWidth = (pose.width || 0.16) * width;
+      const hitHeight = (pose.height || 0.13) * height;
+      const centerX = (pose.x + (pose.offsetX || 0)) * width,
+        centerY = (pose.y + (pose.offsetY || 0)) * height;
+      hit.style.width = `${hitWidth}px`;
+      hit.style.height = `${hitHeight}px`;
+      hit.style.transform = `translate(${centerX}px,${centerY}px) translate(-50%,-50%)`;
+      hit.dataset.grabbed = String(dragged === glassesIndex);
+      const inspected = inspectedIndex === glassesIndex;
+      hit.dataset.inspected = String(inspected);
+      hit.setAttribute("aria-pressed", String(selected === glassesIndex));
+      Object.assign(hitBounds[glassesIndex], {
+        x: centerX,
+        y: centerY,
+        width: hitWidth,
+        height: hitHeight,
+        enabled,
+      });
+      callouts[glassesIndex]({
+        width: hitWidth,
+        height: hitHeight,
+        centerX,
+        centerY,
+        viewportWidth: width,
+        viewportHeight: height,
+        labelWidth: 172,
+        labelHeight: 34,
+        inspected,
+        compact,
+        time: elapsed,
+        dt,
+        quiet,
+        pointerX,
+        pointerY,
+        pointerActive: pointerHover && pointer.active,
+      });
+    }
     if (dt && !quiet) {
       for (let i = wake.length - 1; i > 0; i--)
         wake[i].lerp(wake[i - 1], Math.min(1, dt * 25));
@@ -633,6 +812,7 @@ export async function createUniverseScene(
   }
   function reset() {
     release();
+    hovered = selected = -1;
     physics.reset();
     lastLaunchTime = -1;
     galaxy.reset();
@@ -663,10 +843,15 @@ export async function createUniverseScene(
     const texture = logo.material.map;
     if (!texture || texture === blank) return;
     const brand = UNIVERSE_BRANDS[i];
-    if (labelStyle === "button") {
+    if (labelStyle !== "on-object") {
       const element = brands[i].labelElement;
-      if (element)
-        element.style.transform = `translateX(-50%) scale(${compact ? 0.88 : 1})`;
+      if (element) {
+        if (tech) {
+          element.style.width = `${texture.userData.labelWidth * (compact ? 0.88 : 1)}px`;
+          element.style.height = `${texture.userData.labelHeight * (compact ? 0.88 : 1)}px`;
+        } else
+          element.style.transform = `translateX(-50%) scale(${compact ? 0.88 : 1})`;
+      }
       const pixelsToWorld = (spanY / height) * (compact ? 0.88 : 1);
       const labelWidth = texture.userData.labelWidth * pixelsToWorld;
       const labelHeight = texture.userData.labelHeight * pixelsToWorld;
@@ -692,7 +877,8 @@ export async function createUniverseScene(
   // each labelled model joins it with its own scale pop as soon as it is ready.
   UNIVERSE_BRANDS.forEach((brand, i) => {
     if (objectStyle === "images") {
-      void universeObjectImage(brand.image).then((image) => {
+      const artwork = universeArtwork(i, tech);
+      void universeObjectImage(artwork.image).then((image) => {
         if (disposed || signal.aborted) return;
         const entry = brands[i];
         if (image) {
@@ -707,8 +893,8 @@ export async function createUniverseScene(
           mesh.material.map = texture;
           const aspect = image.naturalWidth / image.naturalHeight;
           mesh.scale.set(
-            brand.imageSize * Math.min(1, aspect),
-            brand.imageSize * Math.min(1, 1 / aspect),
+            artwork.imageSize * Math.min(1, aspect),
+            artwork.imageSize * Math.min(1, 1 / aspect),
             1,
           );
         } else {
@@ -737,7 +923,10 @@ export async function createUniverseScene(
       logo.material.map = texture;
       if (element) {
         brands[i].labelElement = element;
-        hitAreas[i].append(element);
+        (tech
+          ? hitAreas[i].querySelector("[data-space-logo]")!
+          : hitAreas[i]
+        ).append(element);
       }
       sizeLogo(i);
       brands[i].logoReady = true;
@@ -754,6 +943,22 @@ export async function createUniverseScene(
     render,
     setPresented: (value: boolean) => {
       presented = value;
+      if (!value) {
+        clearInspection();
+        pointerHover = false;
+      }
+    },
+    setReveal: (value: number) => {
+      reveal = value;
+      if (value < 0.25) clearInspection();
+    },
+    clearInspection,
+    setHovered: (index: number) => {
+      hovered = index;
+      if (index >= 0) pointerHover = false;
+    },
+    toggleInspection: (index: number) => {
+      selected = selected === index ? -1 : index;
     },
     setPointer,
     grab,
@@ -784,7 +989,7 @@ export async function createUniverseScene(
     inspect: () =>
       process.env.NODE_ENV === "development"
         ? {
-            bodies: physics.bodies.map((body, i) => ({
+            bodies: physics.bodies.slice(0, brands.length).map((body, i) => ({
               ...body,
               heading: brands[i].heading,
               ready: brands[i].ready,
@@ -800,6 +1005,7 @@ export async function createUniverseScene(
                 Boolean(brands[i].labelElement) ||
                 (brands[i].logo.visible && !brands[i].logo.material.depthTest),
             })),
+            glasses: movingGlasses ? { ...physics.bodies[glassesIndex] } : null,
             comets: physics.comets.map((comet) => ({ ...comet })),
             fragments: physics.fragments.map((fragment) => ({ ...fragment })),
             impacts: physics.impacts.map((impact) => ({ ...impact })),

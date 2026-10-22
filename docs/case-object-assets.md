@@ -1,5 +1,13 @@
 # Case-study object assets
 
+## Current Ramp and Stream artwork — 21 October 2026
+
+- Ramp uses the original black card from [Ramp’s corporate-card page](https://ramp.com/corporate-cards), downloaded from `https://ramp.com/assets/images/corporate-cards/black-card.webp`. Saved unchanged as `public/images/case-studies/objects/ramp-black-card.webp` (800 × 505, 43,902 bytes). This is the black curved-line design; Ramp’s current product image omits the Visa mark shown in the supplied reference.
+- Stream uses the original image in [Frame 2455, image 5175](https://www.figma.com/design/B2iIUUnP09v4pt9mMg0QFF/Pathetic-JONO?node-id=1126-4214). Only excess transparent canvas was trimmed and the source was encoded as WebP, without regenerating the product. Saved as `public/images/case-studies/objects/stream-ring-figma.webp` (688 × 744, 77,310 bytes).
+- `RAMP_OBJECT` and `SANDBAR_OBJECT` in `lib/work-assets.ts` supply the homepage, Work collection, case-study heroes and next-client panels. The basket’s Work shortcut also uses the original Stream ring. The old generated ring and white card remain archived but have no active object references.
+
+## Earlier restoration — superseded for the Stream ring
+
 Local-only revision, 27 September 2026. No Sanity writes or publishing.
 
 The computer and Stream ring use high-resolution restorations of the existing cutouts. Both were made with the built-in imagegen tool, inspected against the original artwork, and converted to WebP with alpha preserved. Original site assets are retained.

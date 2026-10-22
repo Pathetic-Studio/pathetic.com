@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import GalleryImage from "@/components/ui/gallery-image";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -66,8 +66,8 @@ export default function WorkImageGallery({ images, title, initialIndex = 0 }: {
         {images.map((item, i) => (
           <div key={item.src} data-work-gallery-slide={i} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${images.length}`}
             className={styles.slide}>
-            <Image src={item.src} alt={item.alt} width={item.width} height={item.height}
-              loading={i === start ? "eager" : "lazy"} unoptimized draggable={false}
+            <GalleryImage image={item}
+              loading={i === start ? "eager" : "lazy"} unoptimized
               className={styles.image} />
           </div>
         ))}

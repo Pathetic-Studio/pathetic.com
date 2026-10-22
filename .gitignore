@@ -9,6 +9,10 @@
 # testing
 /coverage
 
+# Local design originals, review captures and generated working files.
+# Website assets are kept separately in public/.
+/output/
+
 # next.js
 /.next/
 /out/

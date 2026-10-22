@@ -43,6 +43,20 @@ const BLOOM_RESUME_FPS = 56;
 const BLOOM_FRAME_INTERVAL = 1000 / 30;
 const BLOOM_BUSY_FRAME_INTERVAL = 1000 / 20;
 
+// Keep only CPU artwork between route visits. Every renderer owns fresh texture
+// wrappers, so disposing the old scene cannot invalidate the incoming one.
+const matrixFrameCache = new Map<string, HTMLCanvasElement[]>();
+function matrixTexture(canvas: HTMLCanvasElement) {
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
 function seededRandom(seed: number) {
   let value = seed >>> 0;
   return () => {
@@ -116,6 +130,12 @@ function createMatrixTextureFrames({
   glowScale?: number;
   glyphWidth?: number;
 }) {
+  const cacheKey = JSON.stringify([
+    color.getHexString(), seed, width, height, columns, background,
+    lineOpacity, gapChance, minStrength, maxStrength, glowScale, glyphWidth,
+  ]);
+  const cached = matrixFrameCache.get(cacheKey);
+  if (cached) return { textures: cached.map(matrixTexture) };
   const random = seededRandom(seed);
   const columnWidth = width / columns;
   const glyphSize = columnWidth * 0.86;
@@ -206,14 +226,7 @@ function createMatrixTextureFrames({
     context.globalAlpha = 1;
     context.shadowBlur = 0;
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.generateMipmaps = false;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    return texture;
+    return matrixTexture(canvas);
   };
 
   const textures = Array.from(
@@ -221,7 +234,11 @@ function createMatrixTextureFrames({
     (_, frameIndex) => renderFrame(frameIndex),
   ).filter((texture): texture is THREE.CanvasTexture => texture !== null);
 
-  return textures.length === MATRIX_TEXTURE_FRAME_COUNT ? { textures } : null;
+  if (textures.length !== MATRIX_TEXTURE_FRAME_COUNT) return null;
+  // Three surface types; cap at two colourways for live preview changes.
+  if (matrixFrameCache.size >= 6) matrixFrameCache.delete(matrixFrameCache.keys().next().value!);
+  matrixFrameCache.set(cacheKey, textures.map(texture => texture.image as HTMLCanvasElement));
+  return { textures };
 }
 
 export default function TalentMatrixScene({

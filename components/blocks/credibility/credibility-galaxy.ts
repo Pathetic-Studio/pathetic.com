@@ -9,7 +9,7 @@ import type {
 import { MAX_COMETS } from "./credibility-universe-physics";
 
 // Keep the GPU force buffers and shader loops in step with the client objects.
-const BRAND_COUNT = UNIVERSE_BRANDS.length;
+const BRAND_COUNT = UNIVERSE_BRANDS.length + 1; // optional shared glasses body
 
 // The buffers store one independent displacement and velocity per star. The
 // only visible primitive is Points; the compute targets contain numerical
@@ -32,9 +32,10 @@ export async function createCredibilityGalaxy(
   renderer: THREE.WebGLRenderer,
   signal: AbortSignal,
   compact: boolean,
+  lightweight = false,
 ) {
-  const columns = compact ? 128 : 256;
-  const rows = compact ? 96 : 128;
+  const columns = lightweight ? 96 : compact ? 128 : 256;
+  const rows = lightweight || compact ? 96 : 128;
   const count = columns * rows;
   const compute = new GPUComputationRenderer(columns, rows, renderer);
   // WebGL2 half-float render targets keep the simulation small on mobile.
@@ -316,12 +317,12 @@ export async function createCredibilityGalaxy(
     },
     resize(spanX: number, spanY: number, compact: boolean, dpr: number) {
       shared.radii.value.set(
-        compact ? spanY * 0.45 : Math.min(spanX * 0.44, spanY * 0.94),
-        compact ? spanX * 0.43 : spanY * 0.4,
+        compact && lightweight ? spanX * .49 : compact ? spanY * 0.45 : Math.min(spanX * 0.44, spanY * 0.94),
+        compact && lightweight ? Math.min(spanY * .24, spanX * .40) : compact ? spanX * 0.43 : spanY * 0.4,
       );
-      const angle = compact ? Math.PI / 2 - 0.16 : 0.13;
+      const angle = compact && lightweight ? .13 : compact ? Math.PI / 2 - 0.16 : 0.13;
       shared.orientation.value.set(Math.cos(angle), Math.sin(angle));
-      shared.center.value.set(0, spanY * 0.07);
+      shared.center.value.set(0, spanY * (compact && lightweight ? 0 : .07));
       uniforms.dpr.value = dpr;
     },
     render(

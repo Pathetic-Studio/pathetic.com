@@ -19,6 +19,7 @@ type EyeConfig = {
 type EyeFollowProps = {
     containerId: string;
     initialEyesContainerId?: string;
+    trackingContainerId?: string; // Follow a larger panel while keeping the eye in its icon slot.
     className?: string;
     spawnOnRelease?: boolean;
     eyes?: EyeConfig[];
@@ -90,6 +91,7 @@ function getEyeMetrics(
 export default function EyeFollow({
     containerId,
     initialEyesContainerId,
+    trackingContainerId,
     className = "",
     spawnOnRelease = false,
     eyes,
@@ -255,12 +257,14 @@ export default function EyeFollow({
         const el = document.getElementById(containerId);
         if (!el) return;
 
+        const trackingEl = trackingContainerId ? document.getElementById(trackingContainerId) || el : el;
         const trackPosition = (event: { clientX: number; clientY: number }) => {
             const r = el.getBoundingClientRect();
             const localX = event.clientX - r.left - el.clientLeft;
             const localY = event.clientY - r.top - el.clientTop;
 
-            if (localX < 0 || localY < 0 || localX > r.width || localY > r.height) {
+            const trackingBounds = trackingEl === el ? r : trackingEl.getBoundingClientRect();
+            if (event.clientX < trackingBounds.left || event.clientY < trackingBounds.top || event.clientX > trackingBounds.right || event.clientY > trackingBounds.bottom) {
                 setMouse(null);
                 return;
             }
@@ -412,9 +416,9 @@ export default function EyeFollow({
             handleDown((event as CustomEvent<{ clientX: number; clientY: number }>).detail);
         };
 
-        el.addEventListener("pointermove", handleMove);
-        el.addEventListener("pointerleave", handleLeave);
-        el.addEventListener("touchstart", touchStart, { passive: true });
+        trackingEl.addEventListener("pointermove", handleMove);
+        trackingEl.addEventListener("pointerleave", handleLeave);
+        trackingEl.addEventListener("touchstart", touchStart, { passive: true });
         window.addEventListener("touchmove", touchMove, { passive: true });
         window.addEventListener("touchend", touchEnd, { passive: true });
         window.addEventListener("touchcancel", touchEnd, { passive: true });
@@ -423,14 +427,14 @@ export default function EyeFollow({
         if (spawnOnRelease) {
             el.addEventListener("pointerup", endPress);
             el.addEventListener("pointercancel", cancelPress);
-            el.addEventListener("pointerleave", cancelPress);
+            trackingEl.addEventListener("pointerleave", cancelPress);
             el.addEventListener("eye-background-tap", canvasBackgroundTap);
         }
 
         return () => {
-            el.removeEventListener("pointermove", handleMove);
-            el.removeEventListener("pointerleave", handleLeave);
-            el.removeEventListener("touchstart", touchStart);
+            trackingEl.removeEventListener("pointermove", handleMove);
+            trackingEl.removeEventListener("pointerleave", handleLeave);
+            trackingEl.removeEventListener("touchstart", touchStart);
             window.removeEventListener("touchmove", touchMove);
             window.removeEventListener("touchend", touchEnd);
             window.removeEventListener("touchcancel", touchEnd);
@@ -438,13 +442,14 @@ export default function EyeFollow({
             el.removeEventListener("pointerdown", spawnOnRelease ? startPress : handleDown);
             el.removeEventListener("pointerup", endPress);
             el.removeEventListener("pointercancel", cancelPress);
-            el.removeEventListener("pointerleave", cancelPress);
+            trackingEl.removeEventListener("pointerleave", cancelPress);
             el.removeEventListener("eye-background-tap", canvasBackgroundTap);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         avoidSpawnOverlap,
         containerId,
+        trackingContainerId,
         edgePadding,
         enableClickToAdd,
         visibleEyes,

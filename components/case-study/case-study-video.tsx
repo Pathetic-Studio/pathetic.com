@@ -69,7 +69,6 @@ export default function CaseStudyVideo({
             sizes="(min-width: 900px) 65vw, 92vw"
           />
           <span className={styles.playLabel}>
-            <span aria-hidden="true">▶</span>
             {film.label}
           </span>
         </button>

@@ -1,4 +1,4 @@
-export type UniverseLabelStyle = "button" | "on-object";
+export type UniverseLabelStyle = "button" | "on-object" | "tech";
 // Local presentation switch; the previous white marks remain available.
 export const UNIVERSE_LABEL_STYLE: UniverseLabelStyle = "button";
 export type UniverseObjectStyle = "images" | "models";
@@ -106,6 +106,26 @@ export const UNIVERSE_BRANDS = [
     wordmarkHeight: 1,
   },
 ] as const;
+
+// Original cutouts from Frame 2446. Keep the previous universe artwork intact.
+export function universeArtwork(index: number, tech = false) {
+  const brand = UNIVERSE_BRANDS[index];
+  if (tech && index === 0)
+    return {
+      image: "jupiter-figma.webp",
+      imageSize: 2.3,
+      kind: "moon" as const,
+    };
+  if (tech && index === 7)
+    return {
+      image: "pigeon-figma.webp",
+      imageSize: 2.5,
+      kind: "moon" as const,
+    };
+  if (tech && index === 8)
+    return { image: "earth-figma.webp", imageSize: 2.3, kind: "moon" as const };
+  return brand;
+}
 
 export const TAU = Math.PI * 2;
 export const clamp = (n: number, lo: number, hi: number) =>

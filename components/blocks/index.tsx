@@ -21,6 +21,7 @@ import CentralTextBlock from "@/components/blocks/central-text-block";
 import FooterBlock, { type FooterBlock as FooterBlockType } from "@/components/blocks/footer";
 import LifecycleSlideshow from "@/components/blocks/lifecycle/lifecycle-slideshow";
 import CredibilitySection from "@/components/blocks/credibility/credibility-section";
+import { CREDIBILITY_PRESENTATION } from "@/components/blocks/credibility/credibility-presentation";
 import WhatWeDoSection from "@/components/blocks/what-we-do/what-we-do-section";
 import WhatWeDoGridSection from "@/components/blocks/what-we-do-grid/what-we-do-grid-section";
 import TalentMatrixSection from "@/components/blocks/talent-matrix/talent-matrix-section";
@@ -99,6 +100,12 @@ export default function Blocks({ blocks }: { blocks: Block[] }) {
   for (let index = 0; index < (blocks?.length || 0); index += 1) {
     const block = blocks[index];
     const nextBlock = blocks[index + 1];
+
+    if (CREDIBILITY_PRESENTATION === "space" && block?._type === "lifecycle-slideshow" && nextBlock?._type === "credibility-section") {
+      rendered.push(<LifecycleSlideshow key={`${block._key}-${nextBlock._key}`} {...block} space={nextBlock} />);
+      index += 1;
+      continue;
+    }
 
     if (
       index > 0 &&

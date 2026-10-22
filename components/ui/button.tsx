@@ -39,6 +39,8 @@ type CMSLink = {
 
   particlesEnabled?: boolean | null;
   particleImages?: ParticleImage[] | null;
+  particleSize?: number;
+  particleCount?: number;
 
   backgroundImageEnabled?: boolean | null;
   backgroundImages?: ParticleImage[] | null;
@@ -53,7 +55,7 @@ type CMSLink = {
   anchorOffsetPercent?: number | null;
 };
 
-function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undefined) {
+function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undefined, size = 16, count = 12) {
   if (!images || images.length === 0) return;
   if (typeof window === "undefined") return;
 
@@ -74,7 +76,7 @@ function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undef
   const validImages = images.filter((img) => !!img?.url) as { url: string }[];
   if (!validImages.length) return;
 
-  const bursts = Math.min(12, validImages.length * 3);
+  const bursts = Math.min(count, validImages.length * 3);
 
   for (let i = 0; i < bursts; i++) {
     const img = validImages[Math.floor(Math.random() * validImages.length)];
@@ -83,8 +85,8 @@ function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undef
     el.className = "absolute pointer-events-none will-change-transform";
     el.style.left = "50%";
     el.style.bottom = "0";
-    el.style.width = "16px";
-    el.style.height = "16px";
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
     el.style.transform = "translateX(-50%)";
     el.style.opacity = "0";
 
@@ -238,7 +240,7 @@ function Button({
     if (typeof window === "undefined") return;
 
     const el = bgImageRef.current;
-    if (el.dataset.sectionArtwork === "wardrobe") return;
+    if (el.dataset.sectionImage === "true") return;
 
     if (hoverAnimRef.current) {
       hoverAnimRef.current.kill();
@@ -310,7 +312,7 @@ function Button({
       hoverAnimRef.current = null;
     }
 
-    if (el.dataset.sectionArtwork === "wardrobe") {
+    if (el.dataset.sectionImage === "true") {
       spinStateRef.current.currentRotation = 0;
       gsap.set(el, { rotation: 0, scaleX: 1, scaleY: 1 });
       return;
@@ -356,12 +358,12 @@ function Button({
     if (hasParticles) {
       const root = targetRef.current;
       if (root) {
-        fireParticles(root, cmsLink?.particleImages);
+        fireParticles(root, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount);
 
         if (intervalRef.current == null) {
           intervalRef.current = window.setInterval(() => {
             if (!hoverRef.current || !targetRef.current) return;
-            fireParticles(targetRef.current, cmsLink?.particleImages);
+            fireParticles(targetRef.current, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount);
           }, 220);
         }
       }

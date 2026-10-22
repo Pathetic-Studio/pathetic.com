@@ -1,0 +1,52 @@
+.section { position: relative; isolation: isolate; padding: 1.5rem; background: var(--background, #fff); }
+.window {
+  position: relative; padding: 3px; background: #c0c0c0; color: #000;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #171717, inset 2px 2px #dfdfdf, inset -2px -2px #808080;
+}
+.titlebar {
+  position: relative; z-index: 3; display: flex; align-items: center; justify-content: space-between;
+  height: 25px; padding: 2px 3px 2px 6px; background: linear-gradient(90deg, #4e82eb, #6db9dc);
+  color: #fff; font-size: 14px; line-height: 1; letter-spacing: .02em;
+}
+.close {
+  display: grid; place-items: center; width: 19px; height: 19px; background: #c0c0c0;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #171717, inset 2px 2px #dfdfdf, inset -2px -2px #808080;
+  color: #111; font: 21px/1 Arial, sans-serif;
+}
+.content { position: relative; overflow: hidden; height: clamp(24rem, 31vw, 38rem); isolation: isolate; }
+.sky { object-fit: cover; object-position: center 56%; filter: saturate(.77) hue-rotate(-13deg) brightness(.98); }
+.skyTint { position: absolute; inset: 0; background: linear-gradient(#007f9e16, #cde5ec16); pointer-events: none; }
+.stars { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.stars canvas { display: block; width: 100%; height: 100%; }
+.motion { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.title { position: absolute; top: 0; left: 0; width: max-content; will-change: transform; }
+.titleText { width: max-content !important; }
+.titleText h2 { line-height: .78; letter-spacing: -.055em; }
+.buttonPosition { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, clamp(3.75rem, 5.3vw, 4.75rem)); }
+.fortune {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; height: 2.5rem;
+  padding: 0 1.5rem; background: #c0c0c0; color: #080808; border: 1px solid #808080;
+  box-shadow: inset 2px 2px #fff, inset -2px -2px #171717, inset 3px 3px #dfdfdf, inset -3px -3px #808080;
+  font-size: .875rem; line-height: 1;
+  text-transform: uppercase; text-align: center; white-space: nowrap;
+  visibility: hidden; transform: scale(0); will-change: transform;
+}
+.fortune::after { content: ""; position: absolute; inset: 5px; border: 1px dotted #272727; pointer-events: none; }
+.trigger { position: absolute; inset: 0; z-index: 4; width: 100%; height: 100%; background: transparent; border: 0; }
+.trigger:focus-visible { outline: 3px dashed #000; outline-offset: -8px; }
+.window:has(.trigger:active) .fortune { box-shadow: inset 2px 2px #171717, inset -2px -2px #fff; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (hover: hover) and (pointer: fine) {
+  .window, .trigger { cursor: url('/images/project-cta/cursor-98.png') 3 3, pointer; }
+}
+@media (max-width: 1023px) {
+  .section { padding: 1rem; }
+  .content { height: clamp(20rem, 44vw, 28rem); }
+  .buttonPosition { display: none; }
+}
+@media (max-width: 639px) {
+  .section { padding: .75rem; }
+  .content { height: 19rem; }
+  .titlebar { height: 23px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { .title { will-change: auto; } }
