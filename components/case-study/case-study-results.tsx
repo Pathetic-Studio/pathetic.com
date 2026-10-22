@@ -4,7 +4,7 @@ import Image from "next/image";
 import EyeFollow from "@/components/effects/eye-follow";
 import styles from "./client-case-study.module.css";
 
-const metricEye = [{ _key: "views", x: 50, y: 50, size: 76, sizeMobile: 64 }];
+const metricEye = [{ _key: "views", x: 50, y: 50, size: 76, sizeMobile: 54 }];
 
 /** Keep published results intact, with an eye for views and a star for actions. */
 export default function CaseStudyResults({
@@ -14,9 +14,10 @@ export default function CaseStudyResults({
   result: string;
   id: string;
 }) {
+  const metrics = result.split(/,\s*/);
   return (
-    <ul className={styles.results} aria-label="Project results">
-      {result.split(/,\s*/).map((metric, i) => {
+    <ul className={styles.results} aria-label="Project results" data-multiple={metrics.length > 1}>
+      {metrics.map((metric, i) => {
         const views = /\bviews?\b/i.test(metric);
         const eyeId = `${id}-result-${i}`;
         return (

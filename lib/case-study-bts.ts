@@ -1,6 +1,7 @@
 import type { CaseStudyImage } from "./case-studies";
 
-// Supplied BTS and campaign photographs; WebP originals for thumbnail and popup.
+// Original photographs stay in the viewer. Selected thumbnail-only cutouts
+// fade back to the complete photograph on hover or keyboard focus.
 const suppliedImages: Record<string, CaseStudyImage[]> = {
   "square-cash-app": [
     { src: "/images/case-studies/bts/square-cash-app/square-cash-app-01.webp", alt: "Guests wearing PATHETIC tees at Larry’s Cà Phê", width: 768, height: 1024 },
@@ -32,6 +33,7 @@ const suppliedImages: Record<string, CaseStudyImage[]> = {
     },
     {
       src: "/images/case-studies/bts/dictation/dictation-bts-04.webp",
+      cutout: "/images/case-studies/bts/dictation/dictation-bts-04-cutout.webp",
       alt: "Camera operator filming Mina Fahmi at the Dictation desk",
       width: 1440,
       height: 960,
@@ -70,6 +72,7 @@ const suppliedImages: Record<string, CaseStudyImage[]> = {
     },
     {
       src: "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-04.webp",
+      cutout: "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-04-cutout.webp",
       alt: "Camera operator reviewing a You’re on Mute take",
       width: 1080,
       height: 1440,
@@ -82,6 +85,7 @@ const suppliedImages: Record<string, CaseStudyImage[]> = {
     },
     {
       src: "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-06.webp",
+      cutout: "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-06-cutout.webp",
       alt: "Rehearsing a You’re on Mute scene beside the bookshelves",
       width: 1152,
       height: 1440,
@@ -108,6 +112,7 @@ const suppliedImages: Record<string, CaseStudyImage[]> = {
     },
     {
       src: "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-03.webp",
+      cutout: "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-03-cutout.webp",
       alt: "Bless This Desk crew carrying a red coat rack into the room",
       width: 1080,
       height: 1440,
@@ -120,6 +125,7 @@ const suppliedImages: Record<string, CaseStudyImage[]> = {
     },
     {
       src: "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-05.webp",
+      cutout: "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-05-cutout.webp",
       alt: "Trying the new home workspace for Bless This Desk",
       width: 1080,
       height: 1440,

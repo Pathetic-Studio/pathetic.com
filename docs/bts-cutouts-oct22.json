@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-22",
+  "mode": "Built-in image_gen, background-extraction; WebP thumbnail conversion",
+  "note": "Original source photographs remain unchanged. Cutouts are only used as floating thumbnails; hover/focus reveals the original thumbnail and click opens the full source photo.",
+  "assets": [
+    {
+      "source": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-06.webp",
+      "output": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-06-cutout.webp",
+      "prompt": "Use case: background-extraction. Edit target: the supplied behind-the-scenes photo. Remove only the background to real transparency. Keep the two central people, the person wearing the black PATHETIC top and the person in white holding a brush. Remove room, furniture, bookshelf and the unrelated hand on the right edge. Preserve the original 4:5 portrait canvas and EXACT original position, scale, crop, pose, face, hair, clothing and photographic detail of both people. Do not recenter, enlarge, retouch or redraw them. Do not invent missing anatomy. Keep transparent space where the room was, so this cutout cross-fades into the source photo without a jump. No outlines, no sticker borders, no shadow, no new objects."
+    },
+    {
+      "source": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-04.webp",
+      "output": "/images/case-studies/bts/youre-on-mute/youre-on-mute-bts-04-cutout.webp",
+      "prompt": "Use case: background-extraction. Edit the supplied exact photograph into a real transparent-background cutout. CRITICAL: This will be overlaid on the original photo, so maintain the original image aspect ratio, full canvas, positions, scale, framing, and ALL original photographic detail of retained subjects. Do not recenter or enlarge. Preserve original faces, hair, expressions, clothes, pose and lighting without regenerating them. Do not invent occluded parts, do not fill missing parts beyond image bounds. Only remove background, no outline, added shadows or new objects. Retain the camera operator, the complete camera rig with both screens and tripod, and the brown foreground chair occluding the operator. Remove white diffuser, room, background furniture, flowers."
+    },
+    {
+      "source": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-03.webp",
+      "output": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-03-cutout.webp",
+      "prompt": "Use case: background-extraction. Edit the supplied exact photograph into a real transparent-background cutout. CRITICAL: This will be overlaid on the original photo, so maintain the original image aspect ratio, full canvas, positions, scale, framing, and ALL original photographic detail of retained subjects. Do not recenter or enlarge. Preserve original faces, hair, expressions, clothes, pose and lighting without regenerating them. Do not invent occluded parts, do not fill missing parts beyond image bounds. Only remove background, no outline, added shadows or new objects. Retain the two standing people and the tall red inflatable character, its hair, arms, and visible base. Remove room, windows, floor, desks and other furniture. Preserve tilted perspective."
+    },
+    {
+      "source": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-05.webp",
+      "output": "/images/case-studies/bts/bless-this-desk/bless-this-desk-bts-05-cutout.webp",
+      "prompt": "Use case: background-extraction. Edit the supplied exact photograph into a real transparent-background cutout. CRITICAL: This will be overlaid on the original photo, so maintain the original image aspect ratio, full canvas, positions, scale, framing, and ALL original photographic detail of retained subjects. Do not recenter or enlarge. Preserve original faces, hair, expressions, clothes, pose and lighting without regenerating them. Do not invent occluded parts, do not fill missing parts beyond image bounds. Only remove background, no outline, added shadows or new objects. Retain the seated man, yellow chair including wheels, his workstation/monitor/laptop and red inflatable character. Remove room, floor, windows, metal table at right, coat rack and other furniture."
+    },
+    {
+      "source": "/images/case-studies/bts/dictation/dictation-bts-04.webp",
+      "output": "/images/case-studies/bts/dictation/dictation-bts-04-cutout.webp",
+      "prompt": "Use case: background-extraction. Edit the supplied exact photograph into a real transparent-background cutout. CRITICAL: This will be overlaid on the original photo, so maintain the original image aspect ratio, full canvas, positions, scale, framing, and ALL original photographic detail of retained subjects. Do not recenter or enlarge. Preserve original faces, hair, expressions, clothes, pose and lighting without regenerating them. Do not invent occluded parts, do not fill missing parts beyond image bounds. Only remove background, no outline, added shadows or new objects. Retain both men, camera rig, metal chair and desk with laptop. Remove only grey studio backdrop/floor including gaps in camera rig and furniture."
+    }
+  ],
+  "validation": {
+    "typecheck": "passed",
+    "responsiveWidths": [
+      320,
+      390,
+      834,
+      1440
+    ],
+    "caseStudies": [
+      "deel",
+      "stream-by-sandbar",
+      "square-cash-app",
+      "ramp",
+      "air"
+    ],
+    "checks": [
+      "Four desktop columns for both Deel BTS galleries",
+      "No image overlap or slot escape across five float phases",
+      "Hover crossfade and keyboard focus reveal",
+      "Gallery opens original full photograph and arrow navigation works",
+      "Touch tap opens and closes gallery",
+      "Reduced-motion visibility"
+    ]
+  }
+}

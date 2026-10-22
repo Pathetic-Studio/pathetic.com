@@ -214,7 +214,6 @@ export default function ImageExplodeLoader({
   const bodiesRef = useRef<Body[]>([]);
   const spriteNodesRef = useRef(new Map<string, HTMLDivElement>());
   const mouseRef = useRef<Vector | null>(null);
-  const effectsRef = useRef<HTMLDivElement | null>(null);
 
   // animate-once tracking
   const animatedIdsRef = useRef<Set<string>>(new Set());
@@ -399,19 +398,16 @@ export default function ImageExplodeLoader({
 
       bodiesRef.current = bodies;
       World.add(engine.world, bodies);
-      if (effectsRef.current) {
-        interaction = createIntroObjectInteraction({
-          engine,
-          bodies,
-          container,
-          effects: effectsRef.current,
-          nodes: spriteNodesRef.current,
-          isVisible: () => visible,
-          clearAttractor: () => {
-            mouseRef.current = null;
-          },
-        });
-      }
+      interaction = createIntroObjectInteraction({
+        engine,
+        bodies,
+        container,
+        nodes: spriteNodesRef.current,
+        isVisible: () => visible,
+        clearAttractor: () => {
+          mouseRef.current = null;
+        },
+      });
 
       // seed render items once so ids exist immediately (prevents late first paint)
       setRenderItems(
@@ -747,11 +743,6 @@ export default function ImageExplodeLoader({
       className="pointer-events-none absolute inset-0 z-[5]"
       aria-hidden="true"
     >
-      <div
-        ref={effectsRef}
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-        aria-hidden="true"
-      />
       {renderItems.map((item) => (
         <div
           key={item.id}

@@ -19,6 +19,8 @@ import { BackgroundPanel } from "@/components/ui/background-panel";
 import TypeOnText, { TYPE_ON_SPEEDS } from "@/components/ui/type-on-text";
 import TitleText from "@/components/ui/title-text";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { Button } from "@/components/ui/button";
+import { WORK_BUTTON_PARTICLES } from "@/lib/work-button-particles";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import { cn } from "@/lib/utils";
 import { getInstagramPost } from "@/lib/instagram-posts";
@@ -30,6 +32,7 @@ import {
   type ResolvedFloatingProject,
 } from "@/lib/work-projects";
 import ProjectMedia from "./work-project-media";
+import { createWorkArmShooter } from "./work-arm-shooter";
 import layoutStyles from "./work-layout.module.css";
 import WorkContentViewer, {
   type WorkViewerContent,
@@ -1013,12 +1016,10 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       );
 
       const armWidth = useUploadedFigureArtwork ? (figure?.armWidth ?? 34) : 18;
-      const shoulderHalfWidth = useUploadedFigureArtwork
-        ? Math.max(8, armWidth * 0.3)
-        : bounds.width * (resolvedPersonWidth / 100) * 0.026;
       const handHalfWidth = useUploadedFigureArtwork
         ? Math.max(10, armWidth * 0.52)
         : handWidth * 0.155;
+      const shoulderHalfWidth = handHalfWidth;
 
       // Leave the shoulder opening outward before curving toward the pointer.
       // This short rounded root stays attached as the whole sleeve moves.
@@ -1185,8 +1186,10 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
 
     updateArm();
     gsap.ticker.add(updateArm);
+    const disposeShooter = createWorkArmShooter(root, hand, () => onscreen && armEnabledRef.current);
 
     return () => {
+      disposeShooter();
       viewportObserver.disconnect();
       gsap.ticker.remove(updateArm);
       root.removeEventListener("pointermove", onPointerMove);
@@ -1506,16 +1509,20 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
             </div>
           )}
           </WorkColumns>
-          <Link
-            href="/work"
+          <Button
+            link={{ href: "/work", linkType: "internal", particlesEnabled: true,
+              particleImages: WORK_BUTTON_PARTICLES, particleSize: 32, particleCount: 6,
+              particleFadeOnLeave: true, particleSequence: true }}
+            variant="outline"
+            size="lg"
+            data-home-work-more
             className={cn(
-              buttonVariants({ variant: "outline", size: "lg" }),
               layoutStyles.more,
-              "absolute bottom-[4%] left-1/2 z-40 -translate-x-1/2 whitespace-nowrap lg:left-[6%] lg:translate-x-0",
+              "absolute bottom-[4%] left-1/2 z-40 -translate-x-1/2 whitespace-nowrap",
             )}
           >
             See more of our work
-          </Link>
+          </Button>
         </div>
 
         <svg
@@ -1532,35 +1539,37 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           className="pointer-events-none absolute left-0 top-0 z-50 hidden origin-center will-change-transform md:block"
           style={{ width: `${resolvedHandWidth}px` }}
         >
-          {resolvedHandSrc ? (
-            <Image
-              src={resolvedHandSrc}
-              alt=""
-              width={1254}
-              height={Math.round(1254 * resolvedHandAspectRatio)}
-              className="h-auto w-full object-contain"
+          <div data-work-hand-pose className="relative" style={{ transformOrigin: `${resolvedHandWristX}% ${resolvedHandWristY}%` }}>
+            {resolvedHandSrc ? (
+              <Image
+                src={resolvedHandSrc}
+                alt=""
+                width={1254}
+                height={Math.round(1254 * resolvedHandAspectRatio)}
+                className="h-auto w-full object-contain"
+              />
+            ) : (
+              <span className="block text-[clamp(3rem,7vw,7rem)] leading-none grayscale">
+                ☞
+              </span>
+            )}
+            <span
+              data-what-we-do-fingertip
+              className="pointer-events-none absolute h-px w-px opacity-0"
+              style={{
+                left: `${resolvedHandTipX}%`,
+                top: `${resolvedHandTipY}%`,
+              }}
             />
-          ) : (
-            <span className="block text-[clamp(3rem,7vw,7rem)] leading-none grayscale">
-              ☞
-            </span>
-          )}
-          <span
-            data-what-we-do-fingertip
-            className="pointer-events-none absolute h-px w-px opacity-0"
-            style={{
-              left: `${resolvedHandTipX}%`,
-              top: `${resolvedHandTipY}%`,
-            }}
-          />
-          <span
-            data-what-we-do-wrist
-            className="pointer-events-none absolute h-px w-px opacity-0"
-            style={{
-              left: `${resolvedHandWristX}%`,
-              top: `${resolvedHandWristY}%`,
-            }}
-          />
+            <span
+              data-what-we-do-wrist
+              className="pointer-events-none absolute h-px w-px opacity-0"
+              style={{
+                left: `${resolvedHandWristX}%`,
+                top: `${resolvedHandWristY}%`,
+              }}
+            />
+          </div>
         </div>
 
         <button

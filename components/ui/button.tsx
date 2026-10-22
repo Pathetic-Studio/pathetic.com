@@ -17,6 +17,7 @@ import { HeaderFeatureMatrixTexture } from "@/components/header/visual-effects";
 import HeaderFeatureSectionArtwork from "@/components/header/feature-section-artwork";
 
 let physicsRegistered = false;
+const particleCursors = new WeakMap<HTMLElement, number>();
 
 type ParticleImage = {
   _key?: string;
@@ -41,6 +42,9 @@ type CMSLink = {
   particleImages?: ParticleImage[] | null;
   particleSize?: number;
   particleCount?: number;
+  /** Keep image objects opaque in flight and clear them quickly on hover exit. */
+  particleFadeOnLeave?: boolean;
+  particleSequence?: boolean;
 
   backgroundImageEnabled?: boolean | null;
   backgroundImages?: ParticleImage[] | null;
@@ -55,7 +59,7 @@ type CMSLink = {
   anchorOffsetPercent?: number | null;
 };
 
-function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undefined, size = 16, count = 12) {
+function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undefined, size = 16, count = 12, fadeOnLeave = false, sequence = false) {
   if (!images || images.length === 0) return;
   if (typeof window === "undefined") return;
 
@@ -77,9 +81,12 @@ function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undef
   if (!validImages.length) return;
 
   const bursts = Math.min(count, validImages.length * 3);
+  const firstImage = particleCursors.get(root) ?? 0;
+  if (sequence) particleCursors.set(root, (firstImage + bursts) % validImages.length);
+  const dropDistance = fadeOnLeave ? Math.max(0, window.innerHeight - root.getBoundingClientRect().bottom) + size * 2 : 0;
 
   for (let i = 0; i < bursts; i++) {
-    const img = validImages[Math.floor(Math.random() * validImages.length)];
+    const img = validImages[sequence ? (firstImage + i) % validImages.length : Math.floor(Math.random() * validImages.length)];
 
     const el = document.createElement("div");
     el.className = "absolute pointer-events-none will-change-transform";
@@ -103,15 +110,20 @@ function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undef
 
     gsap.set(el, { opacity: 1, x: 0, y: 0 });
 
+    const velocity = gsap.utils.random(140, 230);
+    const angle = gsap.utils.random(-110, -70);
+    const verticalVelocity = velocity * Math.sin(angle * Math.PI / 180);
+    // Opaque objects leave below the viewport instead of disappearing mid-air.
+    const flightDuration = (-verticalVelocity + Math.sqrt(verticalVelocity ** 2 + 1000 * dropDistance)) / 500;
     gsap.to(el, {
-      duration: gsap.utils.random(0.6, 1.4),
+      duration: fadeOnLeave ? flightDuration : gsap.utils.random(0.6, 1.4),
       physics2D: {
-        velocity: gsap.utils.random(140, 230),
-        angle: gsap.utils.random(-110, -70),
+        velocity,
+        angle,
         gravity: 500,
       },
       rotation: gsap.utils.random(-180, 180),
-      opacity: 0,
+      ...(fadeOnLeave ? { ease: "none" } : { opacity: 0 }),
       onComplete: () => {
         if (el.parentNode) el.parentNode.removeChild(el);
       },
@@ -358,12 +370,12 @@ function Button({
     if (hasParticles) {
       const root = targetRef.current;
       if (root) {
-        fireParticles(root, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount);
+        fireParticles(root, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount, cmsLink?.particleFadeOnLeave, cmsLink?.particleSequence);
 
         if (intervalRef.current == null) {
           intervalRef.current = window.setInterval(() => {
             if (!hoverRef.current || !targetRef.current) return;
-            fireParticles(targetRef.current, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount);
+            fireParticles(targetRef.current, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount, cmsLink?.particleFadeOnLeave, cmsLink?.particleSequence);
           }, 220);
         }
       }
@@ -381,6 +393,17 @@ function Button({
       intervalRef.current = null;
     }
 
+    if (cmsLink?.particleFadeOnLeave) {
+      const particles = event.currentTarget.querySelectorAll<HTMLElement>("[data-particle-container] > div");
+      gsap.to(particles, {
+        opacity: 0, duration: 0.12, ease: "power1.out", overwrite: "auto",
+        onComplete: () => particles.forEach((particle) => {
+          gsap.killTweensOf(particle);
+          particle.remove();
+        }),
+      });
+    }
+
     stopBackgroundImageHoverAnim();
   };
 
@@ -394,6 +417,10 @@ function Button({
         hoverAnimRef.current.kill();
         hoverAnimRef.current = null;
       }
+      targetRef.current?.querySelectorAll<HTMLElement>("[data-particle-container] > div").forEach((particle) => {
+        gsap.killTweensOf(particle);
+        particle.remove();
+      });
     };
   }, []);
 

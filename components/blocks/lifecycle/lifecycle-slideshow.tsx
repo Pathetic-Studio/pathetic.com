@@ -8,6 +8,7 @@ import { stegaClean } from "next-sanity";
 import type { ColorVariant, PAGE_QUERYResult } from "@/sanity.types";
 import { cn } from "@/lib/utils";
 import TitleText from "@/components/ui/title-text";
+import { StoryTitleCharacters, storyTitleReveal } from "@/components/ui/story-title-characters";
 import { BackgroundPanel } from "@/components/ui/background-panel";
 import { getSectionSurfaceClass } from "@/components/blocks/shared/section-surface";
 import LifecycleMemeSwarm from "./lifecycle-meme-swarm";
@@ -18,7 +19,7 @@ import {
 import { useHeaderVisualTheme } from "@/components/header/visual-theme";
 import styles from "./lifecycle-slideshow.module.css";
 import CredibilitySpaceSection, { type SpaceCredibilityBlock } from "../credibility/credibility-space-section";
-import { spaceRadial, spaceRange } from "../credibility/credibility-space-transition";
+import { spaceRadial } from "../credibility/credibility-space-transition";
 import { radialRevealGradient } from "@/lib/radial-reveal";
 
 if (typeof window !== "undefined") {
@@ -37,50 +38,6 @@ const MEME_REVEAL_SCROLL_SCREENS = 2;
 const MEME_POP_SCROLL_SCREENS = 0.16;
 const COMPACT_SCROLL_SCREENS = 2.8;
 const DESKTOP_GLASSES_DROP = 0.05;
-
-function LifecycleTitleCharacters({ text, linkInstagram = false }: { text: string; linkInstagram?: boolean }) {
-  return (
-    <>
-      <span aria-hidden={linkInstagram ? undefined : true}>
-        {text.split(/(\s+)/).map((token, tokenIndex) => {
-          if (/^\s+$/.test(token)) return token;
-
-          const characters = Array.from(token).map((character, characterIndex) => (
-            <span
-              key={`${character}-${characterIndex}`}
-              data-lifecycle-title-char
-              className="inline-block lg:opacity-0"
-            >
-              {character}
-            </span>
-          ));
-          return linkInstagram && /^@?pathetic[.,]?$/i.test(token) ? (
-            <a
-              key={`${token}-${tokenIndex}`}
-              href="https://www.instagram.com/pathetic/"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="PATHETIC on Instagram"
-              className="pointer-events-auto inline-block no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-            >
-              {token.startsWith("@") && characters[0]}
-              {/* Compensate for line-box leading so the underline follows the
-                  letters when the shared heading's line height changes. */}
-              <span className="relative inline-block after:absolute after:inset-x-0 after:bottom-[calc(0.5lh_-_0.48em)] after:h-[.045em] after:bg-current">
-                {characters.slice(token.startsWith("@") ? 1 : 0)}
-              </span>
-            </a>
-          ) : (
-            <span key={`${token}-${tokenIndex}`} className="inline-block">
-              {characters}
-            </span>
-          );
-        })}
-      </span>
-      {!linkInstagram && <span className="sr-only">{text}</span>}
-    </>
-  );
-}
 
 function SlideCopy({
   centerText,
@@ -115,7 +72,7 @@ function SlideCopy({
             outlinePosition="outside"
             fontWeight={textStyle?.fontWeight ?? undefined}
           >
-            <LifecycleTitleCharacters text={cleanCenterText} linkInstagram={linkInstagram} />
+            <StoryTitleCharacters text={cleanCenterText} linkInstagram={linkInstagram} />
           </TitleText>
         </div>
       )}
@@ -287,6 +244,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock & { space?: Spa
         const titleChars = [...object.querySelectorAll<HTMLElement>("[data-lifecycle-title-char]")];
         const compact = !conditions?.desktop;
         const spaceLayer = root.querySelector<HTMLElement>("[data-space-takeover]");
+        const spaceChars = [...root.querySelectorAll<HTMLElement>("[data-space-title-char]")];
         const radialLayer = root.querySelector<HTMLElement>("[data-space-radial]");
         const objectCopy = object.querySelector<HTMLElement>("[data-lifecycle-copy]");
         const revealScreens = compact ? 0.85 : MEME_REVEAL_SCROLL_SCREENS;
@@ -307,8 +265,6 @@ export default function LifecycleSlideshow(props: LifecycleBlock & { space?: Spa
           radialLayer.style.background = radialRevealGradient(radial, "16 18 14");
           radialLayer.style.opacity = p > 0 ? "1" : "0";
           spaceLayer.style.setProperty("--space-scene-visible", p > .5 ? "1" : "0");
-          spaceLayer.style.setProperty("--space-title-opacity", String(spaceRange(p, .67, .86)));
-          spaceLayer.style.setProperty("--space-title-y", `${(1 - spaceRange(p, .67, .86)) * 24}px`);
           spaceLayer.inert = p < .78;
           spaceLayer.style.setProperty("--space-pointer-events", p >= .78 ? "auto" : "none");
           if (p > .001 && bounds.bottom > 0 && bounds.top < innerHeight) {
@@ -320,6 +276,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock & { space?: Spa
         };
 
         if (conditions?.reduced) {
+          gsap.set(spaceChars, { autoAlpha: 1, yPercent: 0 });
           glassesEntryRef.current.progress = 1;
           gsap.set([meme, object, button, ...reveals, ...arrivals, ...root.querySelectorAll("[data-lifecycle-title-char]")], { autoAlpha: 1, scale: 1 });
           objectSlideActiveRef.current = true;
@@ -345,7 +302,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock & { space?: Spa
         // On touch layouts the mesh rises inside a stationary canvas. Moving
         // the entire tall canvas hides most of its entrance below the clip edge.
         gsap.set(stage, { yPercent: compact ? 0 : 110 });
-        gsap.set(titleChars, { autoAlpha: 0, yPercent: 20 });
+        gsap.set([...titleChars, ...spaceChars], { autoAlpha: 0, yPercent: 20 });
         gsap.set(button, { autoAlpha: 0, scale: 0 });
         const cascade = createMemeCascade(reveals, surface, revealScreens, compact ? 0.12 : MEME_POP_SCROLL_SCREENS);
         const playhead = { screens: 0 };
@@ -425,14 +382,12 @@ export default function LifecycleSlideshow(props: LifecycleBlock & { space?: Spa
         const encapsulateDuration = compact ? 0.12 : 0.22;
         timeline.to(arrivals, { scale: 0, autoAlpha: 0, duration: encapsulateDuration, ease: "power2.in" }, glassesArrived - encapsulateDuration);
         timeline.to(meme, { autoAlpha: 0, duration: 0.08 }, glassesArrived - 0.08);
-        timeline.to(titleChars, {
-          autoAlpha: 1, yPercent: 0, duration: 0.09,
-          stagger: { amount: compact ? 0.22 : 0.3 }, ease: "power2.out",
-        }, glassesTextStart);
+        timeline.to(titleChars, storyTitleReveal(compact), glassesTextStart);
         timeline.to(button, { autoAlpha: 1, scale: 1, duration: 0.24, ease: "back.out(1.7)" }, glassesTextStart + (compact ? 0.22 : 0.3));
         if (space) {
           const transferDuration = compact ? 1.05 : 1.55;
           timeline.to(spaceTransitionRef.current, { progress: 1, duration: transferDuration }, spaceStart);
+          timeline.to(spaceChars, storyTitleReveal(compact), spaceStart + transferDuration * .67);
           timeline.to([objectCopy, button], { autoAlpha: 0, duration: .22 }, spaceStart);
         }
         // Track the hard bottom edge after the pin has ended as well as the
@@ -469,6 +424,7 @@ export default function LifecycleSlideshow(props: LifecycleBlock & { space?: Spa
           cascade.dispose();
           meme.inert = false;
           object.inert = false;
+          gsap.set(spaceChars, { autoAlpha: 1, yPercent: 0 });
           glassesEntryRef.current.progress = 1;
           objectSlideActiveRef.current = false;
         };

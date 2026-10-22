@@ -21,7 +21,7 @@ import TitleText from "@/components/ui/title-text";
 import LogoAnimated from "@/components/logo-animated";
 import { cn } from "@/lib/utils";
 import { setIntroHandoffPending } from "@/components/header/intro-handoff";
-import { WORK_COLLECTION } from "@/lib/work-projects";
+import { WORK_BUTTON_PARTICLES } from "@/lib/work-button-particles";
 
 import ImageExplodeLoader from "@/components/effects/image-explode-loader";
 import styles from "./page-loader-section.module.css";
@@ -85,8 +85,6 @@ const PATHETIC_INTRO_TITLE = "Who controls the Memes controls the Universe";
 const INTRO_BUTTON_PARTICLES = [1, 2, 3].map((number) => ({
   url: `/images/project-cta/memebooth-star-${number}.png`,
 }));
-const WORK_BUTTON_PARTICLES = WORK_COLLECTION.filter((item) => item._key !== "air")
-  .map((item) => ({ url: item.imageUrl || item.titleCardUrl || item.videoPosterUrl }));
 const PATHETIC_INTRO_SPRITES: SpriteImage[] = [
   { _key: "intro-red-boot", url: "/images/page-loader/red-boot.webp" },
   { _key: "intro-silver-ring", url: "/images/page-loader/silver-ring.webp" },
@@ -662,8 +660,10 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
                       ...link,
                       particlesEnabled: true,
                       particleImages: link._key === "intro-see-work" ? WORK_BUTTON_PARTICLES : INTRO_BUTTON_PARTICLES,
-                      particleSize: link._key === "intro-see-work" ? 48 : 16,
+                      particleSize: link._key === "intro-see-work" ? 32 : 16,
                       particleCount: link._key === "intro-see-work" ? 6 : 12,
+                      particleFadeOnLeave: true,
+                      particleSequence: link._key === "intro-see-work",
                     }}
                     variant={stegaClean((link.buttonVariant as any) ?? "default") as any}
                     size="lg"

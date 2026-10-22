@@ -1,6 +1,7 @@
 import { Body, Query, World, type Engine } from "matter-js";
 import gsap from "gsap";
 import { Physics2DPlugin } from "gsap/Physics2DPlugin";
+import { createViewportParticleLayer } from "./viewport-particles";
 
 const HOLD_MS = 950;
 const RETURN_MS = 3400;
@@ -13,7 +14,6 @@ export function createIntroObjectInteraction({
   engine,
   bodies,
   container,
-  effects,
   nodes,
   isVisible,
   clearAttractor,
@@ -21,7 +21,6 @@ export function createIntroObjectInteraction({
   engine: Engine;
   bodies: Body[];
   container: HTMLElement;
-  effects: HTMLElement;
   nodes: Map<string, HTMLDivElement>;
   isVisible: () => boolean;
   clearAttractor: () => void;
@@ -32,6 +31,19 @@ export function createIntroObjectInteraction({
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const particles = new Set<HTMLImageElement>();
   const returning = new Set<HTMLImageElement>();
+  const effects = createViewportParticleLayer("intro-burst");
+  let gesture: { pointerId: number; x: number; y: number } | null = null;
+  let suppressClickUntil = 0;
+  let lastGesture = { x: 0, y: 0 };
+  let selectionStyles: { name: string; value: string; priority: string }[] = [];
+  const releaseSelection = () => {
+    selectionStyles.forEach(({ name, value, priority }) => {
+      if (value) document.documentElement.style.setProperty(name, value, priority);
+      else document.documentElement.style.removeProperty(name);
+    });
+    selectionStyles = [];
+    gesture = null;
+  };
   let held: {
     body: Body;
     node: HTMLDivElement;
@@ -43,6 +55,7 @@ export function createIntroObjectInteraction({
   } | null = null;
 
   const cancelHold = () => {
+    releaseSelection();
     if (!held) return;
     Body.setStatic(held.body, false);
     held.image.style.transform = "";
@@ -83,6 +96,15 @@ export function createIntroObjectInteraction({
     const image = node?.querySelector<HTMLImageElement>("[data-explode-inner]");
     if (!node || !image || gsap.isTweening(image)) return;
 
+    event.preventDefault();
+    gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    selectionStyles = ["user-select", "-webkit-user-select", "-webkit-touch-callout"].map(name => ({
+      name,
+      value: document.documentElement.style.getPropertyValue(name),
+      priority: document.documentElement.style.getPropertyPriority(name),
+    }));
+    selectionStyles.forEach(({ name }) => document.documentElement.style.setProperty(name, "none", "important"));
+    window.getSelection()?.removeAllRanges();
     clearAttractor();
     Body.setStatic(body, true);
     node.dataset.introState = "holding";
@@ -98,12 +120,27 @@ export function createIntroObjectInteraction({
   };
 
   const onMove = (event: PointerEvent) => {
-    if (!held || event.pointerId !== held.pointerId) return;
-    if (Math.hypot(event.clientX - held.x, event.clientY - held.y) > 12)
+    if (!gesture || event.pointerId !== gesture.pointerId) return;
+    if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 12)
       cancelHold();
   };
   const onUp = (event: PointerEvent) => {
-    if (held?.pointerId === event.pointerId) cancelHold();
+    if (gesture?.pointerId !== event.pointerId) return;
+    if (event.type === "pointerup") {
+      event.preventDefault();
+      lastGesture = { x: event.clientX, y: event.clientY };
+      suppressClickUntil = performance.now() + 400;
+    }
+    cancelHold();
+  };
+  const onSelect = (event: Event) => {
+    if (gesture) event.preventDefault();
+  };
+  const onClick = (event: MouseEvent) => {
+    if (performance.now() < suppressClickUntil && Math.hypot(event.clientX - lastGesture.x, event.clientY - lastGesture.y) < 24) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
   };
   const onVisibility = () => {
     if (document.hidden) cancelHold();
@@ -116,7 +153,9 @@ export function createIntroObjectInteraction({
     if (!held) return;
     const { body, node, image } = held;
     held = null;
-    const origin = { ...body.position };
+    const bounds = container.getBoundingClientRect();
+    const origin = { x: bounds.left + body.position.x, y: bounds.top + body.position.y };
+    window.getSelection()?.removeAllRanges();
     clearAttractor();
     absent.add(body);
     World.remove(engine.world, body);
@@ -149,8 +188,7 @@ export function createIntroObjectInteraction({
       particles.add(star);
       gsap.set(star, { xPercent: -50, yPercent: -50, scale: 0 });
       gsap.to(star, { scale: 1, duration: 0.12, ease: "back.out(1.4)" });
-      // These fragments have no walls: they fall off the section instead of
-      // adding more permanent bodies to the intro simulation.
+      // The viewport layer lets fragments pass the intro's bottom edge.
       gsap.to(star, {
         physics2D: {
           velocity: gsap.utils.random(220, 440),
@@ -200,14 +238,17 @@ export function createIntroObjectInteraction({
     timers.add(timer);
   }
 
-  window.addEventListener("pointerdown", onDown, { passive: true });
+  window.addEventListener("pointerdown", onDown, { passive: false });
   window.addEventListener("pointermove", onMove, { passive: true });
-  window.addEventListener("pointerup", onUp, { passive: true });
+  window.addEventListener("pointerup", onUp, { passive: false });
   window.addEventListener("pointercancel", onUp, { passive: true });
   window.addEventListener("pointerout", onOut);
   window.addEventListener("scroll", cancelHold, { passive: true });
   window.addEventListener("blur", cancelHold);
   document.addEventListener("visibilitychange", onVisibility);
+  document.addEventListener("selectstart", onSelect, true);
+  document.addEventListener("contextmenu", onSelect, true);
+  document.addEventListener("click", onClick, true);
 
   return {
     isUnavailable: (body: Body) => absent.has(body) || held?.body === body,
@@ -239,12 +280,16 @@ export function createIntroObjectInteraction({
       window.removeEventListener("scroll", cancelHold);
       window.removeEventListener("blur", cancelHold);
       document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("selectstart", onSelect, true);
+      document.removeEventListener("contextmenu", onSelect, true);
+      document.removeEventListener("click", onClick, true);
       timers.forEach(clearTimeout);
       particles.forEach((star) => {
         gsap.killTweensOf(star);
         star.remove();
       });
       returning.forEach((image) => gsap.killTweensOf(image));
+      effects.remove();
       nodes.forEach((node) => {
         node.style.visibility = "";
         delete node.dataset.introState;

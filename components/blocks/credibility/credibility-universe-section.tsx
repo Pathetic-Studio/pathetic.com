@@ -4,6 +4,7 @@ import { useEffect, useRef, type RefObject } from "react";
 import { stegaClean } from "next-sanity";
 import type { PAGE_QUERYResult } from "@/sanity.types";
 import TitleText from "@/components/ui/title-text";
+import { StoryTitleCharacters } from "@/components/ui/story-title-characters";
 import {
   UNIVERSE_BRANDS,
   UNIVERSE_LABEL_STYLE,
@@ -592,8 +593,12 @@ export default function CredibilityUniverseSection(
             outlinePosition="outside"
             fontWeight="bold"
           >
-            WORKING WITH THE BIGGEST
-            <br /> BRANDS IN THE UNIVERSE
+            {tech && transition ? (
+              <>
+                <StoryTitleCharacters text="WORKING WITH THE BIGGEST" scene="space" />
+                <br />{ " " }<StoryTitleCharacters text="BRANDS IN THE UNIVERSE" scene="space" />
+              </>
+            ) : <>WORKING WITH THE BIGGEST<br /> BRANDS IN THE UNIVERSE</>}
           </TitleText>
         </div>
         <p id={instructionId} className="sr-only">

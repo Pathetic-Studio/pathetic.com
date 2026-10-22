@@ -1,6 +1,7 @@
 "use client";
 
 import GalleryImage from "@/components/ui/gallery-image";
+import Image from "next/image";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import gsap from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
@@ -22,6 +23,21 @@ const column = (index: number, count: number, columns: number) => {
   const rowCount = Math.min(columns, count - Math.floor(index / columns) * columns);
   return `${columns - rowCount + (index % columns) * 2 + 1} / span 2`;
 };
+
+function FloatingThumbnail({ photo, nearby, sizes }: {
+  photo: CaseStudyImage;
+  nearby: boolean;
+  sizes: string;
+}) {
+  const [cutoutReady, setCutoutReady] = useState(false);
+  return <span className={styles.thumbnail} data-cutout-ready={Boolean(photo.cutout && cutoutReady)}>
+    <GalleryImage image={photo.thumbnail ? { ...photo, src: photo.thumbnail } : photo}
+      className={styles.fullPhoto} loading={nearby ? "eager" : "lazy"} sizes={sizes} />
+    {photo.cutout && <Image src={photo.cutout} alt="" width={photo.width} height={photo.height}
+      className={styles.cutout} loading={nearby ? "eager" : "lazy"} sizes={sizes}
+      draggable={false} onLoad={() => setCutoutReady(true)} onError={() => setCutoutReady(false)} />}
+  </span>;
+}
 
 export default function CaseStudyImageGallery({ images, label, framed = true, columns = 3 }: {
   images: CaseStudyImage[];
@@ -65,10 +81,12 @@ export default function CaseStudyImageGallery({ images, label, framed = true, co
         scale: 1, duration: 0.5, stagger: 0.06, ease: "back.out(1.35)", paused: true,
       });
       const drift = gsap.timeline({ scrollTrigger: {
-        trigger: el, start: "top bottom", end: "bottom top", scrub: 0.7,
+        trigger: el, start: "top bottom", end: "bottom top", scrub: 0.7, invalidateOnRefresh: true,
       } });
+      const scrollDistance = () => matchMedia("(max-width: 600px)").matches ? 4 : 10;
       scroll.forEach((item, i) => drift.fromTo(item,
-        { y: i % 2 ? 10 : -10 }, { y: i % 2 ? -10 : 10, ease: "none", duration: 1 }, 0));
+        { y: () => (i % 2 ? 1 : -1) * scrollDistance() },
+        { y: () => (i % 2 ? -1 : 1) * scrollDistance(), ease: "none", duration: 1 }, 0));
       const observer = new IntersectionObserver(([entry]) => {
         el.dataset.visible = String(entry.isIntersecting);
         if (entry.isIntersecting) reveal.play();
@@ -120,8 +138,7 @@ export default function CaseStudyImageGallery({ images, label, framed = true, co
                         setViewer({ title: label, mediaType: "gallery", images, initialIndex: index,
                           origin: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } });
                       }}>
-                      <GalleryImage image={photo.thumbnail ? { ...photo, src: photo.thumbnail } : photo}
-                        loading={nearby ? "eager" : "lazy"}
+                      <FloatingThumbnail photo={photo} nearby={nearby}
                         sizes={`(max-width: 600px) ${84 / mobileColumns}vw, (max-width: 1000px) ${84 / tabletColumns}vw, ${Math.round(1000 / desktopColumns)}px`} />
                     </button>
                   </div>

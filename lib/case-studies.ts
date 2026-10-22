@@ -14,6 +14,8 @@ export type CaseStudyImage = WorkGalleryImage & {
   fit?: "cover" | "contain";
   /** Optional small thumbnail; the popup continues to use src. */
   thumbnail?: string;
+  /** Transparent thumbnail on the original photo canvas; hover reveals src. */
+  cutout?: string;
 };
 
 // The same floating gallery can belong to a project or sit outside the
@@ -96,7 +98,7 @@ export const CASE_STUDIES: CaseStudy[] = [
         galleries: [
           {
             id: "youre-on-mute-bts",
-            columns: 6,
+            columns: 4,
             images: CASE_STUDY_BTS["youre-on-mute"],
           },
         ],
@@ -118,7 +120,7 @@ export const CASE_STUDIES: CaseStudy[] = [
         galleries: [
           {
             id: "bless-this-desk-bts",
-            columns: 5,
+            columns: 4,
             images: CASE_STUDY_BTS["bless-this-desk"],
           },
         ],
