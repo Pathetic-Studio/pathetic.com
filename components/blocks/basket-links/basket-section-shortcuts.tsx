@@ -13,7 +13,7 @@ const SHORTCUTS = [
   { title: "Our Clients", id: "our-clients", selector: "[data-space-anchor], [data-credibility-version]", image: "/images/credibility/objects/saturn.webp" },
   { title: "Our Work", id: "work", selector: "#work", image: SANDBAR_OBJECT.src },
   { title: "Our Services", id: "what-we-do", selector: "#what-we-do", image: "/images/what-we-do/cloud.png" },
-  { title: "Talent Matrix", id: "talent-matrix", selector: "[data-sequence-talent],#talent-matrix", image: null, kind: "matrix" },
+  { title: "Talent Matrix", id: "talent-matrix", selector: "[data-sequence-talent],#talent-matrix", image: "/images/basket-links/matrix-avatar.webp" },
   { title: "Our Network", id: "our-network", selector: "[data-network-intro]", image: null, kind: "eye" },
   { title: "What We Believe", id: "what-we-believe", selector: "[data-belief-section] section[id]", image: "/images/belief/cherub-left.png" },
   { title: "What We Are", id: "what-we-are", selector: "#what-we-are", image: "/images/what-we-are/wardrobe/hat-camo.webp" },
@@ -225,9 +225,7 @@ export default function BasketSectionShortcuts({ basketRef }: { basketRef: RefOb
         window.dispatchEvent(new CustomEvent("app:anchor-navigate", { detail: { anchorId, offsetPercent, href: `/#${anchorId}` } }));
       }}>
       <span className={styles.artwork} data-basket-artwork-plane>
-        {item.image ? <img src={item.image} alt="" draggable={false} decoding="async" /> : item.kind === "matrix" ? <span className={styles.building} aria-hidden="true">
-          <span>17PアT<br />HE3I<br />カC52<br />0トP7<br />TAエH<br />3E9C<br />IパT8</span><span>H7<br />Eカ<br />2T<br />P3<br />Iア<br />C9<br />05</span>
-        </span> : <span className={styles.eye}>
+        {item.image ? <img src={item.image} alt="" draggable={false} decoding="async" /> : <span className={styles.eye}>
           <img src="/eye/base.png" alt="" draggable={false} /><span className={styles.pupil} /><img src="/eye/highlight.png" alt="" draggable={false} />
         </span>}
         <span className={styles.label}>{item.title}</span>

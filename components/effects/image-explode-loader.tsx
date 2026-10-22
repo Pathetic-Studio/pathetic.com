@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Matter, { Engine, World, Bodies, Body, Vector } from "matter-js";
+import Matter, { Engine, World, Bodies, Body, Vector, Sleeping } from "matter-js";
 import gsap from "gsap";
 import { createIntroObjectInteraction } from "./intro-object-interaction";
 
@@ -329,7 +329,11 @@ export default function ImageExplodeLoader({
       let worldWidth = width;
       let worldHeight = height;
 
-      const engine = Engine.create();
+      const engine = Engine.create({
+        enableSleeping: true,
+        positionIterations: 8,
+        velocityIterations: 6,
+      });
       engineRef.current = engine;
       engine.world.gravity.y = GRAVITY;
 
@@ -441,6 +445,7 @@ export default function ImageExplodeLoader({
         World.add(engine.world, walls);
 
         bodies.forEach((body) => {
+          Sleeping.set(body, false);
           const normalizedX = Math.max(
             0,
             Math.min(1, body.position.x / Math.max(worldWidth, 1)),
@@ -507,13 +512,8 @@ export default function ImageExplodeLoader({
 
         bodiesRef.current.forEach((body, index) => {
           if (interaction?.isUnavailable(body)) return;
-          if (mouse) {
-            const dir = Vector.sub(mouse, body.position);
-            const dist = Math.max(Vector.magnitude(dir), 30);
-            const force = Vector.mult(dir, (FORCE_SCALE * body.mass) / dist);
-            Body.applyForce(body, body.position, force);
-          }
           if (Math.abs(impulse) > 0.05) {
+            Sleeping.set(body, false);
             // Scroll lifts and tumbles the objects, with different lateral
             // eddies per body. Mouse attraction remains active throughout.
             const phase = now * 0.002 + index * 2.4;
@@ -546,11 +546,20 @@ export default function ImageExplodeLoader({
             );
           }
         });
-        // Keep gravity running in real time at 30fps without using oversized
-        // Matter steps; otherwise a busy phone makes everything feel floaty.
-        const steps = Math.ceil(delta / (1000 / 60));
-        for (let step = 0; step < steps; step++)
-          Engine.update(eng, delta / steps);
+        // Always split the frame in two. Ceil(delta / 16.67) kept alternating
+        // full and half steps at 60fps, making resting collision piles tremble.
+        // The 33ms frame cap still keeps each step within Matter's 16.67ms limit.
+        for (let step = 0; step < 2; step++) {
+          if (mouse) {
+            bodiesRef.current.forEach((body) => {
+              if (interaction?.isUnavailable(body)) return;
+              const dir = Vector.sub(mouse, body.position);
+              const dist = Math.max(Vector.magnitude(dir), 30);
+              Body.applyForce(body, body.position, Vector.mult(dir, (FORCE_SCALE * body.mass) / dist));
+            });
+          }
+          Engine.update(eng, delta / 2);
+        }
         bodiesRef.current.forEach((body, index) => {
           const node = spriteNodesRef.current.get(`img-${index}`);
           if (node)

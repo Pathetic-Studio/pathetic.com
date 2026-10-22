@@ -16,6 +16,6 @@
   }
 
   .title h2 {
-    font-size: clamp(2.5rem, 12.4vw, var(--text-5xl));
+    font-size: clamp(2.75rem, 13.64vw, calc(var(--text-5xl) * 1.1));
   }
 }

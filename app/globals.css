@@ -300,12 +300,14 @@ html[data-home-loader-pending="true"] #page-content-root {
 [data-header-section-star],
 [data-header-section-matcha],
 [data-header-section-network],
+[data-header-section-cherub],
 [data-header-section-hat] {
   transition: opacity 180ms ease-out;
 }
 [data-header-section-star],
 [data-header-section-matcha],
 [data-header-section-network],
+[data-header-section-cherub],
 [data-header-section-hat] { opacity: 0; }
 [data-header-section-star] {
   background: var(--header-section-star-colour);
@@ -322,6 +324,9 @@ html[data-home-loader-pending="true"] #page-content-root {
 [data-header-section-matcha] {
   background: url("/images/header/matcha-latte.webp") center / contain no-repeat;
 }
+[data-header-section-cherub] {
+  background: url("/images/header/belief-cherub.webp") center / contain no-repeat;
+}
 [data-header-section-network] {
   background: url("/images/network/blurred-star.svg") center / 100% auto no-repeat;
 }
@@ -337,18 +342,19 @@ html[data-home-loader-pending="true"] #page-content-root {
 }
 [data-section-artwork]:not([data-section-artwork="default"]) [data-header-feature-default-artwork] { opacity: 0; }
 [data-section-artwork="services"] [data-header-section-matcha],
-[data-section-artwork="belief"] [data-header-section-star],
+[data-section-artwork="belief"] [data-header-section-cherub],
 [data-section-artwork="network"] [data-header-section-network],
 [data-section-artwork="wardrobe"] [data-header-section-hat] { opacity: 1; }
 #site-header-root[data-header-visual-mode="matrix"] :is(
   [data-header-feature-default-artwork], [data-header-section-star], [data-header-section-matcha],
-  [data-header-section-network], [data-header-section-hat]
+  [data-header-section-network], [data-header-section-hat], [data-header-section-cherub]
 ) { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   [data-header-feature-default-artwork],
   [data-header-section-star],
   [data-header-section-matcha],
   [data-header-section-network],
+  [data-header-section-cherub],
   [data-header-section-hat] { transition: none; }
 }
 
@@ -828,23 +834,6 @@ html[data-mobile-scrollbar] body::-webkit-scrollbar {
   animation: what-pigeon-flap 810ms steps(1, end) infinite;
 }
 
-@keyframes what-rat-pull {
-  0%,
-  33.332% {
-    background-position: 0 0;
-  }
-
-  33.333%,
-  66.665% {
-    background-position: 50% 0;
-  }
-
-  66.666%,
-  100% {
-    background-position: 100% 0;
-  }
-}
-
 @keyframes what-rat-nibble {
   0%,
   33.332% {
@@ -862,40 +851,13 @@ html[data-mobile-scrollbar] body::-webkit-scrollbar {
   }
 }
 
-@keyframes what-rat-flee {
-  0%,
-  33.332% {
-    background-position: 6.25% 93.75%;
-  }
-
-  33.333%,
-  66.665% {
-    background-position: 50% 93.75%;
-  }
-
-  66.666%,
-  100% {
-    background-position: 93.75% 93.75%;
-  }
-}
-
-.what-rat-pull-frame {
-  animation: what-rat-pull 480ms steps(1, end) infinite;
-}
-
 .what-rat-nibble-frame {
   animation: what-rat-nibble 540ms steps(1, end) infinite;
 }
 
-.what-rat-flee-frame {
-  animation: what-rat-flee 240ms steps(1, end) infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .what-pigeon-flight-frame,
-  .what-rat-pull-frame,
-  .what-rat-nibble-frame,
-  .what-rat-flee-frame {
+  .what-rat-nibble-frame {
     animation: none;
   }
 
@@ -903,9 +865,6 @@ html[data-mobile-scrollbar] body::-webkit-scrollbar {
     background-position: 0 50%;
   }
 
-  .what-rat-flee-frame {
-    background-position: 6.25% 93.75%;
-  }
 }
 
 

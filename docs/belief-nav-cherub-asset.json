@@ -1,0 +1,12 @@
+{
+  "sources": [
+    "public/images/belief/cherub-left.png",
+    "public/images/belief/cherub-top-right.png"
+  ],
+  "tool": "built-in imagegen",
+  "prompt": "Use case: stylized-concept. Asset type: small website navigation cutout. Create one NEW Victorian chromolithograph cherub in the same antique printed, softly shaded paper-collage style as the two reference cherubs. References are style references only. A cheerful winged cherub with brown curly hair, feathered wings spread in a compact wide silhouette, pale blue draped fabric covering the lower body, gently floating in a fresh three-quarter pose. Warm ivory skin and muted brown feathers, subtle aged print grain. Entire figure and both wings visible, centred, readable at tiny nav-icon size, minimal transparent margin. No clouds, no flowers, no objects, no lettering, no border, no cast shadow. Genuinely transparent background. Preserve the classical innocent decorative character of the references; no modern cartoon or glossy 3D rendering.",
+  "output": "public/images/header/belief-cherub.webp",
+  "width": 384,
+  "height": 373,
+  "bytes": 43792
+}

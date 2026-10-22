@@ -129,9 +129,9 @@ const GENERATED_BODY_SRC =
 const GENERATED_BODY_REST_SRC =
   "/images/what-we-do/pointing-figure-rest-v4.webp";
 const GENERATED_HAND_SRC = "/images/what-we-do/pointing-hand-v3.webp";
-// The active sprite omits the entire arm. Attach inside the actual shoulder
-// opening, so no photographed upper arm or forearm precedes the elastic sleeve.
-const GENERATED_BODY_SOCKET = { x: 35.45, y: 25.45 } as const;
+// The sprite sits over the sleeve. Anchor inside the jacket so it covers the
+// full-width seam instead of leaving an exposed end beside the shoulder.
+const GENERATED_BODY_SOCKET = { x: 45.45, y: 30.45 } as const;
 const GENERATED_BODY_EXIT_ANGLE = -Math.PI + 0.15;
 const GENERATED_HAND_CUFF_OUTWARD_ANGLE = (34 * Math.PI) / 180;
 const ARM_FILL = "#171717";
@@ -570,6 +570,9 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       };
     }
 
+    // The sleeve SVG, hand and figure share this centred, max-width layout.
+    // Page coordinates drift away from the shoulder on wider screens.
+    const armLayout = hand.parentElement ?? root;
     const pointer = { x: 0, y: 0 };
     const target = { x: 0, y: 0 };
     const current = { x: 0, y: 0 };
@@ -653,7 +656,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     };
 
     const setRestTarget = () => {
-      const bounds = root.getBoundingClientRect();
+      const bounds = armLayout.getBoundingClientRect();
       const origin = getArmOrigin(bounds);
       const restReach = Math.max(
         resolvedHandWidth * 1.55,
@@ -686,7 +689,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      const bounds = root.getBoundingClientRect();
+      const bounds = armLayout.getBoundingClientRect();
       pointerInside = true;
       pointer.x = Math.max(
         0,
@@ -714,7 +717,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
 
     const projectListeners = projectLinks.map((project) => {
       const onEnter = (event: Event) => {
-        const rootBounds = root.getBoundingClientRect();
+        const rootBounds = armLayout.getBoundingClientRect();
         const projectBounds = getProjectVisualBounds(project);
         hoveredProject = project;
 
@@ -792,7 +795,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       }
       const deltaSeconds = Math.min(0.05, (updateTime - lastUpdate) / 1000);
       lastUpdate = updateTime;
-      const bounds = root.getBoundingClientRect();
+      const bounds = armLayout.getBoundingClientRect();
       const origin = getArmOrigin(bounds);
       const originX = origin.x;
       const originY = origin.y;
@@ -1019,15 +1022,15 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       const handHalfWidth = useUploadedFigureArtwork
         ? Math.max(10, armWidth * 0.52)
         : handWidth * 0.155;
-      const shoulderHalfWidth = handHalfWidth;
+      const shoulderHalfWidth = handHalfWidth * 0.85;
 
-      // Leave the shoulder opening outward before curving toward the pointer.
-      // This short rounded root stays attached as the whole sleeve moves.
+      // Start beneath the jacket, then leave the shoulder before bending.
+      // Keep the bend radius larger than the sleeve so its inner edge cannot fold.
       const bodyExitX = Math.cos(bodyExitAngle);
       const bodyExitY = Math.sin(bodyExitAngle);
       const minimumBodyClearance = useUploadedFigureArtwork
         ? Math.max(24, armWidth * 0.72)
-        : 12;
+        : handHalfWidth * 2;
       const controlOneProjection =
         (controlOneX - originX) * bodyExitX +
         (controlOneY - originY) * bodyExitY;
@@ -1052,12 +1055,16 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
       );
       const bodyArcRadius = useUploadedFigureArtwork
         ? Math.max(18, Math.min(28, armWidth * 0.68))
-        : Math.max(7, Math.min(12, shoulderHalfWidth * 3));
+        : handHalfWidth * 1.8;
       const bodyArcPoints: ArmPoint[] = [];
       let bodyArcEndX = originX;
       let bodyArcEndY = originY;
       let bodyArcEndAngle = bodyExitAngle;
       const bodyArcSamples = 8;
+      // Ease the slight shoulder taper back to full width within this joint.
+      const rootHalfWidth = (progress: number) =>
+        shoulderHalfWidth +
+        (handHalfWidth - shoulderHalfWidth) * progress * progress * (3 - 2 * progress);
 
       if (Math.abs(bodyTurn) < 0.08) {
         const straightLength = bodyArcRadius * 0.8;
@@ -1068,7 +1075,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           bodyArcPoints.push({
             x: bodyArcEndX,
             y: bodyArcEndY,
-            halfWidth: shoulderHalfWidth,
+            halfWidth: rootHalfWidth(progress),
           });
         }
       } else {
@@ -1092,7 +1099,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
           bodyArcPoints.push({
             x: bodyArcEndX,
             y: bodyArcEndY,
-            halfWidth: shoulderHalfWidth,
+            halfWidth: rootHalfWidth(progress),
           });
         }
         bodyArcEndAngle = bodyExitAngle + bodyTurn;
@@ -1117,8 +1124,6 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         x: (controlOneX + controlTwoX) / 2,
         y: (controlOneY + controlTwoY) / 2,
       };
-      const middleHalfWidth =
-        shoulderHalfWidth + (handHalfWidth - shoulderHalfWidth) * 0.5;
       const armPoints: ArmPoint[] = [
         {
           x: originX,
@@ -1142,9 +1147,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         );
         armPoints.push({
           ...point,
-          halfWidth:
-            shoulderHalfWidth +
-            (middleHalfWidth - shoulderHalfWidth) * sampleProgress,
+          halfWidth: handHalfWidth,
         });
       }
 
@@ -1159,9 +1162,7 @@ export default function WhatWeDoSection(props: WhatWeDoBlock) {
         );
         armPoints.push({
           ...point,
-          halfWidth:
-            middleHalfWidth +
-            (handHalfWidth - middleHalfWidth) * sampleProgress,
+          halfWidth: handHalfWidth,
           ...(index === samplesPerHalf
             ? {
                 normalX: cuffOutwardY,

@@ -15,11 +15,12 @@ import gsap from "gsap";
 import { Physics2DPlugin } from "gsap/Physics2DPlugin";
 import { HeaderFeatureMatrixTexture } from "@/components/header/visual-effects";
 import HeaderFeatureSectionArtwork from "@/components/header/feature-section-artwork";
+import { getFeatureCannon, type CannonImage } from "@/lib/feature-cannon";
 
 let physicsRegistered = false;
 const particleCursors = new WeakMap<HTMLElement, number>();
 
-type ParticleImage = {
+type ParticleImage = CannonImage & {
   _key?: string;
   url?: string | null;
 };
@@ -77,7 +78,7 @@ function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undef
   );
   if (!container) return;
 
-  const validImages = images.filter((img) => !!img?.url) as { url: string }[];
+  const validImages = images.filter((img) => !!img?.url) as (CannonImage & { url: string })[];
   if (!validImages.length) return;
 
   const bursts = Math.min(count, validImages.length * 3);
@@ -100,7 +101,12 @@ function fireParticles(root: HTMLElement, images: ParticleImage[] | null | undef
     const inner = document.createElement("div");
     inner.style.width = "100%";
     inner.style.height = "100%";
-    inner.style.backgroundImage = `url(${img.url})`;
+    if (img.colour) {
+      inner.style.backgroundColor = img.colour;
+      inner.style.mask = `url("${img.url}") center / contain no-repeat`;
+    } else {
+      inner.style.backgroundImage = `url(${img.url})`;
+    }
     inner.style.backgroundSize = "contain";
     inner.style.backgroundRepeat = "no-repeat";
     inner.style.backgroundPosition = "center";
@@ -363,6 +369,11 @@ function Button({
     });
   }, [backgroundImageHoverEffect]);
 
+  const emitParticles = (root: HTMLElement) => {
+    const preset = isHeaderFeatureStar ? getFeatureCannon(root) : null;
+    fireParticles(root, preset?.images ?? cmsLink?.particleImages, preset?.size ?? cmsLink?.particleSize, preset?.count ?? cmsLink?.particleCount, particleFadeOnLeave, preset ? true : cmsLink?.particleSequence);
+  };
+
   const handleMouseEnter = (event: React.MouseEvent<HTMLElement>) => {
     props.onMouseEnter?.(event as React.MouseEvent<HTMLButtonElement>);
     hoverRef.current = true;
@@ -371,12 +382,12 @@ function Button({
     if (hasParticles) {
       const root = targetRef.current;
       if (root) {
-        fireParticles(root, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount, particleFadeOnLeave, cmsLink?.particleSequence);
+        emitParticles(root);
 
         if (intervalRef.current == null) {
           intervalRef.current = window.setInterval(() => {
             if (!hoverRef.current || !targetRef.current) return;
-            fireParticles(targetRef.current, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount, particleFadeOnLeave, cmsLink?.particleSequence);
+            emitParticles(targetRef.current);
           }, 220);
         }
       }

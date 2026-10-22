@@ -4,9 +4,10 @@ import { useEffect, useRef, type CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { warmFeatureCannon } from "@/lib/feature-cannon";
 
 type SectionArtwork = "services" | "network" | "belief" | "wardrobe";
-type Section = { element: HTMLElement; artwork: SectionArtwork; colour: string };
+type Section = { element: HTMLElement; artwork: SectionArtwork; colour: string; atNav?: boolean };
 
 // This lives inside the native artwork layer, so the Matrix's existing reveal
 // and the glasses' electric treatment continue to take precedence over it.
@@ -24,13 +25,13 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
     gsap.registerPlugin(ScrollTrigger);
     const desktop = matchMedia("(min-width: 1280px)");
     let sections: Section[] = [];
-    let scrollContent: HTMLElement | null = null;
-    let lastTransform = "";
-    let lastScroll = -1, settleUntil = 0;
+    let sectionObserver: IntersectionObserver | null = null;
+    let boundsReady = false;
     let current = "";
     const imageArtwork = {
       services: root.querySelector<HTMLElement>("[data-header-section-matcha]"),
       wardrobe: root.querySelector<HTMLElement>("[data-header-section-hat]"),
+      belief: root.querySelector<HTMLElement>("[data-header-section-cherub]"),
     };
     const images = Object.values(imageArtwork).filter((image): image is HTMLElement => !!image);
     const imageFor = (artwork?: string) => imageArtwork[artwork as keyof typeof imageArtwork];
@@ -49,6 +50,7 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
         native.dataset.sectionArtwork = next;
         native.dataset.sectionImage = String(!!nextImage);
         feature.dataset.headerSectionArtwork = next;
+        warmFeatureCannon(feature);
         native.style.setProperty("--header-section-star-colour", section?.colour || "transparent");
         if (nextImage) {
           // All photographic nav objects stay upright, including a star's
@@ -78,7 +80,6 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
     };
     const discover = () => {
       sections = [];
-      scrollContent = document.getElementById("smooth-content");
       const services = document.querySelector<HTMLElement>("[data-what-grid]");
       const network = document.querySelector("[data-network-intro]")?.closest("section");
       const belief = document.querySelector<HTMLElement>("[data-belief-section]");
@@ -94,23 +95,29 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
         sections.push({ element: belief, artwork: "belief", colour: bubble ? getComputedStyle(bubble).backgroundColor : "#627aff" });
       }
       if (wardrobe) sections.push({ element: wardrobe, artwork: "wardrobe", colour: "transparent" });
-      settleUntil = performance.now() + 1400;
+      sectionObserver?.disconnect();
+      boundsReady = false;
+      if (!desktop.matches) return;
+      // Observe a one-pixel viewport strip through the nav. The browser reports
+      // actual transformed/pinned positions after layout, so the animation
+      // ticker never has to flush page styles with getBoundingClientRect().
+      const bounds = feature.getBoundingClientRect();
+      const navY = Math.max(0, Math.min(innerHeight - 1, bounds.top + bounds.height / 2));
+      sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const section = sections.find(({ element }) => element === entry.target);
+          if (section) section.atNav = entry.isIntersecting;
+        });
+        boundsReady = true;
+        update();
+      }, { rootMargin: `-${navY}px 0px -${Math.max(0, innerHeight - navY - 1)}px 0px`, threshold: 0 });
+      sections.forEach(({ element }) => sectionObserver!.observe(element));
     };
     const update = () => {
       if (!desktop.matches || pathname !== "/" || ctaActive) {
         setArtwork();
         return;
       }
-      const now = performance.now();
-      const scroll = window.scrollY;
-      const transform = scrollContent?.style.transform || "";
-      // Follow ScrollSmoother's settling motion, but do no layout reads at rest.
-      if (scroll !== lastScroll || transform !== lastTransform) {
-        lastScroll = scroll;
-        lastTransform = transform;
-        settleUntil = now + 1400;
-      }
-      if (now > settleUntil) return;
       // Select the incoming artwork early, but its complementary exit mask
       // keeps it hidden until the section seam actually reaches the nav.
       if (header?.dataset.headerVisualMode === "matrix" &&
@@ -118,21 +125,14 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
         setArtwork(sections.find(section => section.artwork === "network"));
         return;
       }
-      const bounds = feature.getBoundingClientRect();
-      if (!bounds.height) return;
-      const navY = bounds.top + bounds.height / 2;
-      const section = sections.find(({ element }) => {
-        if (!element.isConnected || element.closest("[inert]")) return false;
-        const rect = element.getBoundingClientRect();
-        return rect.top <= navY && rect.bottom > navY;
-      });
+      if (!boundsReady) return;
+      const section = sections.find(({ element, atNav }) =>
+        atNav && element.isConnected && !element.closest("[inert]"));
       setArtwork(section);
     };
     const refresh = () => { discover(); update(); };
-    const scrollChanged = () => { settleUntil = performance.now() + 1400; };
     const ctaChanged = (event: Event) => {
       ctaActive = (event as CustomEvent<{ active: boolean }>).detail.active;
-      scrollChanged();
       update();
     };
     setArtwork();
@@ -152,17 +152,15 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
     window.addEventListener("resize", refresh, { passive: true });
     window.addEventListener("initial-hash-ready", refresh);
     window.addEventListener("app:project-cta-active", ctaChanged);
-    // Native focus/scrollIntoView can scroll a wrapper without moving window.
-    document.addEventListener("scroll", scrollChanged, { capture: true, passive: true });
     return () => {
       observer.disconnect();
+      sectionObserver?.disconnect();
       gsap.ticker.remove(update);
       ScrollTrigger.removeEventListener("refresh", refresh);
       desktop.removeEventListener("change", refresh);
       window.removeEventListener("resize", refresh);
       window.removeEventListener("initial-hash-ready", refresh);
       window.removeEventListener("app:project-cta-active", ctaChanged);
-      document.removeEventListener("scroll", scrollChanged, true);
       delete native.dataset.sectionArtwork;
       delete native.dataset.sectionImage;
       delete feature.dataset.headerSectionArtwork;
@@ -178,6 +176,7 @@ export default function HeaderFeatureSectionArtwork({ imageUrl }: { imageUrl: st
       <span data-header-section-matcha data-header-section-image className="absolute inset-0" />
       <span data-header-section-network className="absolute inset-0" />
       <span data-header-section-hat data-header-section-image className="absolute inset-0" />
+      <span data-header-section-cherub data-header-section-image className="absolute inset-0" />
     </span>
   );
 }

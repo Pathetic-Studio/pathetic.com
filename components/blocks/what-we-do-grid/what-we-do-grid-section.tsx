@@ -22,6 +22,7 @@ import { splitTextAtWordRatio } from "@/components/blocks/shared/text-lines";
 import FlyingPigeonScene from "@/components/blocks/what-we-do-grid/flying-pigeon-scene";
 import PizzaRatScene from "@/components/blocks/what-we-do-grid/pizza-rat-scene";
 import CarouselDots from "@/components/ui/carousel-dots";
+import useRoadDebris from "./use-road-debris";
 
 // Local editorial copy; keep each service's existing CMS artwork and behaviour.
 const SERVICE_COPY = [
@@ -565,6 +566,7 @@ function ServiceCard({
         {cleanServiceDescription && (
           touchActive ? (
             <div
+              data-what-active-copy
               className={`w-full min-w-0 origin-top-left animate-[what-touch-copy-in_130ms_cubic-bezier(.22,1,.36,1)_both] whitespace-normal break-normal px-3 py-2 [hyphens:none] [overflow-wrap:normal] [text-wrap:pretty] ${TEXT_STYLES.body}`}
               style={{ backgroundColor: accent, color: textColor }}
             >
@@ -625,6 +627,7 @@ export function WhatWeDoGridView({
         : service;
     });
   const rootRef = useRef<HTMLDivElement | null>(null);
+  useRoadDebris(rootRef);
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const scrollActiveFrameRef = useRef(0);
   const pointerDragRef = useRef({
@@ -900,6 +903,20 @@ export function WhatWeDoGridView({
       </div>
 
       <style jsx global>{`
+        /* Only visible card content should catch the pointer. The full-height
+           tracks and invisible copy spacers sit above the road on both layouts. */
+        [data-what-service-carousel],
+        [data-what-service-slide],
+        [data-what-service-slide] > a,
+        [data-what-service],
+        [data-what-service-copy] {
+          pointer-events: none;
+        }
+        [data-what-service-image],
+        [data-what-service-copy] > h3,
+        [data-what-active-copy] {
+          pointer-events: auto;
+        }
         @keyframes what-touch-copy-in {
           from {
             opacity: 0;

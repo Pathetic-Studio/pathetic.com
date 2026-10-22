@@ -24,10 +24,10 @@ const randomBetween = (minimum: number, maximum: number) =>
 export default function PizzaRatScene() {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const ratRef = useRef<HTMLButtonElement | null>(null);
+  const spriteRef = useRef<HTMLSpanElement | null>(null);
   const scareRatRef = useRef<() => void>(() => undefined);
   const nextPizzaIdRef = useRef(0);
   const [nearViewport, setNearViewport] = useState(false);
-  const [mode, setMode] = useState<RatMode>("pulling");
   const [droppedPizzas, setDroppedPizzas] = useState<DroppedPizza[]>([]);
   const ratAssetUrl = useChromaKeyAsset(RAT_ATLAS_SRC, nearViewport);
   const pizzaAssetUrl = useChromaKeyAsset(DROPPED_PIZZA_SRC, nearViewport);
@@ -52,7 +52,9 @@ export default function PizzaRatScene() {
   useLayoutEffect(() => {
     const root = rootRef.current;
     const rat = ratRef.current;
-    if (!root || !rat || !ratAssetUrl || !pizzaAssetUrl) return;
+    const sprite = spriteRef.current;
+    if (!root || !rat || !sprite || !ratAssetUrl || !pizzaAssetUrl) return;
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
     let scheduleTimer = 0;
     let nibbleTimer = 0;
@@ -63,6 +65,8 @@ export default function PizzaRatScene() {
     let ratActive = false;
     let scared = false;
     let currentMode: RatMode = "pulling";
+    let lastFrame = -1;
+    const setRatX = gsap.quickSetter(rat, "x", "px");
     let travelDirection: -1 | 1 = -1;
     const pointer = { x: -1, y: -1, active: false };
     const mobileLayout = window.matchMedia("(max-width: 1023px)");
@@ -118,7 +122,24 @@ export default function PizzaRatScene() {
 
     const updateMode = (nextMode: RatMode) => {
       currentMode = nextMode;
-      setMode(nextMode);
+      lastFrame = -1;
+      rat.dataset.ratMode = nextMode;
+      sprite.className = `${nextMode === "nibbling" ? "what-rat-nibble-frame " : ""}block h-full w-full bg-no-repeat`;
+      sprite.style.backgroundSize = nextMode === "fleeing" ? "420% 420%" : "300% 300%";
+      // The running row is cropped tighter in the atlas. Register its feet to
+      // the pulling row's ground line instead of letting the crop lift the rat.
+      sprite.style.transform = nextMode === "fleeing" ? "translate(-27%, 39%)" : nextMode === "pulling" ? "scale(1.28)" : "translateY(5%)";
+      sprite.style.transformOrigin = nextMode === "pulling" ? "0% 50%" : "50% 50%";
+      sprite.style.backgroundPosition = nextMode === "fleeing" ? "6.25% 93.75%" : nextMode === "nibbling" ? "0 50%" : "0 0";
+    };
+    const setStrideFrame = (cycle: number) => {
+      const index = reducedMotion.matches ? 0 : Math.floor(cycle * 3) % 3;
+      if (index === lastFrame) return;
+      lastFrame = index;
+      sprite.style.backgroundPosition = currentMode === "fleeing"
+        ? `${[6.25, 50, 93.75][index]}% 93.75%`
+        : `${index * 50}% 0`;
+      rat.dataset.ratFrame = String(index);
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -213,13 +234,30 @@ export default function PizzaRatScene() {
           : Math.min(endX, currentX + distance);
       const reachedEnd =
         travelDirection === -1 ? targetX <= endX + 1 : targetX >= endX - 1;
+      const scale = Math.abs(Number(gsap.getProperty(rat, "scaleY"))) || 1;
+      const travel = Math.abs(targetX - currentX);
+      const cycles = Math.max(1, Math.ceil(travel / (ratSize * scale * 0.3)));
+      const stride = travel / cycles;
+      const pull = { cycle: 0 };
 
       movementTween?.kill();
-      movementTween = gsap.to(rat, {
-        x: targetX,
-        duration: randomBetween(2.5, 3.7),
-        ease: "power1.inOut",
-        onUpdate: checkPointerCollision,
+      movementTween = gsap.to(pull, {
+        cycle: cycles,
+        duration: cycles * 0.56,
+        ease: "none",
+        onUpdate: () => {
+          const whole = Math.floor(pull.cycle);
+          const phase = pull.cycle - whole;
+          // Brace, tug, recover: each visible pose drives the same small pull.
+          const tug = reducedMotion.matches ? phase : phase < 0.25
+            ? phase * 0.32
+            : phase < 0.8
+              ? 0.08 + 0.86 * (1 - Math.pow(1 - (phase - 0.25) / 0.55, 2))
+              : 0.94 + (phase - 0.8) * 0.3;
+          setRatX(currentX + travelDirection * (whole + tug) * stride);
+          setStrideFrame(pull.cycle);
+          checkPointerCollision();
+        },
         onComplete: () => {
           if (reachedEnd) {
             finishCrossing();
@@ -294,10 +332,18 @@ export default function PizzaRatScene() {
         [...current, pizzaDrop].slice(-MAX_DROPPED_PIZZAS),
       );
 
+      const groundY = currentY + ratSize * (0.5 + (0.88 - 0.5) * currentScale);
       updateMode("fleeing");
       const fleeScale = currentScale * 0.94;
       const fleeScaleX = travelDirection === 1 ? fleeScale : -fleeScale;
+      const fleeY = groundY - ratSize * (0.5 + (0.88 - 0.5) * fleeScale);
+      const endX = travelDirection === -1 ? -ratSize * 1.5 : width + ratSize * 0.5;
+      const runDistance = Math.abs(endX - currentX);
+      const runStride = ratSize * fleeScale * 0.85;
+      const runDuration = Math.max(0.18, runDistance / (ratSize * fleeScale * 3.8));
+      const ramp = Math.min(0.18, 0.12 / runDuration);
       gsap.set(rat, {
+        y: fleeY,
         pointerEvents: "none",
         rotation: 0,
         scaleX: fleeScaleX,
@@ -305,16 +351,15 @@ export default function PizzaRatScene() {
       });
       escapeTween?.kill();
       escapeTween = gsap.to(rat, {
-        x: travelDirection === -1 ? -ratSize * 1.5 : width + ratSize * 0.5,
-        y: clampYToRoad(
-          Math.max(
-            height * 0.64,
-            currentY - height * randomBetween(0.01, 0.045),
-          ),
-          fleeScale,
-        ),
-        duration: randomBetween(1.05, 1.45),
-        ease: "power2.in",
+        x: endX,
+        duration: runDuration,
+        ease: (progress) => (progress < ramp ? progress * progress / (2 * ramp) : progress - ramp / 2) / (1 - ramp / 2),
+        onUpdate: () => {
+          // Advance feet by distance travelled, including the short launch
+          // acceleration, so they cannot sprint on the spot or slide at speed.
+          const x = Number(gsap.getProperty(rat, "x")) || 0;
+          setStrideFrame(Math.abs(x - currentX) / runStride);
+        },
         onComplete: () => {
           gsap.set(rat, { autoAlpha: 0 });
           updateMode("pulling");
@@ -369,7 +414,6 @@ export default function PizzaRatScene() {
         scaleX: Math.sign(currentScaleX) * scale,
         scaleY: scale,
       });
-      if (escapeTween?.isActive()) escapeTween.resetTo("y", y);
     });
     resizeObserver.observe(root);
     resizeObserver.observe(rat);
@@ -393,13 +437,6 @@ export default function PizzaRatScene() {
     };
   }, [pizzaAssetUrl, ratAssetUrl]);
 
-  const animationClass =
-    mode === "pulling"
-      ? "what-rat-pull-frame"
-      : mode === "nibbling"
-        ? "what-rat-nibble-frame"
-        : "what-rat-flee-frame";
-
   return (
     <div
       ref={rootRef}
@@ -412,10 +449,12 @@ export default function PizzaRatScene() {
     >
       {pizzaAssetUrl &&
         droppedPizzas.map((pizza) => (
-          <span
+          <button
             key={pizza.id}
-            aria-hidden="true"
-            className="absolute aspect-square w-[clamp(3.75rem,5.5vw,6rem)] bg-contain bg-center bg-no-repeat"
+            type="button"
+            data-road-debris="pizza"
+            aria-label="Throw the dropped pizza"
+            className="pointer-events-auto absolute aspect-square w-[clamp(3.75rem,5.5vw,6rem)] touch-none select-none cursor-grab border-0 bg-transparent bg-contain bg-center bg-no-repeat p-0 focus-visible:outline focus-visible:outline-2"
             style={{
               left: `${pizza.x}%`,
               top: `${pizza.y}%`,
@@ -435,18 +474,14 @@ export default function PizzaRatScene() {
           className="pointer-events-none absolute left-0 top-0 aspect-square w-[clamp(7.5rem,10.5vw,11rem)] cursor-crosshair border-0 bg-transparent p-0 opacity-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
         >
           <span
+            ref={spriteRef}
             aria-hidden="true"
-            className={`${animationClass} block h-full w-full bg-no-repeat`}
+            className="block h-full w-full bg-no-repeat"
             style={{
               backgroundImage: `url(${ratAssetUrl})`,
-              backgroundSize: mode === "fleeing" ? "420% 420%" : "300% 300%",
-              transform:
-                mode === "fleeing"
-                  ? "translateX(-27%)"
-                  : mode === "pulling"
-                    ? "scale(1.28)"
-                    : undefined,
-              transformOrigin: mode === "pulling" ? "0% 50%" : "50% 50%",
+              backgroundSize: "300% 300%",
+              transform: "scale(1.28)",
+              transformOrigin: "0% 50%",
             }}
           />
         </button>

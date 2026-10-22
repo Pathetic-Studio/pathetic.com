@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { stegaClean } from "next-sanity";
-import LogoAnimated from "@/components/logo-animated";
+import FooterWordmark from "./footer-wordmark";
+import FooterStar from "./footer-star";
 import {
   useContactModal,
   useNewsletterModal,
@@ -159,7 +160,7 @@ function BingoGrid({
   cells,
   side,
   activeCell,
-  setHoveredCell,
+  clearInteraction,
   setFocusedCell,
   openContact,
   openNewsletter,
@@ -167,7 +168,7 @@ function BingoGrid({
   cells: BingoCell[];
   side: "left" | "right";
   activeCell: string | null;
-  setHoveredCell: (id: string | null) => void;
+  clearInteraction: () => void;
   setFocusedCell: (id: string | null) => void;
   openContact: () => void;
   openNewsletter: () => void;
@@ -199,11 +200,6 @@ function BingoGrid({
     ];
   });
 
-  const clearInteraction = () => {
-    setHoveredCell(null);
-    setFocusedCell(null);
-  };
-
   const renderCellContent = (cell: BingoCell) => {
     const { label, normalizedLabel } = getCellLabel(cell);
     const id = `${side}-${cell._key}`;
@@ -212,6 +208,7 @@ function BingoGrid({
       ? label
       : REFERENCE_LINE_BREAKS[normalizedLabel] || label;
     const icon = stegaClean(cell.icon) || "none";
+    if (icon === "star") return <FooterStar />;
     const configuredAction = stegaClean(cell.action) || "link";
     const action =
       configuredAction === "none" && fallback
@@ -228,27 +225,16 @@ function BingoGrid({
             ? "/#basket-links"
             : configuredHref || fallback?.href || "";
     const opensNewTab = cell.link?.target || fallback?.target;
-    const content =
-      icon === "star" ? (
-        <span
-          aria-label={label || "Featured"}
-          className="text-[clamp(2.2rem,5vw,4.7rem)] leading-none"
-        >
-          ★
-        </span>
-      ) : (
-        <span className="max-w-full whitespace-pre-line px-1 text-[clamp(.64rem,1.25vw,1.05rem)] font-bold italic uppercase leading-[.9] tracking-[-.035em]">
-          {displayLabel}
-        </span>
-      );
+    const content = (
+      <span className="max-w-full whitespace-pre-line px-1 text-[clamp(.64rem,1.25vw,1.05rem)] font-bold italic uppercase leading-[.9] tracking-[-.035em]">
+        {displayLabel}
+      </span>
+    );
     const interactionProps = {
       className: styles.control,
       "data-bingo-link": normalizedLabel,
+      "data-bingo-id": id,
       "data-active": activeCell === id,
-      onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
-        if (event.pointerType !== "touch") setHoveredCell(id);
-      },
-      onPointerLeave: () => setHoveredCell(null),
       onPointerCancel: clearInteraction,
       onFocus: (event: React.FocusEvent<HTMLElement>) => {
         if (event.currentTarget.matches(":focus-visible")) setFocusedCell(id);
@@ -346,6 +332,31 @@ export default function BingoFooter(props: BingoFooterBlock) {
   const { open: openNewsletter } = useNewsletterModal();
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
   const [focusedCell, setFocusedCell] = useState<string | null>(null);
+  const hoveredRef = useRef<string | null>(null);
+  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelExit = () => {
+    if (exitTimer.current) clearTimeout(exitTimer.current);
+    exitTimer.current = null;
+  };
+  const updateHover = (id: string | null) => {
+    cancelExit();
+    if (id === hoveredRef.current) return;
+    hoveredRef.current = id;
+    setHoveredCell(id);
+  };
+  const clearInteraction = () => { updateHover(null); setFocusedCell(null); };
+  const trackHover = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === "touch") return;
+    const target = (event.target as Element).closest<HTMLElement>("[data-bingo-id]");
+    if (target) { updateHover(target.dataset.bingoId || null); return; }
+    // Bridge the one-pixel grid borders without flashing through an empty state.
+    if (!exitTimer.current) exitTimer.current = setTimeout(() => updateHover(null), 60);
+  };
+  useEffect(() => {
+    const blur = () => { hoveredRef.current = null; setHoveredCell(null); setFocusedCell(null); };
+    window.addEventListener("blur", blur);
+    return () => { cancelExit(); window.removeEventListener("blur", blur); };
+  }, []);
   const activeCell = hoveredCell ?? focusedCell;
   const backgroundColor = stegaClean(props.backgroundColor?.hex) || "#FFFFFF";
   const textColor = stegaClean(props.textColor?.hex) || "#050505";
@@ -353,6 +364,10 @@ export default function BingoFooter(props: BingoFooterBlock) {
   return (
     <footer
       data-bingo-footer
+      onPointerOver={trackHover}
+      onPointerMove={trackHover}
+      onPointerLeave={() => updateHover(null)}
+      onPointerCancel={clearInteraction}
       className="relative isolate px-3 py-5 sm:px-5 lg:px-7"
       style={
         {
@@ -369,7 +384,7 @@ export default function BingoFooter(props: BingoFooterBlock) {
             cells={props.leftCells ?? []}
             side="left"
             activeCell={activeCell}
-            setHoveredCell={setHoveredCell}
+            clearInteraction={clearInteraction}
             setFocusedCell={setFocusedCell}
             openContact={openContact}
             openNewsletter={openNewsletter}
@@ -377,7 +392,7 @@ export default function BingoFooter(props: BingoFooterBlock) {
         </div>
 
         <div data-abyss-piece className="order-1 col-span-2 flex min-h-[clamp(8rem,25vw,19rem)] items-center justify-center lg:order-2 lg:col-span-1">
-          <LogoAnimated className="h-full max-h-[19rem] w-full text-current" />
+          <FooterWordmark />
         </div>
 
         <div className="order-3 ml-0 mr-auto w-full max-w-[15rem] max-lg:[&>div]:border-l-0 lg:mx-auto lg:max-w-[17rem]">
@@ -385,7 +400,7 @@ export default function BingoFooter(props: BingoFooterBlock) {
             cells={props.rightCells ?? []}
             side="right"
             activeCell={activeCell}
-            setHoveredCell={setHoveredCell}
+            clearInteraction={clearInteraction}
             setFocusedCell={setFocusedCell}
             openContact={openContact}
             openNewsletter={openNewsletter}

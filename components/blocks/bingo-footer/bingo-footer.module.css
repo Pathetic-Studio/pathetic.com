@@ -16,11 +16,37 @@
     color 120ms ease;
 }
 
-.control[data-active="true"],
-.control:active {
+.control[data-active="true"] {
   background: var(--bingo-ink);
   color: var(--bingo-bg);
 }
+
+@media (hover: none) {
+  .control:active { background: var(--bingo-ink); color: var(--bingo-bg); }
+}
+
+.wordmark {
+  position: relative;
+  width: 100%;
+  max-width: calc(19rem * 1575.44 / 664.54);
+  aspect-ratio: 1575.44 / 664.54;
+}
+.wordmarkSource { position: absolute; inset: 0; pointer-events: none; }
+.letter {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  perspective: 700px;
+}
+.letterFace { display: block; width: 100%; height: 100%; pointer-events: none; }
+.letter:focus-visible { outline: 2px solid currentColor; outline-offset: 6px; }
+.starControl { perspective: 500px; }
+.starControl > span { pointer-events: none; }
 
 .control:focus-visible {
   outline: 2px solid var(--bingo-ink);

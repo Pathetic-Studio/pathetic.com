@@ -254,10 +254,12 @@ export default function FlyingPigeonScene() {
     >
       {deadAssetUrl &&
         deadPigeons.map((pigeon) => (
-          <span
+          <button
             key={pigeon.id}
-            aria-hidden="true"
-            className="absolute aspect-[4/3] w-[clamp(4rem,6vw,6.5rem)] -translate-x-1/2 -translate-y-1/2 bg-contain bg-center bg-no-repeat"
+            type="button"
+            data-road-debris="pigeon"
+            aria-label="Throw the fallen pigeon"
+            className="pointer-events-auto absolute aspect-[4/3] w-[clamp(4rem,6vw,6.5rem)] touch-none select-none cursor-grab border-0 bg-transparent bg-contain bg-center bg-no-repeat p-0 focus-visible:outline focus-visible:outline-2"
             style={{
               left: `${pigeon.x}%`,
               top: `${pigeon.y}%`,

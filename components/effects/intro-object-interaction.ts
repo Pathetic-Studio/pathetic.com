@@ -1,4 +1,4 @@
-import { Body, Query, World, type Engine } from "matter-js";
+import { Body, Query, Sleeping, World, type Engine } from "matter-js";
 import gsap from "gsap";
 import { Physics2DPlugin } from "gsap/Physics2DPlugin";
 import { createViewportParticleLayer } from "./viewport-particles";
@@ -58,6 +58,7 @@ export function createIntroObjectInteraction({
     releaseSelection();
     if (!held) return;
     Body.setStatic(held.body, false);
+    Sleeping.set(held.body, false);
     held.image.style.transform = "";
     delete held.node.dataset.introState;
     held = null;
@@ -106,6 +107,7 @@ export function createIntroObjectInteraction({
     selectionStyles.forEach(({ name }) => document.documentElement.style.setProperty(name, "none", "important"));
     window.getSelection()?.removeAllRanges();
     clearAttractor();
+    Sleeping.set(body, false);
     Body.setStatic(body, true);
     node.dataset.introState = "holding";
     held = {
@@ -207,6 +209,7 @@ export function createIntroObjectInteraction({
 
     const timer = setTimeout(() => {
       timers.delete(timer);
+      Sleeping.set(body, false);
       const rect = container.getBoundingClientRect();
       const inset = Math.min(node.offsetWidth / 2, rect.width / 2);
       Body.setPosition(body, {
