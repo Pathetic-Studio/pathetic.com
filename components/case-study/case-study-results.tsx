@@ -16,7 +16,7 @@ export default function CaseStudyResults({
 }) {
   const metrics = result.split(/,\s*/);
   return (
-    <ul className={styles.results} aria-label="Project results" data-multiple={metrics.length > 1}>
+    <ul className={styles.results} aria-label="Project results" data-count={metrics.length}>
       {metrics.map((metric, i) => {
         const views = /\bviews?\b/i.test(metric);
         const eyeId = `${id}-result-${i}`;
@@ -31,6 +31,7 @@ export default function CaseStudyResults({
                   enableClickToAdd={false}
                   rollOnExistingClick={false}
                   edgePadding={0}
+                  mobileShadow="soft"
                 />
               ) : (
                 <Image

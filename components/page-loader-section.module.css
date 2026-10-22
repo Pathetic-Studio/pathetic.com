@@ -1,3 +1,12 @@
+.title::selection,
+.title *::selection {
+  /* Exact green sampled from the intro Meme Booth star artwork. */
+  background: #e1ff00;
+  color: #000;
+  -webkit-text-stroke-color: transparent;
+  text-shadow: none;
+}
+
 @media (max-width: 767px) {
   .content {
     flex-direction: column;

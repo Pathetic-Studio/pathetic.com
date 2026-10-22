@@ -33,6 +33,7 @@ type EyeFollowProps = {
     staggerOnEnter?: boolean;
     staggerEnterDelayMs?: number;
     staggerEnterRootMargin?: string;
+    mobileShadow?: "default" | "soft";
 };
 
 type MousePos = { x: number; y: number } | null;
@@ -105,6 +106,7 @@ export default function EyeFollow({
     staggerOnEnter = false,
     staggerEnterDelayMs = 0,
     staggerEnterRootMargin = "0px 0px -22% 0px",
+    mobileShadow = "default",
 }: EyeFollowProps) {
     const [mouse, setMouse] = useState<MousePos>(null);
     const [rect, setRect] = useState<Rect>(null);
@@ -661,8 +663,9 @@ export default function EyeFollow({
                             style={{
                                 borderRadius: size * 0.5,
                                 backgroundColor: "#fff",
-                                boxShadow:
-                                    "0 8px 18px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.18) inset",
+                                boxShadow: isMobile && mobileShadow === "soft"
+                                    ? "0 3px 9px rgba(0,0,0,0.13), 0 0 0 1px rgba(255,255,255,0.18) inset"
+                                    : "0 8px 18px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.18) inset",
                             }}
                         >
                             <Image

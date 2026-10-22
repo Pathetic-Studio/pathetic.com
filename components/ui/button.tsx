@@ -217,6 +217,7 @@ function Button({
     ? cmsLink?.backgroundImageHoverEffect
     : null;
   const isHeaderFeatureStar = cmsLink?.headerVisualPreset === "feature-star";
+  const particleFadeOnLeave = !!cmsLink?.particleFadeOnLeave || isHeaderFeatureStar;
 
   let url = cmsLink?.href ?? href ?? undefined;
 
@@ -370,12 +371,12 @@ function Button({
     if (hasParticles) {
       const root = targetRef.current;
       if (root) {
-        fireParticles(root, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount, cmsLink?.particleFadeOnLeave, cmsLink?.particleSequence);
+        fireParticles(root, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount, particleFadeOnLeave, cmsLink?.particleSequence);
 
         if (intervalRef.current == null) {
           intervalRef.current = window.setInterval(() => {
             if (!hoverRef.current || !targetRef.current) return;
-            fireParticles(targetRef.current, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount, cmsLink?.particleFadeOnLeave, cmsLink?.particleSequence);
+            fireParticles(targetRef.current, cmsLink?.particleImages, cmsLink?.particleSize, cmsLink?.particleCount, particleFadeOnLeave, cmsLink?.particleSequence);
           }, 220);
         }
       }
@@ -393,7 +394,7 @@ function Button({
       intervalRef.current = null;
     }
 
-    if (cmsLink?.particleFadeOnLeave) {
+    if (particleFadeOnLeave) {
       const particles = event.currentTarget.querySelectorAll<HTMLElement>("[data-particle-container] > div");
       gsap.to(particles, {
         opacity: 0, duration: 0.12, ease: "power1.out", overwrite: "auto",

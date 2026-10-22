@@ -13,7 +13,7 @@
   --mobile-section-gap: 3rem;
   --story-mobile-title-size: clamp(2.25rem, 11.5vw, 3.5rem);
   --story-mobile-title-leading: .92;
-  --case-project-title-size: clamp(48px, calc(32px + 4vw), 96px);
+  --case-project-title-size: clamp(42px, min(calc(32px + 4vw), 13.125vw), 96px);
 }
 
 .mobile-section-gap {
