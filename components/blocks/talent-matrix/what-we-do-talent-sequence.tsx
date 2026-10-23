@@ -188,6 +188,11 @@ export default function WhatWeDoTalentSequence({
             // header a little longer, then let the code progressively take it.
             applyHeaderProgress(smoothstep(0.28, 0.52, reveal));
           };
+          const syncReveal = () => {
+            const reveal = Math.max(0, Math.min(1, transitionProgress.current.value));
+            applyRevealMask(reveal);
+            applyHeaderReveal(reveal);
+          };
           transitionProgress.current.value = 0;
           cameraScrollProgress.current.value = 0;
           gsap.set(whatScene, {
@@ -234,6 +239,7 @@ export default function WhatWeDoTalentSequence({
 
           const timeline = gsap.timeline({
             defaults: { ease: "power2.inOut" },
+            onUpdate: syncReveal,
             scrollTrigger: {
               id: "what-we-do-matrix-reveal",
               trigger: root,
@@ -244,6 +250,9 @@ export default function WhatWeDoTalentSequence({
               pinSpacing: false,
               anticipatePin: 0,
               invalidateOnRefresh: true,
+              // Refresh restores scrubbed values with tween callbacks muted.
+              // Restore the mask and input state too when arriving mid-scene.
+              onRefresh: syncReveal,
               onEnter: () => {
                 headerExited = false;
                 headerBoundary = 0;
@@ -279,20 +288,13 @@ export default function WhatWeDoTalentSequence({
 
           timeline
             .set(talentScene, { opacity: 1, pointerEvents: "auto" }, 0.78)
-            .to(
+            .fromTo(
               transitionProgress.current,
+              { value: 0 },
               {
                 value: 1,
                 duration: 1.52,
                 ease: "none",
-                onUpdate: () => {
-                  const reveal = Math.max(
-                    0,
-                    Math.min(1, transitionProgress.current.value),
-                  );
-                  applyRevealMask(reveal);
-                  applyHeaderReveal(reveal);
-                },
               },
               0.82,
             )
@@ -418,8 +420,16 @@ export default function WhatWeDoTalentSequence({
     if (!viewportMode || viewportMode === "desktop") return;
     const talentScene = talentSceneRef.current;
     if (!talentScene) return;
+    let headerActive: boolean | undefined;
     const syncHeader = (trigger: ScrollTrigger) => {
-      if (!matrixHeaderEnabled || !trigger.isActive) {
+      // At an exact anchor landing progress is zero and isActive is false,
+      // even though the dark section already fills the screen.
+      const scroll = trigger.scroll();
+      const inSection = scroll >= trigger.start - 0.5 && scroll < trigger.end;
+      const active = matrixHeaderEnabled && inSection;
+      if (active === headerActive) return;
+      headerActive = active;
+      if (!active) {
         clearHeaderVisualTheme(headerThemeSource);
         return;
       }
@@ -434,7 +444,7 @@ export default function WhatWeDoTalentSequence({
       trigger: talentScene,
       start: "top top",
       end: "bottom top",
-      onToggle: syncHeader,
+      onUpdate: syncHeader,
       onRefresh: syncHeader,
     });
     const refresh = requestAnimationFrame(() => ScrollTrigger.refresh());

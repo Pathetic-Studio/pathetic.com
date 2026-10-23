@@ -7,6 +7,7 @@ import { gsap } from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
 import ScrollSmoother from "gsap/ScrollSmoother";
 import { useViewportVars } from "@/components/hooks/use-viewport-vars";
+import { getAnchorScrollY } from "@/lib/scroll-anchor";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
@@ -168,18 +169,10 @@ export default function SmoothScroller({
       requestAnimationFrame(() => {
         if (smoother) {
           const current = smoother.scrollTop();
-          const rectTop = target.getBoundingClientRect().top;
-          const marginTop = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
-          const y = current + rectTop - marginTop;
-          smoother.scrollTo(y, false);
+          const y = getAnchorScrollY(target, current);
+          if (Math.abs(current - y) > 0.5) smoother.scrollTo(y, false);
         } else {
-          try {
-            target.scrollIntoView({ behavior: "auto", block: "start" });
-          } catch {
-            const rect = target.getBoundingClientRect();
-            const marginTop = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
-            window.scrollTo({ top: rect.top + window.scrollY - marginTop });
-          }
+          window.scrollTo({ top: getAnchorScrollY(target, window.scrollY), behavior: "auto" });
         }
 
         try {
@@ -209,16 +202,15 @@ export default function SmoothScroller({
       const target = document.getElementById(id);
       if (!target) return false;
 
-      const marginTop = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
-      const rectTop = target.getBoundingClientRect().top - marginTop;
-      if (Math.abs(rectTop) <= 1) return true;
-
       const smoother = ScrollSmoother.get();
+      const current = smoother?.scrollTop() ?? window.scrollY;
+      const y = getAnchorScrollY(target, current);
+      if (Math.abs(y - current) <= 1) return true;
+
       if (smoother) {
-        const current = smoother.scrollTop();
-        smoother.scrollTo(current + rectTop, false);
+        smoother.scrollTo(y, false);
       } else {
-        window.scrollTo(0, window.scrollY + rectTop);
+        window.scrollTo(0, y);
       }
 
       return false;
@@ -232,7 +224,9 @@ export default function SmoothScroller({
       steadyFrames = aligned ? steadyFrames + 1 : 0;
 
       const elapsed = performance.now() - startedAt;
-      if (elapsed < durationMs || steadyFrames < 4) {
+      // An absent anchor or one near the page bottom may never align exactly.
+      // Do not keep overriding user scrolling indefinitely in that case.
+      if (elapsed < durationMs || (steadyFrames < 4 && elapsed < durationMs + 600)) {
         rafId = requestAnimationFrame(tick);
         return;
       }
@@ -333,7 +327,8 @@ export default function SmoothScroller({
             ? savedScrollerRebuildRef.current.y
             : null;
       const firstMount = isFirstPathMountRef.current;
-      requestAnimationFrame(() => {
+      let cleanupHashStabilizer: (() => void) | undefined;
+      const restoreFrame = requestAnimationFrame(() => {
         if (!firstMount && savedForPath !== null) {
           window.scrollTo(0, savedForPath);
           pendingHistoryScrollRef.current = null;
@@ -341,9 +336,19 @@ export default function SmoothScroller({
         navigatingRef.current = false;
         ScrollTrigger.refresh();
         ScrollTrigger.update();
+        // Native hash scrolling happens before fonts and responsive sections
+        // finish sizing. Settle cold touch links just like desktop links.
+        if (
+          window.location.hash &&
+          (firstMount || document.documentElement.hasAttribute(INITIAL_HASH_PENDING_ATTR))
+        ) {
+          cleanupHashStabilizer = stabilizeHashIfPresent();
+        }
       });
       isFirstPathMountRef.current = false;
       return () => {
+        cancelAnimationFrame(restoreFrame);
+        cleanupHashStabilizer?.();
         savedScrollerRebuildRef.current = {
           pathname,
           y:

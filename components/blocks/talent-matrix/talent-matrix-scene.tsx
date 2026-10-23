@@ -285,7 +285,11 @@ export default function TalentMatrixScene({
     };
     // Start while approaching What We Do, before its Matrix takeover, rather
     // than allocating textures and fetching avatars during the intro loader.
-    const observer = new IntersectionObserver(([entry]) => {
+    const observer = new IntersectionObserver((entries) => {
+      // Anchor placement can queue offscreen and onscreen entries together.
+      // The last entry describes the destination; the first can leave the
+      // scene asleep for the entire pinned takeover.
+      const entry = entries[entries.length - 1];
       nearby = entry?.isIntersecting ?? false;
       warm();
     }, { rootMargin: `${margin}px 0px` });
@@ -1226,12 +1230,14 @@ export default function TalentMatrixScene({
     let nearby = false;
     let onscreen = false;
     const nearbyObserver = new IntersectionObserver(
-      ([entry]) => {
+      (entries) => {
+        const entry = entries[entries.length - 1];
         nearby = entry?.isIntersecting ?? false;
       },
       { rootMargin: `${Math.min(window.innerHeight * 0.8, 900)}px 0px` },
     );
-    const viewportObserver = new IntersectionObserver(([entry]) => {
+    const viewportObserver = new IntersectionObserver((entries) => {
+      const entry = entries[entries.length - 1];
       onscreen = entry?.isIntersecting ?? false;
       if (!onscreen) {
         pointerInside = false;

@@ -12,6 +12,7 @@ import gsap from "gsap";
 import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
 import ScrollSmoother from "gsap/ScrollSmoother";
 import ScrollTrigger from "gsap/ScrollTrigger";
+import { getAnchorScrollY } from "@/lib/scroll-anchor";
 import {
   prepareCaseStudyTransition,
   hasCaseStudyTransition,
@@ -61,21 +62,19 @@ function teleportToAnchor(anchorId: string, offsetPercent?: number | null) {
   const offsetPx =
     typeof offsetPercent === "number"
       ? (offsetPercent / 100) * window.innerHeight
-      : parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+      : undefined;
 
   const smoother = ScrollSmoother.get();
 
   if (smoother) {
     const current = smoother.scrollTop();
-    const rectTop = target.getBoundingClientRect().top;
-    const y = current + rectTop - offsetPx;
+    const y = getAnchorScrollY(target, current, offsetPx);
     // Repeated writes of the same position leave ScrollSmoother waiting for a
     // programmatic scroll that never happens. Its next real scroll then gets
     // consumed, skipping the first part of the following section's animation.
     if (Math.abs(current - y) > 0.5) smoother.scrollTo(y, false);
   } else {
-    const rect = target.getBoundingClientRect();
-    const y = rect.top + window.scrollY - offsetPx;
+    const y = getAnchorScrollY(target, window.scrollY, offsetPx);
     window.scrollTo({ top: y, behavior: "auto" });
   }
 
@@ -135,7 +134,9 @@ function enterAtScrollPosition(
     if (wrapper) wrapper.scrollTop = 0;
     if (target || !anchorId) {
       const smoother = ScrollSmoother.get();
-      restoredScroll ??= smoother?.scrollTop() ?? window.scrollY;
+      // History restores the document position first. A newly rebuilt smoother
+      // can still report an interim transform while its pins are refreshing.
+      restoredScroll ??= window.scrollY;
       const height = content?.scrollHeight ?? document.body.scrollHeight;
       const top = target
         ? target.getBoundingClientRect().top +

@@ -226,7 +226,8 @@ export default function MatrixRevealCanvas({
 
     let visible = false;
     const intersectionObserver = new IntersectionObserver(
-      ([entry]) => {
+      (entries) => {
+        const entry = entries[entries.length - 1];
         visible = entry?.isIntersecting ?? false;
       },
       { rootMargin: "150px" },
