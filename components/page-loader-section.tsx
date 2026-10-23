@@ -22,6 +22,7 @@ import LogoAnimated from "@/components/logo-animated";
 import { cn } from "@/lib/utils";
 import { setIntroHandoffPending } from "@/components/header/intro-handoff";
 import { WORK_BUTTON_PARTICLES } from "@/lib/work-button-particles";
+import { getIntroSprites, type IntroSprite } from "@/lib/intro-assets";
 
 import ImageExplodeLoader from "@/components/effects/image-explode-loader";
 import styles from "./page-loader-section.module.css";
@@ -35,10 +36,7 @@ import {
 
 gsap.registerPlugin(ScrollSmoother, Flip);
 
-type SpriteImage = {
-  _key?: string;
-  url?: string | null;
-};
+type SpriteImage = IntroSprite;
 
 type PageLoaderSectionProps = {
   data: {
@@ -85,19 +83,6 @@ const PATHETIC_INTRO_TITLE = "Who controls the Memes controls the Universe";
 const INTRO_BUTTON_PARTICLES = [1, 2, 3].map((number) => ({
   url: `/images/project-cta/memebooth-star-${number}.png`,
 }));
-const PATHETIC_INTRO_SPRITES: SpriteImage[] = [
-  { _key: "intro-red-boot", url: "/images/page-loader/red-boot.webp" },
-  { _key: "intro-silver-ring", url: "/images/page-loader/silver-ring.webp" },
-  { _key: "intro-silver-ipod", url: "/images/page-loader/silver-ipod.webp" },
-  { _key: "intro-city-bike", url: "/images/page-loader/city-bike.webp" },
-  { _key: "intro-coffee-brick", url: "/images/page-loader/coffee-brick.webp" },
-  { _key: "intro-flowers", url: "/images/page-loader/flowers.webp" },
-  { _key: "intro-yellow-sunglasses", url: "/images/page-loader/yellow-sunglasses.webp" },
-  { _key: "intro-silver-prada-shoes", url: "/images/page-loader/silver-prada-shoes.webp" },
-  { _key: "intro-baggu-bag", url: "/images/page-loader/baggu-bag.webp" },
-  { _key: "intro-espresso-cup", url: "/images/page-loader/espresso-cup.webp" },
-  { _key: "intro-oyster-platter", url: "/images/page-loader/oyster-platter.webp" },
-];
 
 // Put loader safely above *anything* in header/nav while playing.
 const LOADER_Z = 20000;
@@ -249,10 +234,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
   const shouldRender = pathname === "/" && enabled;
 
   const sprites = useMemo(
-    () =>
-      usePatheticIntroPreset
-        ? PATHETIC_INTRO_SPRITES
-        : ((feature?.images || []).filter((i) => i?.url) as SpriteImage[]),
+    () => getIntroSprites({ usePatheticIntroPreset, feature }),
     [feature?.images, usePatheticIntroPreset]
   );
 
@@ -274,8 +256,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
 
   const loaderTlRef = useRef<gsap.core.Timeline | null>(null);
 
-  const titleMeasureRef = useRef<HTMLDivElement | null>(null);
-  const [titleMinH, setTitleMinH] = useState<number | undefined>(undefined);
   const handleExplodeReady = useCallback(() => setExplodeReady(true), []);
 
   // IMPORTANT: decide "playing vs skipped" in a layout effect to avoid FOUC.
@@ -296,12 +276,12 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
     if (play) {
       setLogoFlipDoneFlag(false);
       setPin(true);
-      setExplodeReady(false);
+      setExplodeReady(sprites.length === 0);
     } else {
       setPin(false);
       setExplodeReady(false);
     }
-  }, [hydrated, shouldRender, enabled, oncePerSession]);
+  }, [hydrated, shouldRender, enabled, oncePerSession, sprites.length]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -319,46 +299,11 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
     };
   }, []);
 
-  useLayoutEffect(() => {
-    if (!hydrated) return;
-    if (!shouldRender) return;
-    if (!title) return;
-
-    const el = titleMeasureRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      const r = el.getBoundingClientRect();
-      const h = Math.ceil(r.height);
-      if (h > 0) setTitleMinH(h);
-    };
-
-    measure();
-
-    let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(() => measure());
-      ro.observe(el);
-      return () => ro?.disconnect();
-    }
-
-    const onResize = () => measure();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [hydrated, shouldRender, title]);
-
   const isPlaying = hydrated && shouldRender && loaderState === "playing";
   const fixedPinned = hydrated && shouldRender && (isPlaying || pin);
 
-  // Never let a failed image load or interrupted physics callback leave the
-  // document pinned. The first timer advances the normal sequence; the second
-  // is a final release valve for any unexpected animation interruption.
-  useEffect(() => {
-    if (!isPlaying || explodeReady) return;
-    const timer = window.setTimeout(() => setExplodeReady(true), 4500);
-    return () => window.clearTimeout(timer);
-  }, [explodeReady, isPlaying]);
-
+  // Image loading has its own bounded wait. Only its completed pop-in starts
+  // the logo; this final release valve handles an interrupted animation.
   useEffect(() => {
     if (!isPlaying) return;
     const timer = window.setTimeout(() => {
@@ -443,7 +388,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       const btns = gsap.utils.toArray<HTMLElement>(contentEl.querySelectorAll("[data-loader-btn]") ?? []);
       if (btns.length) gsap.set(btns, { scale: 0, transformOrigin: "center center" });
 
-      gsap.set(overlayEl, { autoAlpha: 0 });
+      gsap.set(overlayEl, { autoAlpha: 1 });
 
       gsap.set(logoWrapperEl, {
         x: 0,
@@ -459,6 +404,7 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       if (paths.length) gsap.set(paths, { autoAlpha: 0 });
 
       const tl = gsap.timeline({
+        paused: true,
         defaults: { ease: "power2.out" },
         onInterrupt: () => {
           if (siteHeader) {
@@ -469,12 +415,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
       });
 
       loaderTlRef.current = tl;
-
-      // overlay in
-      tl.to(overlayEl, { autoAlpha: 1, duration: 0.2 });
-
-      // WAIT HERE until ImageExplodeLoader signals completion
-      tl.addPause("wait-exploder");
 
       // logo type on
       if (paths.length) {
@@ -583,33 +523,6 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
               : "min-h-[100svh] flex flex-col justify-center py-20 text-center"
           )}
         >
-          {/* hidden measurer */}
-          {title && (
-            <div className="pointer-events-none opacity-0 absolute left-0 right-0 top-0 -z-10" aria-hidden="true">
-              <div
-                ref={titleMeasureRef}
-                className="relative left-1/2 w-full -translate-x-1/2 lg:w-[min(92vw,80rem)]"
-              >
-                <TitleText
-                  variant="stretched"
-                  as="h2"
-                  size="xl"
-                  align="center"
-                  maxChars={34}
-                  animation="none"
-                  animationSpeed={1.2}
-                  fontWeight="bold"
-                  textOutline
-                  outlineColor="#fff"
-                  outlinePosition="outside"
-                  className={cn(styles.title, "[&_h2]:tracking-[-.035em]")}
-                >
-                  {title}
-                </TitleText>
-              </div>
-            </div>
-          )}
-
           <div className="container">
             {tagLine && (
               <h1 className="leading-[0] uppercase italic font-sans">
@@ -620,27 +533,26 @@ export default function PageLoaderSection({ data }: PageLoaderSectionProps) {
             {title && (
               <div
                 className="relative left-1/2 w-full -translate-x-1/2 lg:w-[min(92vw,80rem)]"
-                style={titleMinH ? { minHeight: titleMinH } : undefined}
               >
-                {titleActive && (
-                  <TitleText
-                    variant="stretched"
-                    as="h2"
-                    size="xl"
-                    align="center"
-                    maxChars={34}
-                    animation="typeOn"
-                    animationSpeed={1.2}
-                    typeOnTrigger="immediate"
-                    fontWeight="bold"
-                    textOutline
-                    outlineColor="#fff"
-                    outlinePosition="outside"
-                    className={cn(styles.title, "[&_h2]:tracking-[-.035em]")}
-                  >
-                    {title}
-                  </TitleText>
-                )}
+                {/* Reserve the real headline layout before the loader hands off. */}
+                <TitleText
+                  variant="stretched"
+                  as="h2"
+                  size="xl"
+                  align="center"
+                  maxChars={34}
+                  animation="typeOn"
+                  animationSpeed={1.2}
+                  typeOnTrigger="immediate"
+                  typeOnEnabled={titleActive}
+                  fontWeight="bold"
+                  textOutline
+                  outlineColor="#fff"
+                  outlinePosition="outside"
+                  className={cn(styles.title, "[&_h2]:tracking-[-.035em]")}
+                >
+                  {title}
+                </TitleText>
               </div>
             )}
 

@@ -30,6 +30,7 @@ type Props = {
 
 type RenderItem = {
   id: string;
+  key: string;
   url: string;
   x: number;
   y: number;
@@ -79,24 +80,45 @@ function convexHull(points: Point[]): Point[] {
   return lower.concat(upper);
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
+function loadImage(img: HTMLImageElement, signal: AbortSignal): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
+    let settled = false;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      signal.removeEventListener("abort", abort);
+      img.onload = img.onerror = null;
+      if (error) {
+        // React can reuse this element during a development effect replay.
+        // Leave its source intact; failed items are omitted from the reveal.
+        reject(error);
+      } else resolve(img);
+    };
+    const abort = () => finish(new Error("Intro image load cancelled"));
+    // A missing/very slow object must not hold the whole page hostage or arrive
+    // in a second burst after the logo. Other decoded objects can still play.
+    const timeout = window.setTimeout(() => finish(new Error("Intro image load timed out")), 3000);
+    const decode = () => { void img.decode().then(() => finish(), () => finish(new Error("Intro image decode failed"))); };
+    img.onload = decode;
+    img.onerror = () => finish(new Error("Intro image load failed"));
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) { abort(); return; }
+    if (img.complete) {
+      if (img.naturalWidth) decode();
+      else finish(new Error("Intro image load failed"));
+    }
   });
 }
 
-async function createBodyFromPng(
+function createBodyFromPng(
+  img: HTMLImageElement,
   url: string,
   cx: number,
   cy: number,
   size: number,
-): Promise<Body> {
+): Body {
   try {
-    const img = await loadImage(url);
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
@@ -111,13 +133,16 @@ async function createBodyFromPng(
       return b;
     }
 
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
+    // Collision outlines only need a small alpha sample, not a full-resolution
+    // canvas readback of every sprite on the main thread.
+    const sampleScale = Math.min(1, 128 / Math.max(img.width, img.height));
+    canvas.width = Math.max(1, Math.round(img.width * sampleScale));
+    canvas.height = Math.max(1, Math.round(img.height * sampleScale));
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
     let imageData: ImageData;
     try {
-      imageData = ctx.getImageData(0, 0, img.width, img.height);
+      imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     } catch {
       const b = Bodies.circle(cx, cy, size / 2, {
         restitution: 0.1,
@@ -131,11 +156,11 @@ async function createBodyFromPng(
 
     const data = imageData.data;
     const points: Point[] = [];
-    const STEP = Math.max(1, Math.floor(Math.max(img.width, img.height) / 60));
+    const STEP = Math.max(1, Math.floor(Math.max(canvas.width, canvas.height) / 60));
 
-    for (let y = 0; y < img.height; y += STEP) {
-      for (let x = 0; x < img.width; x += STEP) {
-        const idx = (y * img.width + x) * 4;
+    for (let y = 0; y < canvas.height; y += STEP) {
+      for (let x = 0; x < canvas.width; x += STEP) {
+        const idx = (y * canvas.width + x) * 4;
         if (data[idx + 3] > 10) points.push({ x, y });
       }
     }
@@ -209,6 +234,7 @@ export default function ImageExplodeLoader({
   appearDuration = 1.1,
 }: Props) {
   const [renderItems, setRenderItems] = useState<RenderItem[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   const engineRef = useRef<Engine | null>(null);
   const bodiesRef = useRef<Body[]>([]);
@@ -224,6 +250,8 @@ export default function ImageExplodeLoader({
   const expectedCountRef = useRef(0);
   const allFiredForRunRef = useRef(false);
   const lastRunKeyRef = useRef<string>("");
+  const readyCallbackRef = useRef(onAllItemsAnimatedIn);
+  readyCallbackRef.current = onAllItemsAnimatedIn;
 
   const hasUrls = (images || []).some((i) => !!i?.url);
 
@@ -255,6 +283,7 @@ export default function ImageExplodeLoader({
     }
 
     let cancelled = false;
+    const imageController = new AbortController();
     let loopId: number | null = null;
     let visible = true;
     let previousTime = 0;
@@ -379,12 +408,20 @@ export default function ImageExplodeLoader({
       const cx = width / 2;
       const cy = isMobile || isTablet ? height * 0.25 : height / 2;
 
+      // Start every request together, reusing the server's image preloads. Only
+      // decoded images enter the simulation and its single pop-in sequence.
+      const loaded = await Promise.allSettled(spriteUrls.map(async (url, index) => {
+        const image = spriteNodesRef.current.get(`img-${index}`)?.querySelector("img");
+        if (!image) throw new Error("Intro image element missing");
+        return { url, key: `${index}-${url}`, image: await loadImage(image, imageController.signal) };
+      }));
+      if (cancelled) return;
       const bodies: Body[] = [];
-      for (const url of spriteUrls) {
-        if (cancelled) return;
-
-        const body = await createBodyFromPng(url, cx, cy, currentImageSize);
-
+      for (const result of loaded) {
+        if (result.status !== "fulfilled") continue;
+        const { image, url, key } = result.value;
+        const body = createBodyFromPng(image, url, cx, cy, currentImageSize);
+        (body as any).spriteKey = key;
         const ang = Math.random() * Math.PI * 2;
         const speed = 12 + Math.random() * 10;
 
@@ -399,6 +436,12 @@ export default function ImageExplodeLoader({
       }
 
       if (cancelled) return;
+
+      expectedCountRef.current = bodies.length;
+      if (!bodies.length) {
+        allFiredForRunRef.current = true;
+        readyCallbackRef.current?.();
+      }
 
       bodiesRef.current = bodies;
       World.add(engine.world, bodies);
@@ -417,6 +460,7 @@ export default function ImageExplodeLoader({
       setRenderItems(
         bodies.map((b, idx) => ({
           id: `img-${idx}`,
+          key: (b as any).spriteKey as string,
           url: (b as any).spriteUrl as string,
           x: b.position.x,
           y: b.position.y,
@@ -424,6 +468,7 @@ export default function ImageExplodeLoader({
           size: currentImageSize,
         })),
       );
+      setInitialized(true);
 
       resizeSimulation = (nextWidth: number, nextHeight: number) => {
         if (
@@ -480,6 +525,7 @@ export default function ImageExplodeLoader({
         setRenderItems(
           bodies.map((body, index) => ({
             id: `img-${index}`,
+            key: (body as any).spriteKey as string,
             url: (body as any).spriteUrl as string,
             x: body.position.x,
             y: body.position.y,
@@ -655,6 +701,7 @@ export default function ImageExplodeLoader({
 
     return () => {
       cancelled = true;
+      imageController.abort();
       interaction?.dispose();
       resizeObserver.disconnect();
       viewportObserver.disconnect();
@@ -681,6 +728,7 @@ export default function ImageExplodeLoader({
       bodiesRef.current = [];
       mouseRef.current = null;
       setRenderItems([]);
+      setInitialized(false);
       animatedIdsRef.current = new Set();
       appearOrderRef.current = [];
     };
@@ -747,15 +795,24 @@ export default function ImageExplodeLoader({
 
   if (!hasUrls) return null;
 
+  // Keep the actual image elements in the server HTML and reuse them after
+  // decoding. A second <img> can otherwise revalidate after its pop has begun.
+  const displayedItems = initialized ? renderItems : (images ?? [])
+    .filter((image): image is ImageExplodeImage & { url: string } => Boolean(image.url))
+    .map((image, index) => ({
+      id: `img-${index}`, key: `${index}-${image.url}`, url: image.url,
+      x: 0, y: 0, angle: 0, size: desktopSize,
+    }));
+
   return (
     <div
       className="pointer-events-none absolute inset-0 z-[5]"
       aria-hidden="true"
     >
-      {renderItems.map((item) => (
+      {displayedItems.map((item) => (
         <div
-          key={item.id}
-          data-explode-body={item.id}
+          key={item.key}
+          data-explode-body={initialized ? item.id : undefined}
           ref={(node) => {
             if (node) spriteNodesRef.current.set(item.id, node);
             else spriteNodesRef.current.delete(item.id);
@@ -773,12 +830,16 @@ export default function ImageExplodeLoader({
           <img
             data-explode-inner={item.id}
             src={item.url}
+            crossOrigin="anonymous"
+            decoding="async"
+            fetchPriority="high"
+            draggable={false}
             alt=""
             style={{
               width: "100%",
               height: "100%",
               objectFit: "contain",
-              transform: "scale(1)",
+              transform: initialized ? "scale(1)" : "scale(0)",
               willChange: "transform",
             }}
           />

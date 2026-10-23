@@ -1,7 +1,7 @@
 // components/ui/type-on-text.tsx
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
 
@@ -14,6 +14,7 @@ type TypeOnTextProps = {
   className?: string;
   start?: string; // trigger start, e.g. "top 80%"
   trigger?: "scroll" | "immediate" | "hover";
+  enabled?: boolean;
   hoverTargetRef?: RefObject<HTMLElement | null>;
 };
 
@@ -44,11 +45,11 @@ export default function TypeOnText({
   className,
   start = "top 80%",
   trigger = "scroll",
+  enabled = true,
   hoverTargetRef,
 }: TypeOnTextProps) {
   const wrapperRef = useRef<HTMLSpanElement | null>(null);
   const splitRef = useRef<SplitText | null>(null);
-  const tweenRef = useRef<gsap.core.Tween | null>(null);
   const startedRef = useRef(false);
 
   const canStartNow = () => {
@@ -59,143 +60,194 @@ export default function TypeOnText({
     return !!el.closest?.(`#${LOADER_SECTION_ID}`);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
 
     startedRef.current = false;
+    let cancelled = false;
+    let raf = 0;
+    let startFrame = 0;
+    let revealTick: ((time: number, deltaMs: number) => void) | null = null;
+    let removeListeners = () => {};
+
+    const cancelStart = () => {
+      if (startFrame) cancelAnimationFrame(startFrame);
+      startFrame = 0;
+      if (revealTick) gsap.ticker.remove(revealTick);
+      revealTick = null;
+    };
 
     const cleanupSplit = () => {
-      tweenRef.current?.kill();
-      tweenRef.current = null;
       splitRef.current?.revert();
       splitRef.current = null;
     };
 
-    cleanupSplit();
-
+    el.style.visibility = "hidden";
     el.textContent = text;
 
-    const split = new SplitText(el, {
-      type: "chars,words,lines",
-      reduceWhiteSpace: false,
-    });
-    splitRef.current = split;
-
-    const chars = (split.chars ?? []) as HTMLElement[];
-    if (!chars.length) {
-      cleanupSplit();
-      return;
-    }
-
-    gsap.set(chars, { opacity: 0 });
-
-    const staggerPerChar = Math.max(0.01, 0.04 / Math.max(0.1, speed));
-
-    const startTyping = (restart = false) => {
-      if (startedRef.current && !restart) return;
-      if (!canStartNow()) return;
-
-      tweenRef.current?.kill();
-      if (restart) gsap.set(chars, { opacity: 0 });
-      startedRef.current = true;
-      tweenRef.current = gsap.to(chars, {
-        opacity: 1,
-        duration: 0,
-        delay: Math.max(0, delay),
-        ease: "none",
-        stagger: staggerPerChar,
+    const prepare = () => {
+      if (cancelled) return;
+      const split = new SplitText(el, {
+        // Words keep their normal wrapping on resize. Frozen line wrappers can
+        // retain the wrong breaks after a font or viewport change.
+        type: "chars,words",
+        reduceWhiteSpace: false,
       });
-    };
+      splitRef.current = split;
 
-    let raf = 0;
-
-    if (trigger === "immediate") {
-      startTyping();
-
-      const onLoaderChange = () => startTyping();
-      window.addEventListener(LOADER_EVENT, onLoaderChange as any);
-
-      return () => {
-        if (raf) cancelAnimationFrame(raf);
-        window.removeEventListener(LOADER_EVENT, onLoaderChange as any);
+      const chars = (split.chars ?? []) as HTMLElement[];
+      if (!chars.length) {
         cleanupSplit();
+        return;
+      }
+
+      gsap.set(chars, { opacity: 0 });
+      el.style.visibility = "inherit";
+
+      const staggerPerChar = Math.max(0.01, 0.04 / Math.max(0.1, speed));
+
+      const startTyping = (restart = false) => {
+        if (startedRef.current && !restart) return;
+        if (!canStartNow()) return;
+
+        cancelStart();
+        if (restart) gsap.set(chars, { opacity: 0 });
+        startedRef.current = true;
+        // Let the handoff paint before starting a fresh animation clock. Limit
+        // catch-up after a slow frame so hydration cannot reveal a whole word
+        // at once. At normal frame rates this keeps the existing cadence.
+        startFrame = requestAnimationFrame(() => {
+          startFrame = 0;
+          let elapsed = -Math.max(0, delay);
+          let revealed = 0;
+          let firstTick = true;
+          revealTick = (_time, deltaMs) => {
+            if (cancelled) return;
+            if (!firstTick) elapsed += Math.min(deltaMs / 1000, 1 / 30);
+            firstTick = false;
+            const count = Math.min(chars.length, Math.max(0, Math.floor(elapsed / staggerPerChar) + 1));
+            while (revealed < count) chars[revealed++].style.opacity = "1";
+            if (revealed === chars.length && revealTick) {
+              gsap.ticker.remove(revealTick);
+              revealTick = null;
+            }
+          };
+          gsap.ticker.add(revealTick);
+        });
       };
-    }
 
-    if (trigger === "hover") {
-      const hoverTarget =
-        hoverTargetRef?.current ??
-        (el.closest?.('[data-typeon-hover="true"]') as HTMLElement | null) ??
-        el;
+      if (trigger === "immediate") {
+        startTyping();
 
-      const show = () => startTyping(true);
-      const hide = (event?: FocusEvent) => {
-        if (
-          event?.relatedTarget instanceof Node &&
-          hoverTarget.contains(event.relatedTarget)
-        ) {
-          return;
-        }
+        const onLoaderChange = () => startTyping();
+        window.addEventListener(LOADER_EVENT, onLoaderChange as any);
 
-        tweenRef.current?.kill();
-        tweenRef.current = null;
-        startedRef.current = false;
-        gsap.set(chars, { opacity: 0 });
+        removeListeners = () => {
+          window.removeEventListener(LOADER_EVENT, onLoaderChange as any);
+        };
+        return;
+      }
+
+      if (trigger === "hover") {
+        const hoverTarget =
+          hoverTargetRef?.current ??
+          (el.closest?.('[data-typeon-hover="true"]') as HTMLElement | null) ??
+          el;
+
+        const show = () => startTyping(true);
+        const hide = (event?: FocusEvent) => {
+          if (
+            event?.relatedTarget instanceof Node &&
+            hoverTarget.contains(event.relatedTarget)
+          ) {
+            return;
+          }
+
+          cancelStart();
+          startedRef.current = false;
+          gsap.set(chars, { opacity: 0 });
+        };
+
+        hoverTarget.addEventListener("pointerenter", show);
+        hoverTarget.addEventListener("pointerleave", hide);
+        hoverTarget.addEventListener("focusin", show);
+        hoverTarget.addEventListener("focusout", hide);
+
+        if (hoverTarget.matches(":hover") || hoverTarget.contains(document.activeElement)) show();
+
+        removeListeners = () => {
+          hoverTarget.removeEventListener("pointerenter", show);
+          hoverTarget.removeEventListener("pointerleave", hide);
+          hoverTarget.removeEventListener("focusin", show);
+          hoverTarget.removeEventListener("focusout", hide);
+        };
+        return;
+      }
+
+      const triggerEl =
+        (el.closest?.('[data-typeon-trigger="true"]') as HTMLElement | null) ?? el;
+
+      const check = () => {
+        if (startedRef.current) return;
+        const thresholdPx = parseStartThresholdPx(start);
+        const rect = triggerEl.getBoundingClientRect();
+        if (rect.top <= thresholdPx && rect.bottom >= 0) startTyping();
       };
 
-      hoverTarget.addEventListener("pointerenter", show);
-      hoverTarget.addEventListener("pointerleave", hide);
-      hoverTarget.addEventListener("focusin", show);
-      hoverTarget.addEventListener("focusout", hide);
-
-      return () => {
-        hoverTarget.removeEventListener("pointerenter", show);
-        hoverTarget.removeEventListener("pointerleave", hide);
-        hoverTarget.removeEventListener("focusin", show);
-        hoverTarget.removeEventListener("focusout", hide);
-        cleanupSplit();
+      const onScroll = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          check();
+        });
       };
-    }
 
-    const triggerEl =
-      (el.closest?.('[data-typeon-trigger="true"]') as HTMLElement | null) ?? el;
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll);
+      window.addEventListener(LOADER_EVENT, onScroll as any);
 
-    const check = () => {
-      if (startedRef.current) return;
-      const thresholdPx = parseStartThresholdPx(start);
-      const rect = triggerEl.getBoundingClientRect();
-      if (rect.top <= thresholdPx && rect.bottom >= 0) startTyping();
+      removeListeners = () => {
+        window.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onScroll);
+        window.removeEventListener(LOADER_EVENT, onScroll as any);
+      };
     };
 
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        check();
-      });
-    };
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    window.addEventListener(LOADER_EVENT, onScroll as any);
+    if (enabled) {
+      const style = getComputedStyle(el);
+      const family = style.fontFamily.split(",")[0];
+      const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${family}`;
+      // Wait only for this face, not fonts belonging to lower-page scenes.
+      // check() can report true once a swap fallback is usable, even while the
+      // actual face is downloading; load() waits for the face itself.
+      if (document.fonts) {
+        document.fonts.load(font, text).then(prepare, prepare);
+      } else {
+        prepare();
+      }
+    }
 
     return () => {
+      cancelled = true;
       if (raf) cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      window.removeEventListener(LOADER_EVENT, onScroll as any);
+      cancelStart();
+      removeListeners();
+      el.style.visibility = "hidden";
       cleanupSplit();
     };
-  }, [delay, hoverTargetRef, text, speed, start, trigger]);
+  }, [delay, enabled, hoverTargetRef, text, speed, start, trigger]);
 
   return (
     <span
       ref={wrapperRef}
       className={cn("inline-block whitespace-pre-wrap", className)}
       aria-label={text}
-    />
+      style={{ visibility: "hidden" }}
+    >
+      {text}
+    </span>
   );
 }
 

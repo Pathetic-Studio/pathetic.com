@@ -653,6 +653,8 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={item.src}
+        loading="lazy"
+        decoding="async"
         alt={
           item.presetKey === "hoodie"
             ? "Black PATHETIC rhinestone T-shirt"
@@ -702,6 +704,8 @@ export default function BasketLinksSection(props: BasketLinksSectionBlock) {
           <img
             data-basket-shell
             src={basketSrc}
+            loading="lazy"
+            decoding="async"
             alt={stegaClean(props.basketImage?.alt) || "Red shopping basket"}
             draggable={false}
             className="h-full w-full select-none object-fill sm:object-contain"

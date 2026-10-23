@@ -3,7 +3,7 @@
 import { cropBuildingAtFloor } from "./crop-building-at-floor";
 import { applyBuildingGlyphUVs } from "./building-glyph-uvs";
 
-import { useEffect, useRef, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -258,11 +258,49 @@ export default function TalentMatrixScene({
   quality?: "desktop" | "tablet" | "mobile";
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [ready, setReady] = useState(false);
   const avatarLabelsKey = avatarLabels.slice(0, 4).join("\u0000");
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
+    const target = host.closest("section") ?? host;
+    const margin = window.innerHeight * 2;
+    let nearby = false;
+    let frame = 0;
+    const warm = () => {
+      if (!nearby || frame || document.documentElement.hasAttribute("data-loader-playing")) return;
+      // Releasing the loader also restores the pinned section layout. Wait for
+      // that commit, then measure again rather than using its old intersection.
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          if (document.documentElement.hasAttribute("data-loader-playing")) return;
+          const bounds = target.getBoundingClientRect();
+          if (bounds.top > window.innerHeight + margin || bounds.bottom < -margin) return;
+          setReady(true);
+          observer.disconnect();
+        });
+      });
+    };
+    // Start while approaching What We Do, before its Matrix takeover, rather
+    // than allocating textures and fetching avatars during the intro loader.
+    const observer = new IntersectionObserver(([entry]) => {
+      nearby = entry?.isIntersecting ?? false;
+      warm();
+    }, { rootMargin: `${margin}px 0px` });
+    observer.observe(target);
+    window.addEventListener("loader-playing-change", warm);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener("loader-playing-change", warm);
+    };
+  }, []);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !ready) return;
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -1449,6 +1487,7 @@ export default function TalentMatrixScene({
       renderer.domElement.remove();
     };
   }, [
+    ready,
     avatarCount,
     avatarLabelsKey,
     cameraScrollProgress,

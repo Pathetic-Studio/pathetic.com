@@ -72,6 +72,7 @@ interface TitleTextProps {
   // TypeOnText config (only used when animation="typeOn")
   typeOnStart?: string;
   typeOnTrigger?: "scroll" | "immediate";
+  typeOnEnabled?: boolean;
   typeOnDelay?: number;
 }
 
@@ -242,6 +243,7 @@ export default function TitleText({
   singleLine = false,
   typeOnStart,
   typeOnTrigger,
+  typeOnEnabled = true,
   typeOnDelay,
 }: TitleTextProps) {
   const Tag = as;
@@ -282,21 +284,20 @@ export default function TitleText({
     const el = scaledInnerRef.current;
     if (!el) return;
 
+    let cancelled = false;
+
     const measure = () => {
-      const prevTransform = el.style.transform;
-      el.style.transform = "none";
-
+      if (cancelled) return;
+      // offsetHeight already excludes transforms. Keep the stretch in place
+      // while measuring, including during a type-on or font swap.
       const h = el.offsetHeight;
-
-      el.style.transform = prevTransform;
-
       if (h > 0) setBaseHeight(h);
     };
 
     measure();
-    requestAnimationFrame(measure);
+    const frame = requestAnimationFrame(measure);
 
-    (document as any).fonts?.ready?.then?.(measure);
+    document.fonts?.ready.then(measure);
 
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined") {
@@ -306,7 +307,11 @@ export default function TitleText({
 
     setIsReady(true);
 
-    return () => resizeObserver?.disconnect();
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+    };
   }, [isStretched, children, size, resolvedBreakpoint, effectiveOverallScale]);
 
   const measuredHeight =
@@ -355,6 +360,7 @@ export default function TitleText({
       )}
       start={typeOnStart}
       trigger={typeOnTrigger}
+      enabled={typeOnEnabled}
     />
   ) : (
     children
