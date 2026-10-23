@@ -871,7 +871,7 @@ export function WhatWeDoGridView({
           }
         }}
         onDragStart={(event) => event.preventDefault()}
-        className="relative z-[60] mt-6 flex cursor-grab snap-x snap-mandatory scroll-px-[14vw] gap-[4vw] overflow-x-scroll overflow-y-hidden px-[14vw] pb-20 pt-2 active:cursor-grabbing sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] lg:absolute lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:mt-0 lg:bottom-[4%] lg:top-[40%] lg:z-auto lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
+        className="relative mt-6 flex cursor-grab snap-x snap-mandatory scroll-px-[14vw] gap-[4vw] overflow-x-scroll overflow-y-hidden px-[14vw] pb-20 pt-2 active:cursor-grabbing sm:scroll-px-[4vw] sm:gap-[4vw] sm:px-[4vw] lg:absolute lg:inset-x-[max(2rem,calc((100%_-_80rem)/2))] lg:mt-0 lg:bottom-[4%] lg:top-[40%] lg:grid lg:cursor-auto lg:grid-cols-4 lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:scroll-px-0"
       >
         {services.map((service, index) => (
           <div
@@ -903,9 +903,9 @@ export function WhatWeDoGridView({
       </div>
 
       <style jsx global>{`
-        /* Only visible card content should catch the pointer. The full-height
-           tracks and invisible copy spacers sit above the road on both layouts. */
-        [data-what-service-carousel],
+        /* Keep the scroll track interactive and out of a stacking context:
+           blank areas swipe, road objects stay grabbable above it, and visible
+           card content keeps its own higher layer. */
         [data-what-service-slide],
         [data-what-service-slide] > a,
         [data-what-service],
