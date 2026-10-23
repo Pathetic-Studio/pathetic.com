@@ -2,6 +2,9 @@
 
 import { cropBuildingAtFloor } from "./crop-building-at-floor";
 import { applyBuildingGlyphUVs } from "./building-glyph-uvs";
+import { yieldToBrowser } from "@/lib/yield-to-browser";
+import { renderSceneArtwork } from "@/lib/scene-artwork";
+import { drawMatrixArtwork } from "./matrix-texture-artwork";
 
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
@@ -10,8 +13,6 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
-const MATRIX_GLYPHS =
-  "0011010100110101PATHETICPATHETIC<>/{}[]$#@+-*";
 // World-space tiles stay undistorted when the planes extend on touch layouts.
 const MATRIX_TILE_WIDTH = 156 / 2.8;
 const MATRIX_TILE_HEIGHT = 124 / 2.15;
@@ -45,9 +46,14 @@ const BLOOM_BUSY_FRAME_INTERVAL = 1000 / 20;
 
 // Keep only CPU artwork between route visits. Every renderer owns fresh texture
 // wrappers, so disposing the old scene cannot invalidate the incoming one.
-const matrixFrameCache = new Map<string, HTMLCanvasElement[]>();
-function matrixTexture(canvas: HTMLCanvasElement) {
+const matrixFrameCache = new Map<string, MatrixArtwork[]>();
+function matrixTexture(canvas: MatrixArtwork) {
   const texture = new THREE.CanvasTexture(canvas);
+  // ImageBitmap uploads ignore WebGL's flipY flag; apply it in UV space.
+  if (typeof ImageBitmap !== "undefined" && canvas instanceof ImageBitmap) {
+    texture.repeat.y = -1;
+    texture.offset.y = 1;
+  }
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
@@ -55,14 +61,6 @@ function matrixTexture(canvas: HTMLCanvasElement) {
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   return texture;
-}
-
-function seededRandom(seed: number) {
-  let value = seed >>> 0;
-  return () => {
-    value = (value * 1664525 + 1013904223) >>> 0;
-    return value / 4294967296;
-  };
 }
 
 function resolveAvatarModelSources(labels: string[], count: number) {
@@ -103,142 +101,18 @@ function resolveAvatarModelSources(labels: string[], count: number) {
   });
 }
 
-function createMatrixTextureFrames({
-  color,
-  seed,
-  width,
-  height,
-  columns,
-  background,
-  lineOpacity = 0.08,
-  gapChance = 0.1,
-  minStrength = 0.18,
-  maxStrength = 0.9,
-  glowScale = 0.12,
-  glyphWidth = 0.5,
-}: {
-  color: THREE.Color;
-  seed: number;
-  width: number;
-  height: number;
-  columns: number;
-  background: string;
-  lineOpacity?: number;
-  gapChance?: number;
-  minStrength?: number;
-  maxStrength?: number;
-  glowScale?: number;
-  glyphWidth?: number;
-}) {
-  const cacheKey = JSON.stringify([
-    color.getHexString(), seed, width, height, columns, background,
-    lineOpacity, gapChance, minStrength, maxStrength, glowScale, glyphWidth,
-  ]);
+type MatrixArtwork = HTMLCanvasElement | ImageBitmap;
+async function createMatrixTextureFrames(options: Parameters<typeof drawMatrixArtwork>[0]) {
+  const cacheKey = JSON.stringify(options);
   const cached = matrixFrameCache.get(cacheKey);
-  if (cached) return { textures: cached.map(matrixTexture) };
-  const random = seededRandom(seed);
-  const columnWidth = width / columns;
-  const glyphSize = columnWidth * 0.86;
-  const rowHeight = glyphSize * 1.18;
-  const colorStyle = `#${color.getHexString()}`;
-  const columnData: Array<{
-    x: number;
-    opacity: number;
-  }> = [];
-  const glyphData: Array<{
-    x: number;
-    y: number;
-    opacity: number;
-    glyphIndex: number;
-    changes: boolean;
-    changeRate: number;
-  }> = [];
-
-  for (let column = 0; column < columns; column += 1) {
-    const x = (column + 0.5) * columnWidth;
-    const phase = random() * rowHeight;
-    const streamStrength = minStrength + random() * (maxStrength - minStrength);
-    columnData.push({
-      x,
-      opacity: lineOpacity * (0.55 + random() * 0.9),
-    });
-
-    for (
-      let y = -rowHeight + phase, row = -1;
-      y < height + rowHeight;
-      y += rowHeight, row += 1
-    ) {
-      if (random() < gapChance) continue;
-      glyphData.push({
-        x,
-        y,
-        opacity: streamStrength * (0.28 + random() * 0.72),
-        glyphIndex: Math.floor(random() * MATRIX_GLYPHS.length),
-        changes: random() < 0.34,
-        changeRate: 1 + Math.floor(random() * 3) + Math.abs(row % 2),
-      });
-    }
-  }
-
-  const renderFrame = (matrixFrame: number) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) return null;
-
-    context.globalAlpha = 1;
-    context.shadowBlur = 0;
-    context.fillStyle = background;
-    context.fillRect(0, 0, width, height);
-    context.fillStyle = colorStyle;
-
-    columnData.forEach((column) => {
-      context.globalAlpha = column.opacity;
-      context.fillRect(
-        column.x - Math.max(0.35, columnWidth * 0.025),
-        0,
-        Math.max(0.7, columnWidth * 0.05),
-        height,
-      );
-    });
-
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.font = `400 ${glyphSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    context.shadowColor = colorStyle;
-    context.shadowBlur = Math.max(0.5, glyphSize * glowScale);
-
-    glyphData.forEach((glyph) => {
-      const glyphIndex = glyph.changes
-        ? (glyph.glyphIndex + matrixFrame * glyph.changeRate) %
-          MATRIX_GLYPHS.length
-        : glyph.glyphIndex;
-      context.globalAlpha = glyph.opacity;
-      context.fillText(
-        MATRIX_GLYPHS[glyphIndex],
-        glyph.x,
-        glyph.y,
-        columnWidth * glyphWidth,
-      );
-    });
-
-    context.globalAlpha = 1;
-    context.shadowBlur = 0;
-
-    return matrixTexture(canvas);
-  };
-
-  const textures = Array.from(
-    { length: MATRIX_TEXTURE_FRAME_COUNT },
-    (_, frameIndex) => renderFrame(frameIndex),
-  ).filter((texture): texture is THREE.CanvasTexture => texture !== null);
-
-  if (textures.length !== MATRIX_TEXTURE_FRAME_COUNT) return null;
-  // Three surface types; cap at two colourways for live preview changes.
+  if (cached) return cached;
+  const images = await renderSceneArtwork({ kind: "matrix", options });
+  const canvases = images ?? (await drawMatrixArtwork(options) as HTMLCanvasElement[] | null);
+  if (!canvases) return null;
+  // Keep CPU artwork across routes; each mounted scene owns its GPU textures.
   if (matrixFrameCache.size >= 6) matrixFrameCache.delete(matrixFrameCache.keys().next().value!);
-  matrixFrameCache.set(cacheKey, textures.map(texture => texture.image as HTMLCanvasElement));
-  return { textures };
+  matrixFrameCache.set(cacheKey, canvases);
+  return canvases;
 }
 
 export default function TalentMatrixScene({
@@ -259,6 +133,12 @@ export default function TalentMatrixScene({
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
+  const [artwork, setArtwork] = useState<{
+    color: string;
+    background: MatrixArtwork[];
+    floor: MatrixArtwork[];
+    building: MatrixArtwork[];
+  } | null>(null);
   const avatarLabelsKey = avatarLabels.slice(0, 4).join("\u0000");
 
   useEffect(() => {
@@ -303,8 +183,66 @@ export default function TalentMatrixScene({
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    // Generate one frame at a time before creating a renderer. Route changes
+    // may discard the result, but the CPU artwork remains safe to reuse.
+    const prepare = async () => {
+      const sceneColor = `#${new THREE.Color(color).getHexString()}`;
+      const backgroundSurface = await createMatrixTextureFrames({
+        color: sceneColor,
+        seed: 4102,
+        width: 512,
+        height: 512,
+        columns: 40,
+        background: "#000300",
+        lineOpacity: 0.025,
+        gapChance: 0.22,
+        minStrength: 0.04,
+        maxStrength: 0.76,
+        glowScale: 0.05,
+        glyphWidth: 0.32,
+      });
+      const floorSurface = await createMatrixTextureFrames({
+        color: sceneColor,
+        seed: 9137,
+        width: 512,
+        height: 512,
+        columns: 40,
+        background: "#000500",
+        lineOpacity: 0.12,
+        gapChance: 0.06,
+        minStrength: 0.3,
+        maxStrength: 0.94,
+        glowScale: 0.08,
+        glyphWidth: 0.32,
+      });
+      const buildingSurface = await createMatrixTextureFrames({
+        color: sceneColor,
+        seed: 2751,
+        width: 256,
+        height: 384,
+        columns: 10,
+        background: "#001006",
+        lineOpacity: 0.08,
+        gapChance: 0.08,
+        minStrength: 0.28,
+        maxStrength: 0.94,
+        glowScale: 0.08,
+        glyphWidth: 0.36,
+      });
+
+      if (!cancelled && backgroundSurface && floorSurface && buildingSurface) {
+        setArtwork({ color, background: backgroundSurface, floor: floorSurface, building: buildingSurface });
+      }
+    };
+    void prepare();
+    return () => { cancelled = true; };
+  }, [ready, color]);
+
+  useEffect(() => {
     const host = hostRef.current;
-    if (!host || !ready) return;
+    if (!host || !artwork || artwork.color !== color) return;
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -345,55 +283,9 @@ export default function TalentMatrixScene({
     avatarKeyLight.position.set(-3, 6, 5);
     scene.add(avatarKeyLight);
 
-    const backgroundSurface = createMatrixTextureFrames({
-      color: sceneColor,
-      seed: 4102,
-      width: 512,
-      height: 512,
-      columns: 40,
-      background: "#000300",
-      lineOpacity: 0.025,
-      gapChance: 0.22,
-      minStrength: 0.04,
-      maxStrength: 0.76,
-      glowScale: 0.05,
-      glyphWidth: 0.32,
-    });
-    const floorSurface = createMatrixTextureFrames({
-      color: sceneColor,
-      seed: 9137,
-      width: 512,
-      height: 512,
-      columns: 40,
-      background: "#000500",
-      lineOpacity: 0.12,
-      gapChance: 0.06,
-      minStrength: 0.3,
-      maxStrength: 0.94,
-      glowScale: 0.08,
-      glyphWidth: 0.32,
-    });
-    const buildingSurface = createMatrixTextureFrames({
-      color: sceneColor,
-      seed: 2751,
-      width: 256,
-      height: 384,
-      columns: 10,
-      background: "#001006",
-      lineOpacity: 0.08,
-      gapChance: 0.08,
-      minStrength: 0.28,
-      maxStrength: 0.94,
-      glowScale: 0.08,
-      glyphWidth: 0.36,
-    });
-
-    if (!backgroundSurface || !floorSurface || !buildingSurface) {
-      renderer.dispose();
-      renderer.domElement.remove();
-      host.dataset.webglFallback = "true";
-      return;
-    }
+    const backgroundSurface = { textures: artwork.background.map(matrixTexture) };
+    const floorSurface = { textures: artwork.floor.map(matrixTexture) };
+    const buildingSurface = { textures: artwork.building.map(matrixTexture) };
 
     const backgroundTexture = backgroundSurface.textures[0];
     const floorTexture = floorSurface.textures[0];
@@ -405,20 +297,8 @@ export default function TalentMatrixScene({
     ];
 
     const anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-    backgroundSurface.textures.forEach((texture) => {
+    matrixTextures.forEach((texture) => {
       texture.anisotropy = anisotropy;
-      texture.repeat.set(1, 1);
-      renderer.initTexture(texture);
-    });
-    floorSurface.textures.forEach((texture) => {
-      texture.anisotropy = anisotropy;
-      texture.repeat.set(1, 1);
-      renderer.initTexture(texture);
-    });
-    buildingSurface.textures.forEach((texture) => {
-      texture.anisotropy = anisotropy;
-      texture.repeat.set(1, 1);
-      renderer.initTexture(texture);
     });
 
     const backgroundMaterial = new THREE.MeshBasicMaterial({
@@ -803,6 +683,16 @@ export default function TalentMatrixScene({
     host.dataset.avatarLayout = "world";
 
     let disposed = false;
+    let texturesReady = false;
+    let shadersReady = false;
+    const textureUpload = (async () => {
+      for (const texture of matrixTextures) {
+        await yieldToBrowser();
+        if (disposed) return;
+        renderer.initTexture(texture);
+      }
+      texturesReady = true;
+    })();
     let warmupIdleHandle: number | null = null;
     let warmupTimerHandle: number | null = null;
     let warmupVersion = 0;
@@ -836,20 +726,28 @@ export default function TalentMatrixScene({
         warmupTimerHandle = null;
         if (disposed || version !== warmupVersion) return;
 
-        void renderer
-          .compileAsync(scene, activeCamera)
+        void textureUpload
           .then(() => {
+            if (disposed || version !== warmupVersion) return;
+            return renderer.compileAsync(scene, activeCamera);
+          })
+          .then(async () => {
+            await yieldToBrowser();
             if (!disposed && version === warmupVersion) {
               // Upload model buffers and finish the first draw during the idle
               // warmup, before scrolling into Work brings this canvas nearby.
               renderer.setRenderTarget(null);
               renderer.render(scene, activeCamera);
+              shadersReady = true;
               prewarmed = true;
               host.dataset.shaderWarmup = "ready";
             }
           })
           .catch(() => {
-            if (!disposed) host.dataset.shaderWarmup = "fallback";
+            if (!disposed) {
+              shadersReady = true;
+              host.dataset.shaderWarmup = "fallback";
+            }
           });
       };
 
@@ -1269,9 +1167,9 @@ export default function TalentMatrixScene({
 
     const render = (now: number) => {
       frame = requestAnimationFrame(render);
-      // One nearby frame uploads textures and warms shaders. Further offscreen
-      // renders compete with the next section without keeping anything warmer.
-      if (document.hidden || !nearby || (!onscreen && prewarmed)) {
+      // Never race the asynchronous compile with a first animation draw: that
+      // forces the browser to wait for shaders during the scroll frame.
+      if (!texturesReady || !shadersReady || document.hidden || !nearby || (!onscreen && prewarmed)) {
         previousFrameTime = 0;
         return;
       }
@@ -1432,6 +1330,7 @@ export default function TalentMatrixScene({
             : "off-mobile",
       );
     };
+    scheduleShaderWarmup();
     frame = requestAnimationFrame(render);
 
     return () => {
@@ -1493,7 +1392,7 @@ export default function TalentMatrixScene({
       renderer.domElement.remove();
     };
   }, [
-    ready,
+    artwork,
     avatarCount,
     avatarLabelsKey,
     cameraScrollProgress,

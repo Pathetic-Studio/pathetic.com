@@ -5,6 +5,7 @@ import type * as Three from "three";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { InstagramProfile } from "@/lib/instagram/profile";
+import { yieldToBrowser } from "@/lib/yield-to-browser";
 import {
   createProfileScreen,
   drawGlassImpact,
@@ -54,8 +55,8 @@ export default function NetworkPhoneModel({
       },
     });
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        visible = entry.isIntersecting;
+      (entries) => {
+        visible = entries[entries.length - 1]?.isIntersecting ?? false;
         if (visible) resume();
       },
       { rootMargin: "100px 0px" },
@@ -88,6 +89,12 @@ export default function NetworkPhoneModel({
             import("three/examples/jsm/environments/RoomEnvironment.js"),
             createProfileScreen(onProfile),
           ]);
+        const releaseProfile = () => {
+          if (typeof ImageBitmap !== "undefined" && profile.image instanceof ImageBitmap) profile.image.close();
+        };
+        dispose = releaseProfile;
+        if (cancelled) { releaseProfile(); return; }
+        await yieldToBrowser();
         if (cancelled) return;
         renderer = new THREE.WebGLRenderer({
           canvas: canvas!,
@@ -101,16 +108,46 @@ export default function NetworkPhoneModel({
         webgl.outputColorSpace = THREE.SRGBColorSpace;
         webgl.toneMapping = THREE.ACESFilmicToneMapping;
         const scene = new THREE.Scene();
+        let environment: Three.WebGLRenderTarget | undefined;
+        // Register partial-setup cleanup before yielding: navigation can unmount
+        // this scene between any of the preparation steps below.
+        const disposeScene = () => {
+          const geometries = new Set<Three.BufferGeometry>();
+          const materials = new Set<Three.Material>();
+          const textures = new Set<Three.Texture>();
+          scene.traverse((object) => {
+            if (!(object instanceof THREE.Mesh)) return;
+            geometries.add(object.geometry);
+            (Array.isArray(object.material) ? object.material : [object.material])
+              .forEach((material) => {
+                materials.add(material);
+                Object.values(material).forEach((value) => {
+                  if (value instanceof THREE.Texture) textures.add(value);
+                });
+              });
+          });
+          geometries.forEach((geometry) => geometry.dispose());
+          materials.forEach((material) => material.dispose());
+          textures.forEach((texture) => texture.dispose());
+          environment?.dispose();
+          webgl.dispose();
+          releaseProfile();
+        };
+        dispose = disposeScene;
+        await yieldToBrowser();
+        if (cancelled) return;
         const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 40);
         camera.position.set(0, 0, 11.2);
         const pmrem = new THREE.PMREMGenerator(webgl);
         const room = new RoomEnvironment();
-        const environment = pmrem.fromScene(room, 0.035, 0.1, 100, {
+        environment = pmrem.fromScene(room, 0.035, 0.1, 100, {
           size: 128,
         });
         room.dispose();
         pmrem.dispose();
         scene.environment = environment.texture;
+        await yieldToBrowser();
+        if (cancelled) return;
         scene.environmentIntensity = 1.5;
         scene.add(new THREE.HemisphereLight(0xffffff, 0x687454, 3));
         const light = new THREE.DirectionalLight(0xffffff, 4);
@@ -187,6 +224,8 @@ export default function NetworkPhoneModel({
         bodyGeometry.translate(0, 0, -0.13);
         const body = new THREE.Mesh(bodyGeometry, metal);
         phone.add(body);
+        await yieldToBrowser();
+        if (cancelled) return;
         const bezelGeometry = new THREE.ExtrudeGeometry(
           roundedShape(2.67, 5.61, 0.41),
           {
@@ -202,7 +241,13 @@ export default function NetworkPhoneModel({
         const bezel = new THREE.Mesh(bezelGeometry, black);
         bezel.position.z = 0.145;
         phone.add(bezel);
-        const screenTexture = new THREE.CanvasTexture(profile);
+        await yieldToBrowser();
+        if (cancelled) return;
+        const screenTexture = new THREE.CanvasTexture(profile.image);
+        if (typeof ImageBitmap !== "undefined" && profile.image instanceof ImageBitmap) {
+          screenTexture.repeat.y = -1;
+          screenTexture.offset.y = 1;
+        }
         screenTexture.colorSpace = THREE.SRGBColorSpace;
         screenTexture.anisotropy = Math.min(
           8,
@@ -237,6 +282,8 @@ export default function NetworkPhoneModel({
         );
         cracks.position.z = 0.225;
         phone.add(cracks);
+        await yieldToBrowser();
+        if (cancelled) return;
         const sheen = new THREE.Mesh(
           screenGeometry,
           new THREE.MeshPhysicalMaterial({
@@ -317,7 +364,7 @@ export default function NetworkPhoneModel({
         receiver.position.set(0, 2.775, 0.205);
         phone.add(receiver);
         canvas!.dataset.profileSource =
-          profile.dataset.profileSource || "snapshot";
+          profile.source || "snapshot";
         const reducedMotion = window.matchMedia(
           "(prefers-reduced-motion: reduce)",
         ).matches;
@@ -445,23 +492,7 @@ export default function NetworkPhoneModel({
           resizeObserver.disconnect();
           document.removeEventListener("visibilitychange", onVisibility);
           canvas!.removeEventListener("click", onClick);
-          const geometries = new Set<Three.BufferGeometry>();
-          const materials = new Set<Three.Material>();
-          phone.traverse((object) => {
-            if (object instanceof THREE.Mesh) {
-              geometries.add(object.geometry);
-              (Array.isArray(object.material)
-                ? object.material
-                : [object.material]
-              ).forEach((material) => materials.add(material));
-            }
-          });
-          geometries.forEach((geometry) => geometry.dispose());
-          materials.forEach((material) => material.dispose());
-          screenTexture.dispose();
-          fractureTexture.dispose();
-          environment.dispose();
-          webgl.dispose();
+          disposeScene();
         };
         resize();
         phone.rotation.set(0.07, -0.12, -0.16);
@@ -469,7 +500,16 @@ export default function NetworkPhoneModel({
         phone.position.y = reducedMotion ? 0 : -0.12;
         // Upload the actual screen and finish GPU compilation before revealing
         // the canvas. The flat fallback is reserved for unavailable WebGL.
+        await yieldToBrowser();
+        if (cancelled) return;
+        webgl.initTexture(screenTexture);
+        await yieldToBrowser();
+        if (cancelled) return;
+        webgl.initTexture(fractureTexture);
+        await yieldToBrowser();
+        if (cancelled) return;
         await webgl.compileAsync(scene, camera);
+        await yieldToBrowser();
         if (cancelled) return;
         prepared = true;
         if (contextAvailable) {
@@ -508,9 +548,13 @@ export default function NetworkPhoneModel({
     let cancelled = false;
     void createProfileScreen().then((profile) => {
       const canvas = fallbackRef.current;
-      if (cancelled || !canvas) return;
+      if (cancelled || !canvas) {
+        if (typeof ImageBitmap !== "undefined" && profile.image instanceof ImageBitmap) profile.image.close();
+        return;
+      }
       const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(profile, 0, 0);
+      ctx.drawImage(profile.image, 0, 0);
+      if (typeof ImageBitmap !== "undefined" && profile.image instanceof ImageBitmap) profile.image.close();
       drawGlassImpact(ctx, 32, 80, 19);
       let count = 0;
       fallbackImpactRef.current = (x = 300, y = 650) => {
