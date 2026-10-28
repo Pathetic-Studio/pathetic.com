@@ -354,14 +354,24 @@ export const CASE_STUDIES: CaseStudy[] = [
         result: "4.5M+ views",
         copy: [
           { type: "paragraph", content: [
-            { text: "We created a full cultural activation around one simple idea: ", strong: true },
+            { text: "We supported ", strong: true },
+            { text: "LBA", href: "https://www.lazyboyagency.com/", strong: true },
+            { text: " in a full cultural activation around one simple idea: ", strong: true },
             { text: "when you support local businesses, you support your neighborhood.", strong: true, emphasis: true },
           ] },
           { type: "paragraph", content: [
-            { text: 'Alongside our partners, we brought "Keep It In The Neighborhood" to life with:' },
+            { text: 'This brought “Keep It In The Neighborhood” to life with:' },
           ] },
         ],
         features: [
+          { title: "IRL pop-up", content: [
+            { text: "A PATHETIC merch drop at Larry’s Cà Phê, where followers showed up & bought tees with Cash App." },
+          ] },
+          { title: "Meme Content", content: [
+            { text: "Hyper-specific " },
+            { text: "neighborhood archetypes", href: "https://www.instagram.com/p/DRcVq2FDiKu/?img_index=1" },
+            { text: " that made locals feel seen, showed Square understands culture, and promoted the activation in a way people wanted to share, not scroll past." },
+          ] },
           { title: "Creator content", content: [
             { text: "TonyCash", href: "https://www.instagram.com/tonycashnyc/?hl=en" },
             { text: ", " },
@@ -371,18 +381,9 @@ export const CASE_STUDIES: CaseStudy[] = [
           { title: "Pedicab circuit", content: [
             { text: "Branded pedicabs connected participating retailers." },
           ] },
-          { title: "IRL pop-up", content: [
-            { text: "A PATHETIC merch drop at Larry's Cà Phê, where followers showed up & bought tees with Cash App." },
-          ] },
           { title: "Brooklyn Coffee Shop collab", content: [
-            { text: "Partnered with the hit Instagram series to " },
-            { text: "embed Square & Cash App", href: "https://www.instagram.com/p/DRfKxLHDd8l/?hl=en" },
+            { text: "Embedded Square & Cash App", href: "https://www.instagram.com/p/DRfKxLHDd8l/?hl=en" },
             { text: " into a fast growing cultural staple." },
-          ] },
-          { title: "Meme Content", content: [
-            { text: "Hyper-specific " },
-            { text: "neighborhood archetypes", href: "https://www.instagram.com/p/DRcVq2FDiKu/?img_index=1" },
-            { text: " that made locals feel seen, showed Square understands culture, and promoted the activation in a way people wanted to share, not scroll past." },
           ] },
         ],
         film: {

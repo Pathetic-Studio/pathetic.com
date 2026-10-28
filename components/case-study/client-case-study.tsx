@@ -251,8 +251,8 @@ export default function ClientCaseStudy({ study }: { study: CaseStudy }) {
                 >
                   <div className={styles.projectInfo}>
                     <div className={styles.projectHeading} data-has-results={Boolean(campaign.result)}>
+                      <p className={styles.eyebrow}>{campaign.format}</p>
                       <div className={styles.projectHeadingText}>
-                        <p className={styles.eyebrow}>{campaign.format}</p>
                         <TitleText
                           id={`${campaign.id}-title`}
                           as="h2"
