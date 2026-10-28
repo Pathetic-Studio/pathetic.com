@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { writeClient } from "@/sanity/lib/write-client";
 
+// Version the recipient with the site; SMTP credentials stay in the environment.
+const CONTACT_RECIPIENT = "be@pathetic.com";
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json().catch(() => null);
@@ -46,10 +49,9 @@ export async function POST(req: NextRequest) {
             EMAIL_SECURE,
             EMAIL_USER,
             EMAIL_PASS,
-            CONTACT_TO_EMAIL,
         } = process.env;
 
-        if (!EMAIL_HOST || !EMAIL_PORT || !EMAIL_USER || !EMAIL_PASS || !CONTACT_TO_EMAIL) {
+        if (!EMAIL_HOST || !EMAIL_PORT || !EMAIL_USER || !EMAIL_PASS) {
             console.warn("[CONTACT] Email env vars missing, skipping email send");
         } else {
             try {
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest) {
 
                 await transporter.sendMail({
                     from: `"Contact form" <${EMAIL_USER}>`,
-                    to: CONTACT_TO_EMAIL,
+                    to: CONTACT_RECIPIENT,
                     replyTo: email,
                     subject: `New contact from ${name}`,
                     text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,

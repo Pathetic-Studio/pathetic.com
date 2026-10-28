@@ -57,7 +57,8 @@ The variables are grouped by feature:
   `STRIPE_WEBHOOK_SECRET`
 - Beehiiv: `BEEHIIV_API_KEY`, `BEEHIIV_PUBLICATION_ID`
 - Contact email: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_SECURE`, `EMAIL_USER`,
-  `EMAIL_PASS`, `CONTACT_TO_EMAIL`
+  `EMAIL_PASS`. The recipient is configured in `app/api/contact/route.ts` so
+  recipient changes are included in deployments.
 
 Never commit `.env.local` or paste its values into this README.
 
